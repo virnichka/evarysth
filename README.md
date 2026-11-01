@@ -3,6 +3,8 @@
 Prototype front-end e-commerce — hacks d'intérieur sur-mesure imprimés en Nylon PA12 noir.
 
 - `index.html` — accueil + catalogue par univers
+- `index.html#catalogue` — catalogue : une rangée défilante par famille
+- `index.html#f-<famille>` — page dédiée d'une famille
 - `index.html#p-<id>` — page produit : Standard / Sur-mesure (curseurs en mm), résumé dynamique
 - Panier latéral persistant (`localStorage`)
 
