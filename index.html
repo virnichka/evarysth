@@ -15,9 +15,10 @@
   <header class="site-header">
     <a class="logo" href="#" aria-label="Modulr Studio — accueil"><span class="logo__mark"></span>MODULR<span class="logo__thin">/STUDIO</span></a>
     <nav class="nav">
-      <a href="#balcon">Balcon</a>
-      <a href="#bureau">Bureau</a>
-      <a href="#meubles">Meubles</a>
+      <a href="#catalogue" data-nav="catalogue">Catalogue</a>
+      <a href="#f-balcon" data-nav="f-balcon">Balcon</a>
+      <a href="#f-bureau" data-nav="f-bureau">Bureau</a>
+      <a href="#f-meubles" data-nav="f-meubles">Meubles</a>
     </nav>
     <button class="cart-btn" data-cart-open aria-label="Ouvrir le panier">
       <span>Panier</span><span class="cart-btn__count" data-cart-count hidden>0</span>
@@ -51,11 +52,22 @@
       <div class="step"><span class="mono">03</span><h3>Recevez &amp; posez</h3><p>Fabriqué pour vous en Nylon noir, livré sous 5 jours, posé en 10 secondes.</p></div>
     </section>
 
-    <div id="catalogue">
-      <div class="section-title"><h2>Catalogue</h2><span class="mono">3 UNIVERS · 9 HACKS</span></div>
-      <div id="catalogue-root"></div>
-    </div>
+    <section class="families">
+      <div class="section-title"><h2>3 univers</h2><a class="mono link-arrow" href="#catalogue">Tout le catalogue →</a></div>
+      <div class="families__grid" id="families-root"></div>
+    </section>
    </div>
+
+   <div id="catalogue-view" hidden>
+    <header class="page-head">
+      <span class="mono eyebrow">Catalogue</span>
+      <h1>Tous nos hacks</h1>
+      <p>Faites défiler chaque univers, ou ouvrez-le pour tout voir d'un coup.</p>
+    </header>
+    <div id="catalogue-root"></div>
+   </div>
+
+   <div id="family-view" hidden></div>
    <div id="product-root" class="product" hidden></div>
   </main>
   <footer class="site-footer">

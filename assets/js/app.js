@@ -34,20 +34,63 @@
     </a>`;
 
   /* ---------- Accueil ---------- */
+  const inFamily = u => MODULR.products.filter(p => p.universe === u.id);
+  const heading = u => `<h2>${u.name} <em>${u.sub}</em></h2>`;
+
   function renderHome() {
-    const root = $("#catalogue-root");
-    if (!root) return;
     ["clamp", "tray", "hook", "riser"].forEach((sh, i) => {
       const t = document.querySelector(`.hero__visual .t${i + 1}`); if (t) t.innerHTML = MODULR.shapeSVG(sh);
     });
-    root.innerHTML = MODULR.universes.map(u => `
-      <section class="universe" id="${u.id}">
-        <header class="universe__head">
+    $("#families-root").innerHTML = MODULR.universes.map(u => {
+      const list = inFamily(u);
+      return `<a class="family-tile" href="#f-${u.id}">
+        <span class="mono code">${u.code}</span>
+        <div class="family-tile__art">${list.slice(0, 3).map(p => MODULR.shapeSVG(p.shape)).join("")}</div>
+        <div><h3>${u.name} <em>${u.sub}</em></h3><p>${u.pitch}</p></div>
+        <span class="family-tile__foot mono">${list.length} hacks <span class="arrow">→</span></span>
+      </a>`;
+    }).join("");
+  }
+
+  /* ---------- Page catalogue : une rangée défilante par famille ---------- */
+  function renderCatalogue() {
+    $("#catalogue-root").innerHTML = MODULR.universes.map(u => {
+      const list = inFamily(u);
+      return `<section class="row-block">
+        <header class="row-block__head">
           <span class="mono code">${u.code}</span>
-          <div><h2>${u.name} <em>${u.sub}</em></h2><p>${u.pitch}</p></div>
+          <div class="row-block__title">${heading(u)}<p>${u.pitch}</p></div>
+          <div class="row-block__tools">
+            <a class="link-arrow mono" href="#f-${u.id}">Voir tout (${list.length}) →</a>
+            <button class="icon-btn" data-scroll="-1" aria-label="Précédent">←</button>
+            <button class="icon-btn" data-scroll="1" aria-label="Suivant">→</button>
+          </div>
         </header>
-        <div class="grid">${MODULR.products.filter(p => p.universe === u.id).map(card).join("")}</div>
-      </section>`).join("");
+        <div class="rail" tabindex="0" aria-label="${u.name}">
+          ${list.map(card).join("")}
+          <a class="card card--more" href="#f-${u.id}"><span class="mono">Voir tout</span><span class="arrow">→</span><small>${u.name}</small></a>
+        </div>
+      </section>`;
+    }).join("");
+  }
+
+  /* ---------- Page famille ---------- */
+  function renderFamily(id) {
+    const u = MODULR.getUniverse(id), list = inFamily(u);
+    document.title = `${u.name} — Modulr Studio`;
+    $("#family-view").innerHTML = `
+      <nav class="crumbs mono"><a href="#catalogue">Catalogue</a> / <span>${u.name}</span></nav>
+      <header class="page-head">
+        <span class="mono eyebrow">${u.code} — Univers</span>
+        <h1>${u.name} <em>${u.sub}</em></h1>
+        <p>${u.pitch}</p>
+      </header>
+      <div class="grid">${list.map(card).join("")}</div>
+      <section class="related">
+        <h2 class="mono">AUTRES UNIVERS</h2>
+        <div class="chips">${MODULR.universes.filter(x => x.id !== id).map(x =>
+          `<a class="chip" href="#f-${x.id}"><span class="mono code">${x.code}</span>${x.name} <em>${x.sub}</em><span class="arrow">→</span></a>`).join("")}</div>
+      </section>`;
   }
 
   /* ---------- Page produit ---------- */
@@ -66,7 +109,7 @@
     const LETTERS = ["A", "B"];
 
     root.innerHTML = `
-      <nav class="crumbs mono"><a href="#catalogue">Catalogue</a> / <a href="#${u.id}">${u.name}</a> / <span>${p.name}</span></nav>
+      <nav class="crumbs mono"><a href="#catalogue">Catalogue</a> / <a href="#f-${u.id}">${u.name}</a> / <span>${p.name}</span></nav>
       <div class="pdp">
         <div class="pdp__visual">
           <div class="stage" id="stage">
@@ -202,26 +245,36 @@
     update();
   }
 
-  /* Routage par ancre : #p-<id> = fiche produit, sinon accueil */
+  /* Routage par ancre : #catalogue, #f-<famille>, #p-<produit>, sinon accueil */
   const HOME_TITLE = document.title;
+  const VIEWS = ["home-view", "catalogue-view", "family-view", "product-root"];
+  function show(id) { VIEWS.forEach(v => { $("#" + v).hidden = v !== id; }); }
+
   function route() {
     const h = decodeURIComponent(location.hash.slice(1));
-    const home = $("#home-view"), prod = $("#product-root");
-    const p = h.startsWith("p-") && MODULR.getProduct(h.slice(2));
-    if (p) {
-      home.hidden = true; prod.hidden = false;
-      renderProduct(p.id);
-      window.scrollTo({ top: 0, behavior: "instant" });
-    } else {
-      prod.hidden = true; home.hidden = false;
-      document.title = HOME_TITLE;
+    const prod = h.startsWith("p-") && MODULR.getProduct(h.slice(2));
+    const fam = h.startsWith("f-") && MODULR.getUniverse(h.slice(2));
+    let top = true, nav = "";
+    if (prod) { show("product-root"); renderProduct(prod.id); nav = "f-" + prod.universe; }
+    else if (fam) { show("family-view"); renderFamily(fam.id); nav = h; }
+    else if (h === "catalogue") { show("catalogue-view"); document.title = "Catalogue — Modulr Studio"; nav = h; }
+    else {
+      show("home-view"); document.title = HOME_TITLE;
       const target = h && document.getElementById(h);
-      if (target) target.scrollIntoView();
+      if (target) { target.scrollIntoView(); top = false; }
     }
+    if (top) window.scrollTo({ top: 0, behavior: "instant" });
+    document.querySelectorAll("[data-nav]").forEach(a => a.classList.toggle("is-current", a.dataset.nav === nav));
   }
 
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-scroll]"); if (!b) return;
+    const rail = b.closest(".row-block").querySelector(".rail");
+    rail.scrollBy({ left: +b.dataset.scroll * rail.clientWidth * .85, behavior: "smooth" });
+  });
+
   document.addEventListener("DOMContentLoaded", () => {
-    renderHome(); route();
+    renderHome(); renderCatalogue(); route();
     window.addEventListener("hashchange", route);
   });
 })();
