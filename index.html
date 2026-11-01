@@ -13,17 +13,18 @@
 <body>
   <div class="topbar mono">Livraison offerte dès 49 € · Fabriqué en France à la commande</div>
   <header class="site-header">
-    <a class="logo" href="index.html" aria-label="Modulr Studio — accueil"><span class="logo__mark"></span>MODULR<span class="logo__thin">/STUDIO</span></a>
+    <a class="logo" href="#" aria-label="Modulr Studio — accueil"><span class="logo__mark"></span>MODULR<span class="logo__thin">/STUDIO</span></a>
     <nav class="nav">
-      <a href="index.html#balcon">Balcon</a>
-      <a href="index.html#bureau">Bureau</a>
-      <a href="index.html#meubles">Meubles</a>
+      <a href="#balcon">Balcon</a>
+      <a href="#bureau">Bureau</a>
+      <a href="#meubles">Meubles</a>
     </nav>
     <button class="cart-btn" data-cart-open aria-label="Ouvrir le panier">
       <span>Panier</span><span class="cart-btn__count" data-cart-count hidden>0</span>
     </button>
   </header>
   <main>
+   <div id="home-view">
     <section class="hero">
       <div class="hero__text">
         <span class="mono eyebrow">● Fabriqué à la commande</span>
@@ -31,7 +32,7 @@
         <p>Des accessoires malins, ajustés au millimètre à votre balcon, votre bureau ou vos meubles. Vous mesurez, on fabrique. Sans percer, sans jargon.</p>
         <div class="hero__cta">
           <a class="btn btn--primary" href="#catalogue">Voir le catalogue</a>
-          <a class="btn" href="#comment">Comment ça marche</a>
+          <a class="btn" href="#etapes">Comment ça marche</a>
         </div>
         <ul class="specs mono">
           <li><b>0</b> trou à percer</li>
@@ -44,7 +45,7 @@
       </div>
     </section>
 
-    <section class="steps" id="comment">
+    <section class="steps" id="etapes">
       <div class="step"><span class="mono">01</span><h3>Choisissez</h3><p>Un hack parmi nos trois univers. Taille standard ou sur-mesure.</p></div>
       <div class="step"><span class="mono">02</span><h3>Ajustez au mm</h3><p>Un mètre ruban suffit. Déplacez le curseur, on s'occupe du reste.</p></div>
       <div class="step"><span class="mono">03</span><h3>Recevez &amp; posez</h3><p>Fabriqué pour vous en Nylon noir, livré sous 5 jours, posé en 10 secondes.</p></div>
@@ -54,6 +55,8 @@
       <div class="section-title"><h2>Catalogue</h2><span class="mono">3 UNIVERS · 9 HACKS</span></div>
       <div id="catalogue-root"></div>
     </div>
+   </div>
+   <div id="product-root" class="product" hidden></div>
   </main>
   <footer class="site-footer">
     <div class="logo"><span class="logo__mark"></span>MODULR<span class="logo__thin">/STUDIO</span></div>

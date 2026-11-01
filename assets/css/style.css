@@ -216,6 +216,8 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 
 .line__actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 .empty { text-align: center; padding: 64px 0; color: var(--muted); }
 .empty .btn { margin-top: 16px; }
+.done h3 { color: var(--text); font-size: 18px; margin: 14px 0 6px; }
+.done__icon { display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 22px; }
 .drawer__foot { padding: 20px; border-top: 1px solid var(--line); background: var(--bg); }
 .drawer__foot .row { display: flex; justify-content: space-between; font-size: 14px; padding: 3px 0; }
 .drawer__foot .row span:last-child { font-family: var(--mono); }

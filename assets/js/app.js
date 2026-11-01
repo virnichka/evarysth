@@ -24,7 +24,7 @@
       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SHAPES[shape] || SHAPES.tray}</svg>`;
 
   const card = p => `
-    <a class="card" href="produit.html?id=${p.id}">
+    <a class="card" href="#p-${p.id}">
       <div class="card__media">${MODULR.shapeSVG(p.shape)}<span class="card__badge">Sur-mesure dispo</span></div>
       <div class="card__body">
         <h3>${p.name}</h3>
@@ -51,11 +51,9 @@
   }
 
   /* ---------- Page produit ---------- */
-  function renderProduct() {
+  function renderProduct(id) {
     const root = $("#product-root");
-    if (!root) return;
-    const id = new URLSearchParams(location.search).get("id");
-    const p = MODULR.getProduct(id) || MODULR.products[0];
+    const p = MODULR.getProduct(id);
     const u = MODULR.getUniverse(p.universe);
     document.title = `${p.name} — Modulr Studio`;
 
@@ -68,7 +66,7 @@
     const LETTERS = ["A", "B"];
 
     root.innerHTML = `
-      <nav class="crumbs mono"><a href="index.html">Catalogue</a> / <a href="index.html#${u.id}">${u.name}</a> / <span>${p.name}</span></nav>
+      <nav class="crumbs mono"><a href="#catalogue">Catalogue</a> / <a href="#${u.id}">${u.name}</a> / <span>${p.name}</span></nav>
       <div class="pdp">
         <div class="pdp__visual">
           <div class="stage" id="stage">
@@ -169,11 +167,11 @@
 
     function pulse() { const d = $("#dims"); d.classList.remove("pulse"); void d.offsetWidth; d.classList.add("pulse"); }
 
-    root.addEventListener("click", e => {
+    root.onclick = e => {
       const m = e.target.closest("[data-mode]"); if (m) { state.mode = m.dataset.mode; update(); pulse(); }
       const o = e.target.closest("[data-variant]"); if (o) { state.variant = +o.dataset.variant; update(); pulse(); }
       const q = e.target.closest("[data-q]"); if (q) { state.qty = Math.max(1, Math.min(20, state.qty + +q.dataset.q)); update(); }
-    });
+    };
 
     p.custom.params.forEach(prm => {
       const range = $(`#s-${prm.key}`), num = $(`#n-${prm.key}`);
@@ -204,5 +202,26 @@
     update();
   }
 
-  document.addEventListener("DOMContentLoaded", () => { renderHome(); renderProduct(); });
+  /* Routage par ancre : #p-<id> = fiche produit, sinon accueil */
+  const HOME_TITLE = document.title;
+  function route() {
+    const h = decodeURIComponent(location.hash.slice(1));
+    const home = $("#home-view"), prod = $("#product-root");
+    const p = h.startsWith("p-") && MODULR.getProduct(h.slice(2));
+    if (p) {
+      home.hidden = true; prod.hidden = false;
+      renderProduct(p.id);
+      window.scrollTo({ top: 0, behavior: "instant" });
+    } else {
+      prod.hidden = true; home.hidden = false;
+      document.title = HOME_TITLE;
+      const target = h && document.getElementById(h);
+      if (target) target.scrollIntoView();
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    renderHome(); route();
+    window.addEventListener("hashchange", route);
+  });
 })();

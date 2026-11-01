@@ -6,7 +6,7 @@
   const $ = s => document.querySelector(s);
 
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
-  const save = items => localStorage.setItem(KEY, JSON.stringify(items));
+  const save = items => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch { /* stockage indisponible */ } };
   let items = load();
 
   function mount() {
@@ -38,8 +38,13 @@
     document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
     $("#cart-checkout").addEventListener("click", () => {
       if (!items.length) return;
-      alert("Prototype : le paiement sera branché ici (Stripe / Shopify).\n\nRécapitulatif envoyé :\n" +
-        items.map(i => `• ${i.qty} × ${i.name} — ${i.summary}`).join("\n"));
+      const count = items.reduce((s, i) => s + i.qty, 0);
+      $("#cart-list").innerHTML = `<li class="empty done">
+        <span class="done__icon">✓</span>
+        <h3>Commande prête (${count} article${count > 1 ? "s" : ""})</h3>
+        <p>Prototype : le paiement sécurisé (Stripe / Shopify) sera branché ici.</p>
+        <button class="btn" id="cart-back">Retour au panier</button></li>`;
+      $("#cart-back").onclick = render;
     });
     window.addEventListener("storage", e => { if (e.key === KEY) { items = load(); render(); } });
     render();
@@ -83,7 +88,7 @@
       <li class="line">
         <div class="line__thumb">${MODULR.shapeSVG(i.shape)}</div>
         <div class="line__body">
-          <div class="line__top"><a href="produit.html?id=${i.id}">${esc(i.name)}</a><span>${fmt(i.unitPrice * i.qty)}</span></div>
+          <div class="line__top"><a href="#p-${i.id}" data-cart-close>${esc(i.name)}</a><span>${fmt(i.unitPrice * i.qty)}</span></div>
           <span class="tag ${i.mode === "custom" ? "tag--accent" : ""}">${i.mode === "custom" ? "Sur-mesure" : "Standard"}</span>
           <ul class="line__opts">${i.details.map(d => `<li><span>${esc(d[0])}</span><span>${esc(d[1])}</span></li>`).join("")}</ul>
           <div class="line__actions">
@@ -96,7 +101,7 @@
           </div>
         </div>
       </li>`).join("")
-      : `<li class="empty"><p>Votre panier est vide.</p><a class="btn" href="index.html#catalogue" data-cart-close>Voir le catalogue</a></li>`;
+      : `<li class="empty"><p>Votre panier est vide.</p><a class="btn" href="#catalogue" data-cart-close>Voir le catalogue</a></li>`;
   }
 
   MODULR.cart = { add, open, close };
