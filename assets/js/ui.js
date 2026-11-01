@@ -1,0 +1,149 @@
+/* Modulr Studio — confort d'usage : thème, recherche, favoris, notifications, modales */
+(function () {
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const norm = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const store = {
+    get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* indisponible */ } }
+  };
+  MODULR.store = store;
+
+  /* ---------- Notifications ---------- */
+  MODULR.toast = (msg, soon) => {
+    const t = document.createElement("div");
+    t.className = "toast" + (soon ? " toast--soon" : "");
+    t.innerHTML = (soon ? '<span class="mono">Bientôt</span>' : "") + `<span>${msg}</span>`;
+    $("#toasts").appendChild(t);
+    requestAnimationFrame(() => t.classList.add("in"));
+    setTimeout(() => { t.classList.remove("in"); setTimeout(() => t.remove(), 300); }, 2800);
+  };
+  /* Fonction pas encore active : on l'indique clairement */
+  document.addEventListener("click", e => {
+    const el = e.target.closest("[data-soon]"); if (!el) return;
+    e.preventDefault();
+    MODULR.toast(`${el.dataset.soon || "Cette fonction"} — pas encore disponible dans ce prototype.`, true);
+  });
+
+  /* ---------- Modale ---------- */
+  MODULR.modal = (html, cls = "") => {
+    closeModal();
+    document.body.insertAdjacentHTML("beforeend", `
+      <div class="modal-wrap" id="modal"><div class="modal-bg" data-modal-close></div>
+      <div class="modal ${cls}" role="dialog" aria-modal="true">${html}</div></div>`);
+    document.body.classList.add("modal-open");
+    const f = $("#modal input, #modal button"); if (f) f.focus();
+  };
+  function closeModal() { const m = $("#modal"); if (m) m.remove(); document.body.classList.remove("modal-open"); }
+  MODULR.closeModal = closeModal;
+  document.addEventListener("click", e => { if (e.target.closest("[data-modal-close]")) closeModal(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+  /* ---------- Thème clair / sombre ---------- */
+  document.addEventListener("click", e => {
+    if (!e.target.closest("[data-theme-toggle]")) return;
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    store.set("modulr.theme", next);
+  });
+
+  /* ---------- Favoris ---------- */
+  const FKEY = "modulr.favs.v1";
+  let favs = store.get(FKEY, []);
+  MODULR.favs = {
+    has: id => favs.includes(id),
+    all: () => favs.slice(),
+    toggle(id) {
+      favs = favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id];
+      store.set(FKEY, favs); sync();
+      document.dispatchEvent(new CustomEvent("modulr:favs"));
+      return favs.includes(id);
+    }
+  };
+  function sync() {
+    document.querySelectorAll("[data-fav]").forEach(b => {
+      const on = favs.includes(b.dataset.fav);
+      b.classList.toggle("is-on", on); b.setAttribute("aria-pressed", on);
+    });
+    document.querySelectorAll("[data-fav-count]").forEach(el => { el.textContent = favs.length; el.hidden = !favs.length; });
+  }
+  MODULR.syncFavs = sync;
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-fav]"); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    const p = MODULR.getProduct(b.dataset.fav);
+    const on = MODULR.favs.toggle(b.dataset.fav);
+    MODULR.toast(on ? `${p.name} ajouté aux favoris` : `${p.name} retiré des favoris`);
+  });
+  document.addEventListener("DOMContentLoaded", sync);
+
+  /* ---------- Partage ---------- */
+  document.addEventListener("click", async e => {
+    const b = e.target.closest("[data-share]"); if (!b) return;
+    const url = location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: document.title, url });
+      else { await navigator.clipboard.writeText(url); MODULR.toast("Lien copié dans le presse-papiers"); }
+    } catch { MODULR.toast("Copiez le lien dans la barre d'adresse pour le partager"); }
+  });
+
+  /* ---------- Guide de mesure ---------- */
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-measure]"); if (!b) return;
+    const p = MODULR.getProduct(b.dataset.measure);
+    MODULR.modal(`
+      <button class="icon-btn modal__x" data-modal-close aria-label="Fermer">✕</button>
+      <span class="mono eyebrow">Guide de mesure</span>
+      <h2>Mesurer pour « ${esc(p.name)} »</h2>
+      <ol class="guide">
+        <li><b>Prenez un mètre ruban</b><span>Un simple mètre de couturière ou de bricolage suffit, pas besoin de pied à coulisse.</span></li>
+        ${p.custom.params.map(prm => `<li><b>${esc(prm.label)}</b><span>Mesurez en millimètres (1 cm = 10 mm), entre ${prm.min} et ${prm.max} mm. Mesurez deux fois, au point le plus large.</span></li>`).join("")}
+        <li><b>Réglez les curseurs</b><span>Ne vous souciez pas du jeu : on ajoute nous-mêmes la tolérance pour que la pièce s'ajuste parfaitement.</span></li>
+      </ol>
+      <button class="btn btn--primary btn--block" data-modal-close>C'est compris</button>`);
+  });
+
+  /* ---------- Recherche ---------- */
+  function openSearch() {
+    MODULR.modal(`
+      <div class="search">
+        <div class="search__bar">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="q" type="search" placeholder="Rechercher un hack : câble, balcon, tiroir…" autocomplete="off">
+          <button class="icon-btn" data-modal-close aria-label="Fermer">✕</button>
+        </div>
+        <div class="search__chips" id="q-chips">
+          ${MODULR.universes.map(u => `<a class="chip" href="#f-${u.id}" data-modal-close>${esc(u.name)}</a>`).join("")}
+        </div>
+        <ul class="search__list" id="q-list"></ul>
+      </div>`, "modal--top");
+    const input = $("#q"), list = $("#q-list");
+    const render = () => {
+      const q = norm(input.value.trim());
+      $("#q-chips").hidden = !!q;
+      const hits = !q ? MODULR.products.slice(0, 5) : MODULR.products.filter(p =>
+        norm([p.name, p.tagline, p.desc, MODULR.getUniverse(p.universe).name].join(" ")).includes(q));
+      list.innerHTML = (!q ? '<li class="search__label mono">Suggestions</li>' : "") + (hits.length ? hits.map(p => `
+        <li><a href="#p-${p.id}" data-modal-close>
+          <span class="search__thumb">${MODULR.shapeSVG(p.shape)}</span>
+          <span><b>${esc(p.name)}</b><small>${esc(MODULR.getUniverse(p.universe).name)}</small></span>
+          <span class="mono">dès ${MODULR.fmt(p.price)}</span></a></li>`).join("")
+        : `<li class="search__empty">Aucun résultat pour « ${esc(input.value)} ». Essayez « câble », « balcon » ou « tiroir ».</li>`);
+    };
+    input.addEventListener("input", render); render();
+  }
+  document.addEventListener("click", e => { if (e.target.closest("[data-search-open]")) openSearch(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "/" && !/input|textarea|select/i.test(document.activeElement.tagName)) { e.preventDefault(); openSearch(); }
+  });
+
+  /* ---------- Newsletter (démo) ---------- */
+  document.addEventListener("submit", e => {
+    if (e.target.id !== "newsletter") return;
+    e.preventDefault();
+    const v = $("#nl-email").value.trim();
+    if (!/^\S+@\S+\.\S+$/.test(v)) { MODULR.toast("Entrez une adresse e-mail valide"); return; }
+    MODULR.toast("Merci ! L'inscription sera activée au lancement du site.", true);
+    e.target.reset();
+  });
+})();

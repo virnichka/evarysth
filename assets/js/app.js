@@ -24,14 +24,17 @@
       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SHAPES[shape] || SHAPES.tray}</svg>`;
 
   const card = p => `
-    <a class="card" href="#p-${p.id}">
-      <div class="card__media">${MODULR.shapeSVG(p.shape)}<span class="card__badge">Sur-mesure dispo</span></div>
+    <article class="card">
+      <a class="card__link" href="#p-${p.id}" aria-label="${p.name}"></a>
+      <div class="card__media">${MODULR.shapeSVG(p.shape)}<span class="card__badge">Sur-mesure dispo</span>
+        <button class="fav ${MODULR.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${MODULR.favs.has(p.id)}" aria-label="Ajouter aux favoris">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button></div>
       <div class="card__body">
         <h3>${p.name}</h3>
         <p>${p.tagline}</p>
         <div class="card__foot"><span class="price">dès ${fmt(p.price)}</span><span class="arrow">→</span></div>
       </div>
-    </a>`;
+    </article>`;
 
   /* ---------- Accueil ---------- */
   const inFamily = u => MODULR.products.filter(p => p.universe === u.id);
@@ -85,13 +88,44 @@
         <h1>${u.name} <em>${u.sub}</em></h1>
         <p>${u.pitch}</p>
       </header>
-      <div class="grid">${list.map(card).join("")}</div>
+      <div class="toolbar">
+        <span class="mono">${list.length} hacks</span>
+        <label class="sort mono">Trier par
+          <select id="sort">
+            <option value="rec">Sélection</option><option value="asc">Prix croissant</option>
+            <option value="desc">Prix décroissant</option><option value="az">Nom A → Z</option>
+          </select></label>
+      </div>
+      <div class="grid" id="family-grid">${list.map(card).join("")}</div>
       <section class="related">
         <h2 class="mono">AUTRES UNIVERS</h2>
         <div class="chips">${MODULR.universes.filter(x => x.id !== id).map(x =>
           `<a class="chip" href="#f-${x.id}"><span class="mono code">${x.code}</span>${x.name} <em>${x.sub}</em><span class="arrow">→</span></a>`).join("")}</div>
       </section>`;
   }
+
+  const SORTS = {
+    rec: l => l, asc: l => [...l].sort((a, b) => a.price - b.price),
+    desc: l => [...l].sort((a, b) => b.price - a.price), az: l => [...l].sort((a, b) => a.name.localeCompare(b.name, "fr"))
+  };
+  document.addEventListener("change", e => {
+    if (e.target.id !== "sort") return;
+    const fam = MODULR.getUniverse(location.hash.slice(3));
+    $("#family-grid").innerHTML = SORTS[e.target.value](inFamily(fam)).map(card).join("");
+  });
+
+  /* ---------- Favoris ---------- */
+  function renderFavorites() {
+    document.title = "Mes favoris — Modulr Studio";
+    const list = MODULR.favs.all().map(MODULR.getProduct).filter(Boolean);
+    $("#family-view").innerHTML = `
+      <nav class="crumbs mono"><a href="#catalogue">Catalogue</a> / <span>Favoris</span></nav>
+      <header class="page-head"><span class="mono eyebrow">Ma sélection</span><h1>Mes favoris</h1>
+        <p>${list.length ? "Vos hacks préférés, gardés de côté sur cet appareil." : "Touchez le cœur d'un produit pour le retrouver ici."}</p></header>
+      ${list.length ? `<div class="grid">${list.map(card).join("")}</div>` :
+        `<div class="empty-state"><a class="btn btn--primary" href="#catalogue">Parcourir le catalogue</a></div>`}`;
+  }
+  document.addEventListener("modulr:favs", () => { if (location.hash === "#favoris") { renderFavorites(); MODULR.syncFavs(); } });
 
   /* ---------- Page produit ---------- */
   function renderProduct(id) {
@@ -125,7 +159,13 @@
         </div>
 
         <div class="pdp__info">
-          <span class="mono eyebrow">${u.code} — ${u.name} ${u.sub}</span>
+          <div class="pdp__top">
+            <span class="mono eyebrow">${u.code} — ${u.name} ${u.sub}</span>
+            <div class="pdp__actions">
+              <button class="icon-btn fav ${MODULR.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${MODULR.favs.has(p.id)}" aria-label="Ajouter aux favoris"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
+              <button class="icon-btn" data-share aria-label="Partager"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg></button>
+            </div>
+          </div>
           <h1>${p.name}</h1>
           <p class="lead">${p.tagline}</p>
           <div class="pdp__price"><span id="price"></span><small id="price-note"></small></div>
@@ -154,7 +194,8 @@
                 <input type="range" id="s-${prm.key}" data-key="${prm.key}" min="${prm.min}" max="${prm.max}" step="${prm.step}" value="${prm.def}">
                 <div class="slider__scale mono"><span>${prm.min}</span><span>${prm.max} mm</span></div>
               </div>`).join("")}
-            <p class="tip">📏 Mesurez avec un simple mètre ruban. On ajoute nous-mêmes la tolérance pour un ajustement parfait.</p>
+            <p class="tip">Un mètre ruban suffit. On ajoute nous-mêmes la tolérance pour un ajustement parfait.
+              <button class="link" data-measure="${p.id}">Comment mesurer ?</button></p>
           </div>
 
           <div class="summary">
@@ -168,7 +209,19 @@
             </div>
             <button class="btn btn--primary btn--grow" id="add">Ajouter au panier — <span id="add-price"></span></button>
           </div>
-          <p class="fine">Imprimé à la commande · Expédié sous 3 à 5 jours · Retour gratuit 30 jours</p>
+          <p class="delivery"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>
+            <span>Livraison estimée <b>${deliveryRange()}</b></span></p>
+          <div class="aside-links">
+            <button class="link" data-soon="Échantillon de matière">Recevoir un échantillon de matière</button>
+            <button class="link" data-soon="Chat avec l'atelier">Une question ? Parler à l'atelier</button>
+          </div>
+
+          <div class="accordion accordion--pdp">
+            <details open><summary>Matière &amp; entretien</summary><p>Nylon PA12 noir, imprimé en 3D industrielle : léger, très résistant aux chocs, à l'humidité et aux UV. Un coup de chiffon humide suffit.</p></details>
+            <details><summary>Livraison &amp; retours</summary><p>Fabriqué à la commande, expédié sous 3 à 5 jours. Livraison offerte dès 49 €. Retour gratuit sous 30 jours.</p></details>
+            <details><summary>Garantie 2 ans</summary><p>Si la pièce se casse ou ne s'ajuste pas malgré vos mesures, nous la refabriquons.</p></details>
+            <details><summary>Avis clients</summary><p>Les avis s'afficheront ici après les premières commandes. <button class="link" data-soon="Avis clients">Être prévenu</button></p></details>
+          </div>
         </div>
       </div>
 
@@ -245,6 +298,11 @@
     update();
   }
 
+  function deliveryRange() {
+    const f = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }); };
+    return `entre le ${f(6)} et le ${f(9)}`;
+  }
+
   /* Routage par ancre : #catalogue, #f-<famille>, #p-<produit>, sinon accueil */
   const HOME_TITLE = document.title;
   const VIEWS = ["home-view", "catalogue-view", "family-view", "product-root"];
@@ -257,6 +315,7 @@
     let top = true, nav = "";
     if (prod) { show("product-root"); renderProduct(prod.id); nav = "f-" + prod.universe; }
     else if (fam) { show("family-view"); renderFamily(fam.id); nav = h; }
+    else if (h === "favoris") { show("family-view"); renderFavorites(); nav = ""; }
     else if (h === "catalogue") { show("catalogue-view"); document.title = "Catalogue — Modulr Studio"; nav = h; }
     else {
       show("home-view"); document.title = HOME_TITLE;
@@ -264,6 +323,7 @@
       if (target) { target.scrollIntoView(); top = false; }
     }
     if (top) window.scrollTo({ top: 0, behavior: "instant" });
+    MODULR.syncFavs();
     document.querySelectorAll("[data-nav]").forEach(a => a.classList.toggle("is-current", a.dataset.nav === nav));
   }
 

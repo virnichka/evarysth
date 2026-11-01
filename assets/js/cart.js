@@ -8,6 +8,8 @@
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
   const save = items => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch { /* stockage indisponible */ } };
   let items = load();
+  const PROMOS = { BIENVENUE10: 0.10 };           /* code de démonstration : -10 % */
+  let promo = (MODULR.store && MODULR.store.get("modulr.promo", "")) || "";
 
   function mount() {
     document.body.insertAdjacentHTML("beforeend", `
@@ -20,11 +22,18 @@
         <div class="drawer__ship" id="cart-ship"></div>
         <ul class="drawer__list" id="cart-list"></ul>
         <footer class="drawer__foot">
+          <form class="promo" id="promo-form" novalidate>
+            <input id="promo-input" placeholder="Code promo" autocomplete="off" aria-label="Code promo">
+            <button class="btn" type="submit">Appliquer</button>
+          </form>
+          <p class="promo__msg" id="promo-msg" hidden></p>
+          <label class="gift"><input type="checkbox" data-soon="Emballage cadeau"> Emballage cadeau <small class="muted">+ 3 €</small></label>
           <div class="row"><span>Sous-total</span><span id="cart-sub">0 €</span></div>
+          <div class="row" id="cart-disc-row" hidden><span>Remise <span class="mono" id="cart-disc-code"></span></span><span id="cart-disc">0 €</span></div>
           <div class="row muted"><span>Livraison</span><span id="cart-shipcost">—</span></div>
           <div class="row total"><span>Total</span><span id="cart-total">0 €</span></div>
           <button class="btn btn--primary btn--block" id="cart-checkout">Commander</button>
-          <p class="fine">Fabriqué à la commande en France · Expédié sous 3 à 5 jours</p>
+          <p class="fine">Fabriqué à la commande en France · Expédié sous 3 à 5 jours · Paiement sécurisé</p>
         </footer>
       </aside>`);
     document.addEventListener("click", e => {
@@ -36,6 +45,16 @@
       if (r) remove(r.dataset.remove);
     });
     document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+    $("#promo-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const code = $("#promo-input").value.trim().toUpperCase();
+      if (!code) return;
+      if (PROMOS[code]) { promo = code; MODULR.store.set("modulr.promo", code); $("#promo-input").value = ""; render(); MODULR.toast(`Code ${code} appliqué`); }
+      else { const m = $("#promo-msg"); m.hidden = false; m.className = "promo__msg is-err"; m.textContent = "Code non reconnu. (Essayez BIENVENUE10 pour tester.)"; }
+    });
+    document.addEventListener("click", e => {
+      if (e.target.closest("[data-promo-remove]")) { promo = ""; MODULR.store.set("modulr.promo", ""); render(); }
+    });
     $("#cart-checkout").addEventListener("click", () => {
       if (!items.length) return;
       const count = items.reduce((s, i) => s + i.qty, 0);
@@ -72,15 +91,24 @@
     const fmt = MODULR.fmt;
     const count = items.reduce((s, i) => s + i.qty, 0);
     const sub = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
-    const ship = !items.length ? 0 : sub >= FREE_SHIPPING ? 0 : SHIPPING;
+    const rate = PROMOS[promo] || 0;
+    const disc = Math.round(sub * rate * 100) / 100;
+    const net = sub - disc;
+    const ship = !items.length ? 0 : net >= FREE_SHIPPING ? 0 : SHIPPING;
+    $("#cart-disc-row").hidden = !disc;
+    $("#cart-disc").textContent = "− " + fmt(disc);
+    $("#cart-disc-code").textContent = promo;
+    const pm = $("#promo-msg");
+    pm.hidden = !disc; pm.className = "promo__msg";
+    pm.innerHTML = disc ? `Code <b>${promo}</b> appliqué (−${Math.round(rate * 100)} %) · <button type="button" class="link" data-promo-remove>Retirer</button>` : "";
     document.querySelectorAll("[data-cart-count]").forEach(el => { el.textContent = count; el.hidden = !count; });
     $("#cart-count-label").textContent = `(${count})`;
     $("#cart-sub").textContent = fmt(sub);
     $("#cart-shipcost").textContent = !items.length ? "—" : ship ? fmt(ship) : "Offerte";
-    $("#cart-total").textContent = fmt(sub + ship);
+    $("#cart-total").textContent = fmt(net + ship);
     $("#cart-checkout").disabled = !items.length;
-    const left = FREE_SHIPPING - sub;
-    const pct = Math.min(100, (sub / FREE_SHIPPING) * 100);
+    const left = FREE_SHIPPING - net;
+    const pct = Math.min(100, (net / FREE_SHIPPING) * 100);
     $("#cart-ship").innerHTML = items.length
       ? `<p>${left > 0 ? `Plus que <b>${fmt(left)}</b> pour la livraison offerte` : "Livraison offerte ✓"}</p>
          <div class="bar"><span style="width:${pct}%"></span></div>` : "";
