@@ -16,7 +16,7 @@
       <div class="overlay" data-cart-close></div>
       <aside class="drawer" id="cart" aria-hidden="true" aria-label="Panier" role="dialog">
         <header class="drawer__head">
-          <span class="mono">PANIER <span id="cart-count-label">(0)</span></span>
+          <b>Votre panier <span id="cart-count-label">(0)</span></b>
           <button class="icon-btn" data-cart-close aria-label="Fermer">✕</button>
         </header>
         <div class="drawer__ship" id="cart-ship"></div>

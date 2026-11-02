@@ -17,7 +17,15 @@
     tray: `<path d="M16 46 60 26l44 20-44 20z"/><path d="M16 46v28l44 20 44-20V46"/>
       <path d="M60 66v28"/><path d="M38 56v28" class="ghost"/><path d="M82 56v28" class="ghost"/>`,
     riser: `<ellipse cx="60" cy="34" rx="30" ry="10"/><path d="M30 34v46c0 5.5 13.4 10 30 10s30-4.5 30-10V34"/>
-      <ellipse cx="60" cy="34" rx="14" ry="4.6" class="ghost"/><path d="M30 56c0 5.5 13.4 10 30 10s30-4.5 30-10" class="ghost"/>`
+      <ellipse cx="60" cy="34" rx="14" ry="4.6" class="ghost"/><path d="M30 56c0 5.5 13.4 10 30 10s30-4.5 30-10" class="ghost"/>`,
+    bracket: `<rect x="20" y="16" width="10" height="88" rx="2" class="ghost"/>
+      <path d="M34 30h66v10H46"/><path d="M34 30v58l12-8V40"/><path d="M46 76 88 40"/>`,
+    ring: `<ellipse cx="60" cy="42" rx="40" ry="14"/><path d="M20 42v12c0 7.7 17.9 14 40 14s40-6.3 40-14V42"/>
+      <ellipse cx="60" cy="42" rx="22" ry="7" class="ghost"/><path d="M38 66v28M82 66v28" class="ghost"/>`,
+    stand: `<rect x="56" y="14" width="10" height="62" rx="2" class="ghost"/>
+      <path d="M26 92V66a8 8 0 0 1 8-8h52a8 8 0 0 1 8 8v26z"/><path d="M54 58v20h14V58"/><path d="M18 96h84" class="ghost"/>`,
+    handle: `<path d="M16 76h22V50a8 8 0 0 1 8-8h28a8 8 0 0 1 8 8v26h22"/><path d="M38 76h44" class="ghost"/>
+      <circle cx="38" cy="86" r="3"/><circle cx="82" cy="86" r="3"/>`
   };
   MODULR.shapeSVG = (shape, cls = "") =>
     `<svg class="shape ${cls}" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2.4"
@@ -26,13 +34,14 @@
   const card = p => `
     <article class="card">
       <a class="card__link" href="#p-${p.id}" aria-label="${p.name}"></a>
-      <div class="card__media">${MODULR.shapeSVG(p.shape)}<span class="card__badge">Sur-mesure dispo</span>
-        <button class="fav ${MODULR.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${MODULR.favs.has(p.id)}" aria-label="Ajouter aux favoris">
+      <div class="card__media" data-u="${p.universe}">${MODULR.shapeSVG(p.shape)}<span class="card__badge">Sur-mesure possible</span>
+        <button class="fav ${MODULR.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${MODULR.favs.has(p.id)}" aria-label="Ajouter ${p.name} aux favoris">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button></div>
       <div class="card__body">
+        <span class="card__u">${MODULR.getUniverse(p.universe).short}</span>
         <h3>${p.name}</h3>
         <p>${p.tagline}</p>
-        <div class="card__foot"><span class="price">dès ${fmt(p.price)}</span><span class="arrow">→</span></div>
+        <div class="card__foot"><span class="price"><small>dès</small> ${fmt(p.price)}</span><span class="arrow" aria-hidden="true">→</span></div>
       </div>
     </article>`;
 
@@ -41,18 +50,65 @@
   const heading = u => `<h2>${u.name} <em>${u.sub}</em></h2>`;
 
   function renderHome() {
-    ["clamp", "tray", "hook", "riser"].forEach((sh, i) => {
-      const t = document.querySelector(`.hero__visual .t${i + 1}`); if (t) t.innerHTML = MODULR.shapeSVG(sh);
-    });
-    $("#families-root").innerHTML = MODULR.universes.map(u => {
+    /* Carrousel des univers : une grande carte par famille, à balayer */
+    $("#families-root").innerHTML = MODULR.universes.map((u, i) => {
       const list = inFamily(u);
-      return `<a class="family-tile" href="#f-${u.id}">
-        <span class="mono code">${u.code}</span>
-        <div class="family-tile__art">${list.slice(0, 3).map(p => MODULR.shapeSVG(p.shape)).join("")}</div>
-        <div><h3>${u.name} <em>${u.sub}</em></h3><p>${u.pitch}</p></div>
-        <span class="family-tile__foot mono">${list.length} hacks <span class="arrow">→</span></span>
+      return `<a class="u-card" data-u="${u.id}" href="#f-${u.id}" aria-label="${u.name} : ${list.length} hacks" data-slide="${i}">
+        <div class="u-card__top"><span class="u-card__code mono">${u.code}</span><span class="u-card__count">${list.length} hacks</span></div>
+        <div class="u-card__art" aria-hidden="true">${list.slice(0, 3).map(p => `<span>${MODULR.shapeSVG(p.shape)}</span>`).join("")}</div>
+        <div class="u-card__text">
+          <h3>${u.name}</h3>
+          <p>${u.pitch}</p>
+          <ul class="u-card__list">${list.slice(0, 4).map(p => `<li>${p.name}</li>`).join("")}<li>et ${list.length - 4} autres…</li></ul>
+        </div>
+        <span class="u-card__cta">Explorer <span class="arrow" aria-hidden="true">→</span></span>
       </a>`;
     }).join("");
+    $("#families-dots").innerHTML = MODULR.universes.map((u, i) =>
+      `<button type="button" class="dots__btn" data-goto="${i}" aria-label="Voir ${u.name}"></button>`).join("");
+    setupCarousel($("#univers"));
+
+    $("#popular-root").innerHTML = MODULR.products.filter(p => p.popular).map(card).join("") +
+      `<a class="card card--more" href="#catalogue"><span>Tout le catalogue</span><span class="arrow" aria-hidden="true">→</span><small>${MODULR.products.length} hacks</small></a>`;
+  }
+
+  /* Carrousel : glisser au doigt (scroll-snap), flèches, points, clavier */
+  function setupCarousel(root) {
+    if (!root) return;
+    const track = root.querySelector("[data-track]");
+    const slides = [...track.children];
+    const dots = [...root.querySelectorAll("[data-goto]")];
+    const prev = root.querySelector("[data-prev]"), next = root.querySelector("[data-next]");
+    const current = () => {
+      const x = track.scrollLeft + parseFloat(getComputedStyle(track).scrollPaddingLeft || 0);
+      let best = 0, d = Infinity;
+      slides.forEach((s, i) => { const dd = Math.abs(s.offsetLeft - x); if (dd < d) { d = dd; best = i; } });
+      return best;
+    };
+    const go = i => {
+      i = Math.max(0, Math.min(slides.length - 1, i));
+      const pad = parseFloat(getComputedStyle(track).scrollPaddingLeft || 0);
+      track.scrollTo({ left: slides[i].offsetLeft - pad, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    };
+    const sync = () => {
+      const i = current();
+      const max = track.scrollWidth - track.clientWidth - 2;
+      dots.forEach((d, k) => d.setAttribute("aria-current", k === i ? "true" : "false"));
+      slides.forEach((s, k) => s.classList.toggle("is-current", k === i));
+      if (prev) prev.disabled = track.scrollLeft <= 2;
+      if (next) next.disabled = track.scrollLeft >= max;
+    };
+    let raf = 0;
+    track.addEventListener("scroll", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(sync); }, { passive: true });
+    window.addEventListener("resize", sync);
+    prev && prev.addEventListener("click", () => go(current() - 1));
+    next && next.addEventListener("click", () => go(current() + 1));
+    dots.forEach(d => d.addEventListener("click", () => go(+d.dataset.goto)));
+    track.addEventListener("keydown", e => {
+      if (e.key === "ArrowRight") { e.preventDefault(); go(current() + 1); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); go(current() - 1); }
+    });
+    sync();
   }
 
   /* ---------- Page catalogue : une rangée défilante par famille ---------- */
@@ -61,7 +117,7 @@
       const list = inFamily(u);
       return `<section class="row-block">
         <header class="row-block__head">
-          <span class="mono code">${u.code}</span>
+          <span class="row-block__code mono" data-u="${u.id}">${u.code}</span>
           <div class="row-block__title">${heading(u)}<p>${u.pitch}</p></div>
           <div class="row-block__tools">
             <a class="link-arrow mono" href="#f-${u.id}">Voir tout (${list.length}) →</a>
@@ -71,7 +127,7 @@
         </header>
         <div class="rail" tabindex="0" aria-label="${u.name}">
           ${list.map(card).join("")}
-          <a class="card card--more" href="#f-${u.id}"><span class="mono">Voir tout</span><span class="arrow">→</span><small>${u.name}</small></a>
+          <a class="card card--more" href="#f-${u.id}"><span>Voir les ${list.length}</span><span class="arrow" aria-hidden="true">→</span><small>${u.name}</small></a>
         </div>
       </section>`;
     }).join("");
@@ -82,9 +138,9 @@
     const u = MODULR.getUniverse(id), list = inFamily(u);
     document.title = `${u.name} — Modulr Studio`;
     $("#family-view").innerHTML = `
-      <nav class="crumbs mono"><a href="#catalogue">Catalogue</a> / <span>${u.name}</span></nav>
-      <header class="page-head">
-        <span class="mono eyebrow">${u.code} — Univers</span>
+      <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <span>${u.name}</span></nav>
+      <header class="page-head page-head--u" data-u="${u.id}">
+        <span class="mono eyebrow">Univers ${u.code} · ${list.length} hacks</span>
         <h1>${u.name} <em>${u.sub}</em></h1>
         <p>${u.pitch}</p>
       </header>
@@ -119,7 +175,7 @@
     document.title = "Mes favoris — Modulr Studio";
     const list = MODULR.favs.all().map(MODULR.getProduct).filter(Boolean);
     $("#family-view").innerHTML = `
-      <nav class="crumbs mono"><a href="#catalogue">Catalogue</a> / <span>Favoris</span></nav>
+      <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <span>Favoris</span></nav>
       <header class="page-head"><span class="mono eyebrow">Ma sélection</span><h1>Mes favoris</h1>
         <p>${list.length ? "Vos hacks préférés, gardés de côté sur cet appareil." : "Touchez le cœur d'un produit pour le retrouver ici."}</p></header>
       ${list.length ? `<div class="grid">${list.map(card).join("")}</div>` :
@@ -143,10 +199,10 @@
     const LETTERS = ["A", "B"];
 
     root.innerHTML = `
-      <nav class="crumbs mono"><a href="#catalogue">Catalogue</a> / <a href="#f-${u.id}">${u.name}</a> / <span>${p.name}</span></nav>
+      <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <a href="#f-${u.id}">${u.name}</a> / <span>${p.name}</span></nav>
       <div class="pdp">
         <div class="pdp__visual">
-          <div class="stage" id="stage">
+          <div class="stage" id="stage" data-u="${p.universe}">
             ${MODULR.shapeSVG(p.shape, "shape--xl")}
             <div class="dims" id="dims"></div>
             <span class="stage__mat mono">NYLON PA12 · NOIR MAT</span>
@@ -160,7 +216,7 @@
 
         <div class="pdp__info">
           <div class="pdp__top">
-            <span class="mono eyebrow">${u.code} — ${u.name} ${u.sub}</span>
+            <span class="pill" data-u="${u.id}">${u.name}</span>
             <div class="pdp__actions">
               <button class="icon-btn fav ${MODULR.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${MODULR.favs.has(p.id)}" aria-label="Ajouter aux favoris"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
               <button class="icon-btn" data-share aria-label="Partager"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg></button>
@@ -171,16 +227,16 @@
           <div class="pdp__price"><span id="price"></span><small id="price-note"></small></div>
           <p class="desc">${p.desc}</p>
 
-          <div class="segmented" role="tablist">
-            <button role="tab" data-mode="standard">Prêt-à-poser <small>Standard</small></button>
-            <button role="tab" data-mode="custom">Sur-mesure <small>Ajusté au mm</small></button>
+          <div class="segmented" role="group" aria-label="Type de commande">
+            <button type="button" data-mode="standard">Standard <small>3 tailles prêtes</small></button>
+            <button type="button" data-mode="custom">Sur-mesure <small>+${fmt(p.custom.surcharge)} · à vos cotes</small></button>
           </div>
 
           <div class="pane" id="pane-standard">
             <span class="label">${p.variants.label}</span>
             <div class="options">
               ${p.variants.options.map((o, i) => `
-                <button class="opt" data-variant="${i}"><b>${o.label}</b><small>${o.hint}</small></button>`).join("")}
+                <button type="button" class="opt" data-variant="${i}"><b>${o.label}</b><small>${o.hint}</small></button>`).join("")}
             </div>
           </div>
 
@@ -225,16 +281,22 @@
         </div>
       </div>
 
-      <section class="related">
-        <h2 class="mono">DANS LE MÊME UNIVERS</h2>
-        <div class="grid">${MODULR.products.filter(x => x.universe === p.universe && x.id !== p.id).map(card).join("")}</div>
+      <section class="row-block row-block--related">
+        <header class="row-block__head">
+          <div class="row-block__title"><h2>Dans le même univers</h2><p>${u.name} — ${u.pitch}</p></div>
+          <div class="row-block__tools">
+            <button class="icon-btn" data-scroll="-1" aria-label="Précédent">←</button>
+            <button class="icon-btn" data-scroll="1" aria-label="Suivant">→</button>
+          </div>
+        </header>
+        <div class="rail" tabindex="0" aria-label="Autres hacks ${u.name}">${MODULR.products.filter(x => x.universe === p.universe && x.id !== p.id).map(card).join("")}</div>
       </section>`;
 
     const values = () => state.mode === "custom" ? state.custom : p.variants.options[state.variant].values;
 
     function update() {
-      root.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("is-active", b.dataset.mode === state.mode));
-      root.querySelectorAll("[data-variant]").forEach(b => b.classList.toggle("is-active", +b.dataset.variant === state.variant));
+      root.querySelectorAll("[data-mode]").forEach(b => { const on = b.dataset.mode === state.mode; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", on); });
+      root.querySelectorAll("[data-variant]").forEach(b => { const on = +b.dataset.variant === state.variant; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", on); });
       $("#pane-standard").hidden = state.mode !== "standard";
       $("#pane-custom").hidden = state.mode !== "custom";
 

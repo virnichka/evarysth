@@ -2,14 +2,16 @@
 
 Prototype front-end e-commerce — hacks d'intérieur sur-mesure imprimés en Nylon PA12 noir.
 
-- `index.html` — accueil + catalogue par univers
+- `index.html` — accueil : héros, carrousel des univers à balayer, hacks les plus demandés
 - `index.html#catalogue` — catalogue : une rangée défilante par famille
 - `index.html#f-<famille>` — page dédiée d'une famille
 - `index.html#p-<id>` — page produit : Standard / Sur-mesure (curseurs en mm), résumé dynamique
 - Panier latéral persistant (`localStorage`)
 
 HTML/CSS/JS vanilla, aucun build. Ouvrir `index.html` ou activer GitHub Pages (branche, dossier racine).
-Catalogue éditable dans `assets/js/data.js`.
+Catalogue éditable dans `assets/js/data.js` : 30 hacks, 10 par univers (Balcon, Bureau, Meubles).
+
+Design « atelier clair » : fond papier, pièces noires, accent orange, une teinte douce par univers. Polices Bricolage Grotesque (titres), Inter (texte), JetBrains Mono (cotes).
 
 Publication automatique sur GitHub Pages à chaque push sur `main` (`.github/workflows/pages.yml`).
 
