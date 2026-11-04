@@ -6,7 +6,7 @@ Prototype front-end e-commerce — hacks d'intérieur sur-mesure imprimés en Ny
 - `index.html#catalogue` — catalogue : une rangée défilante par famille
 - `index.html#f-<famille>` — page dédiée d'une famille
 - `index.html#p-<id>` — page produit : Standard / Sur-mesure (curseurs en mm), résumé dynamique
-- `index.html#p-equerre-l` — premier produit avec viewer 3D interactif (Three.js) : la pièce tourne au doigt et se redessine en direct quand on bouge les curseurs
+- `index.html#p-equerre-l` — produit avec viewer 3D interactif (Three.js) : la pièce tourne au doigt et se redessine en direct quand on bouge les curseurs
 - Panier latéral persistant (`localStorage`)
 
 HTML/CSS/JS vanilla, aucun build. Ouvrir `index.html` ou activer GitHub Pages (branche, dossier racine).
@@ -22,3 +22,9 @@ Pas encore actives (affichent « pas encore disponible ») : compte client, chat
 
 ## Viewer 3D
 `assets/js/viewer3d.js` charge Three.js à la demande (importmap dans `index.html`, version fixée sur jsDelivr) uniquement sur les fiches qui ont un champ `model`. Pour rendre un autre produit en 3D : ajouter une fonction dans `MODELS` (valeurs en mm → géométrie) et `model: "<nom>"` sur le produit dans `data.js`. Sans WebGL ou sans réseau, l'illustration SVG reste affichée.
+
+## Ajouter un objet 3D à partir de fichiers STL
+La méthode complète est dans `CLAUDE.md` (lu automatiquement par Claude Code à chaque session).
+Il suffit d'ouvrir une session sur ce dépôt, de joindre les STL et de décrire chaque objet
+(nom, univers, prix, paramètres voulus) ; tout type de forme est accepté. L'analyse des STL se fait avec `tools/analyse-stl.py`
+(`python3 -I tools/analyse-stl.py fichier.stl`, nécessite numpy). Exemple en place : `index.html#p-boite-rugged`.

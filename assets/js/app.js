@@ -24,6 +24,8 @@
       <ellipse cx="60" cy="42" rx="22" ry="7" class="ghost"/><path d="M38 66v28M82 66v28" class="ghost"/>`,
     stand: `<rect x="56" y="14" width="10" height="62" rx="2" class="ghost"/>
       <path d="M26 92V66a8 8 0 0 1 8-8h52a8 8 0 0 1 8 8v26z"/><path d="M54 58v20h14V58"/><path d="M18 96h84" class="ghost"/>`,
+    case: `<path d="M20 34h80a4 4 0 0 1 4 4v12H16V38a4 4 0 0 1 4-4z"/><path d="M16 50h88v36a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6z"/>
+      <rect x="32" y="42" width="10" height="18" rx="2"/><rect x="78" y="42" width="10" height="18" rx="2"/><path d="M16 74h88" class="ghost"/>`,
     handle: `<path d="M16 76h22V50a8 8 0 0 1 8-8h28a8 8 0 0 1 8 8v26h22"/><path d="M38 76h44" class="ghost"/>
       <circle cx="38" cy="86" r="3"/><circle cx="82" cy="86" r="3"/>`
   };

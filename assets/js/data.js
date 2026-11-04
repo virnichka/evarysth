@@ -196,6 +196,18 @@ MODULR.products = [
     ] }
   },
   {
+    id: "boite-rugged", universe: "meubles", shape: "case", model: "boite-rugged", popular: true,
+    name: "Boîte robuste à loquets", price: 32,
+    tagline: "Une boîte qui encaisse les chocs, aux dimensions de ce que vous rangez.",
+    desc: "Couvercle à charnière intégrée, deux loquets qui se clipsent et un rebord qui emboîte le couvercle. Réglez la longueur, la largeur et la hauteur intérieures : charnière, loquets et parois gardent leurs vraies cotes, seule la boîte s'agrandit.",
+    variants: sizes("Format intérieur", [["S", "120 × 80 × 40 mm", { a: 120, b: 80, c: 40 }], ["M", "150 × 100 × 50 mm", { a: 150, b: 100, c: 50 }], ["L", "220 × 150 × 80 mm", { a: 220, b: 150, c: 80 }]]),
+    custom: { surcharge: 6, params: [
+      param("a", "Longueur intérieure", 110, 300, 150, 5, 0.06),
+      param("b", "Largeur intérieure", 60, 250, 100, 5, 0.08),
+      param("c", "Hauteur intérieure", 35, 150, 50, 5, 0.1)
+    ] }
+  },
+  {
     id: "rehausseur", universe: "meubles", shape: "riser", model: "rehausseur", popular: true,
     name: "Rehausseurs de pieds ×4", price: 26,
     tagline: "Gagnez de la hauteur sous un lit ou un canapé.",
