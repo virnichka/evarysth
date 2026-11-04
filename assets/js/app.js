@@ -203,7 +203,7 @@
 
     root.innerHTML = `
       <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <a href="#f-${u.id}">${u.name}</a> / <span>${p.name}</span></nav>
-      <div class="pdp">
+      <div class="pdp${p.model ? " pdp--3d" : ""}">
         <div class="pdp__visual">
           <div class="stage" id="stage" data-u="${p.universe}">
             ${MODULR.shapeSVG(p.shape, "shape--xl")}
@@ -332,7 +332,13 @@
     function pulse() { const d = $("#dims"); d.classList.remove("pulse"); void d.offsetWidth; d.classList.add("pulse"); }
 
     root.onclick = e => {
-      const m = e.target.closest("[data-mode]"); if (m) { state.mode = m.dataset.mode; update(); pulse(); }
+      const m = e.target.closest("[data-mode]");
+      if (m) {
+        state.mode = m.dataset.mode; update(); pulse();
+        /* Mobile + 3D : amène les curseurs juste sous la vue épinglée */
+        if (p.model && state.mode === "custom" && matchMedia("(max-width: 900px)").matches)
+          $("#pane-custom").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
       const o = e.target.closest("[data-variant]"); if (o) { state.variant = +o.dataset.variant; update(); pulse(); }
       const q = e.target.closest("[data-q]"); if (q) { state.qty = Math.max(1, Math.min(20, state.qty + +q.dataset.q)); update(); }
     };
@@ -408,6 +414,10 @@
   });
 
   document.addEventListener("DOMContentLoaded", () => {
+    /* Hauteur de l'en-tête collant, pour épingler la vue 3D juste dessous sur mobile */
+    const header = $(".site-header");
+    if (header && window.ResizeObserver) new ResizeObserver(() =>
+      document.documentElement.style.setProperty("--header-h", header.offsetHeight + "px")).observe(header);
     renderHome(); renderCatalogue(); route();
     window.addEventListener("hashchange", route);
   });

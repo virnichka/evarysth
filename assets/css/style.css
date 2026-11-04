@@ -319,6 +319,22 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .stage__hint { position: absolute; bottom: 18px; left: 18px; font-size: 11px; padding: 6px 12px; border-radius: 999px; background: var(--bg-2); color: var(--soft); opacity: 0; transition: opacity .4s; }
 .stage.is-3d .stage__hint { opacity: 1; }
 .stage.is-3d .dim { font-size: 18px; padding: 8px 12px; }
+/* Écrans étroits : la vue 3D reste épinglée sous l'en-tête pendant qu'on règle les cotes */
+@media (max-width: 900px) {
+  .pdp--3d .pdp__visual { display: contents; }
+  .pdp--3d .stage { position: sticky; top: var(--header-h, 64px); z-index: 5; aspect-ratio: auto; height: min(40vh, 380px); border-radius: 0 0 var(--radius-lg) var(--radius-lg); box-shadow: 0 -24px 0 0 var(--bg), -16px -24px 0 0 var(--bg), 16px -24px 0 0 var(--bg), 0 10px 24px -14px rgba(0, 0, 0, .35); }
+  .pdp--3d .pdp__info { order: 1; }
+  .pdp--3d .perks { order: 2; margin-top: 0; }
+  .pdp--3d .stage .dims { top: 12px; left: 12px; flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .pdp--3d .stage.is-3d .dim { font-size: 15px; padding: 6px 10px; border-radius: 12px; gap: 6px; }
+  .pdp--3d .stage.is-3d .dim i { width: 18px; height: 18px; font-size: 10px; }
+  .pdp--3d .stage__hint, .pdp--3d .stage__mat { bottom: 12px; }
+  .pdp--3d .stage__hint { left: 12px; }
+  .pdp--3d .stage__mat { right: 12px; }
+  .pdp--3d .slider { padding: 14px 16px; margin-bottom: 8px; }
+  .pdp--3d .pane { scroll-margin-top: calc(var(--header-h, 64px) + min(40vh, 380px) + 12px); }
+  .pdp--3d .slider__head { margin-bottom: 10px; }
+}
 @media (max-width: 520px) { .stage.is-3d .stage__mat { display: none; } }
 .perks { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
 .perks li { padding: 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; font-size: 14px; }
