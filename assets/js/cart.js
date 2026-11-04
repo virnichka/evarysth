@@ -1,7 +1,6 @@
 /* Modulr Studio — panier latéral (localStorage) */
 (function () {
   const KEY = "modulr.cart.v1";
-  const FREE_SHIPPING = 49;
   const SHIPPING = 4.9;
   const $ = s => document.querySelector(s);
 
@@ -19,7 +18,6 @@
           <b>Votre panier <span id="cart-count-label">(0)</span></b>
           <button class="icon-btn" data-cart-close aria-label="Fermer">✕</button>
         </header>
-        <div class="drawer__ship" id="cart-ship"></div>
         <ul class="drawer__list" id="cart-list"></ul>
         <footer class="drawer__foot">
           <form class="promo" id="promo-form" novalidate>
@@ -94,7 +92,7 @@
     const rate = PROMOS[promo] || 0;
     const disc = Math.round(sub * rate * 100) / 100;
     const net = sub - disc;
-    const ship = !items.length ? 0 : net >= FREE_SHIPPING ? 0 : SHIPPING;
+    const ship = !items.length ? 0 : SHIPPING;
     $("#cart-disc-row").hidden = !disc;
     $("#cart-disc").textContent = "− " + fmt(disc);
     $("#cart-disc-code").textContent = promo;
@@ -104,14 +102,9 @@
     document.querySelectorAll("[data-cart-count]").forEach(el => { el.textContent = count; el.hidden = !count; });
     $("#cart-count-label").textContent = `(${count})`;
     $("#cart-sub").textContent = fmt(sub);
-    $("#cart-shipcost").textContent = !items.length ? "—" : ship ? fmt(ship) : "Offerte";
+    $("#cart-shipcost").textContent = !items.length ? "—" : fmt(ship);
     $("#cart-total").textContent = fmt(net + ship);
     $("#cart-checkout").disabled = !items.length;
-    const left = FREE_SHIPPING - net;
-    const pct = Math.min(100, (net / FREE_SHIPPING) * 100);
-    $("#cart-ship").innerHTML = items.length
-      ? `<p>${left > 0 ? `Plus que <b>${fmt(left)}</b> pour la livraison offerte` : "Livraison offerte ✓"}</p>
-         <div class="bar"><span style="width:${pct}%"></span></div>` : "";
     $("#cart-list").innerHTML = items.length ? items.map(i => `
       <li class="line">
         <div class="line__thumb">${MODULR.shapeSVG(i.shape)}</div>
