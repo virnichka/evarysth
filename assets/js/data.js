@@ -20,7 +20,7 @@ const param = (key, label, min, max, def, step = 1, pricePerUnit) =>
 MODULR.products = [
   /* ---------- 01 · Balcon & Extérieur ---------- */
   {
-    id: "jardiniere-clip", universe: "balcon", shape: "clamp", popular: true,
+    id: "jardiniere-clip", universe: "balcon", shape: "clamp", model: "jardiniere-clip", popular: true,
     name: "Support jardinière Clip", price: 24,
     tagline: "Accroche une jardinière sur n'importe quelle rambarde.",
     desc: "Se pose à la main sur votre garde-corps et tient une jardinière jusqu'à 8 kg. Aucune vis, aucun outil.",
@@ -28,7 +28,7 @@ MODULR.products = [
     custom: { surcharge: 6, params: [param("a", "Épaisseur de votre rambarde", 15, 120, 45)] }
   },
   {
-    id: "crochet-balcon", universe: "balcon", shape: "hook",
+    id: "crochet-balcon", universe: "balcon", shape: "hook", model: "crochet-balcon",
     name: "Crochet de balcon", price: 12,
     tagline: "Pour suspendre lanterne, plante ou serviette.",
     desc: "Glissez-le sur la main courante, suspendez. Résiste aux UV et à la pluie.",
@@ -36,7 +36,7 @@ MODULR.products = [
     custom: { surcharge: 4, params: [param("a", "Épaisseur de main courante", 15, 100, 42)] }
   },
   {
-    id: "clip-brise-vue", universe: "balcon", shape: "clip",
+    id: "clip-brise-vue", universe: "balcon", shape: "clip", model: "clip-brise-vue",
     name: "Clips brise-vue ×10", price: 14,
     tagline: "Fixe une canisse ou une toile sur les barreaux.",
     desc: "Un clip par barreau, la toile reste tendue même par grand vent. Lot de 10.",
@@ -44,7 +44,7 @@ MODULR.products = [
     custom: { surcharge: 5, params: [param("a", "Diamètre de vos barreaux", 8, 40, 18)] }
   },
   {
-    id: "pince-parasol", universe: "balcon", shape: "clamp", popular: true,
+    id: "pince-parasol", universe: "balcon", shape: "clamp", model: "pince-parasol", popular: true,
     name: "Pince parasol de rambarde", price: 22,
     tagline: "Le parasol tient droit, sans pied en béton.",
     desc: "Une pince se serre sur la rambarde, l'autre enserre le mât du parasol. Plus de pied encombrant sur un petit balcon.",
@@ -52,7 +52,7 @@ MODULR.products = [
     custom: { surcharge: 6, params: [param("a", "Épaisseur de la rambarde", 15, 100, 45), param("b", "Diamètre du mât", 18, 50, 32)] }
   },
   {
-    id: "tablette-rambarde", universe: "balcon", shape: "bracket", popular: true,
+    id: "tablette-rambarde", universe: "balcon", shape: "bracket", model: "tablette-rambarde", popular: true,
     name: "Tablette café de balcon", price: 29,
     tagline: "Une petite table pour le café, posée sur la rambarde.",
     desc: "Une tablette qui se cale sur le garde-corps : la place d'une tasse, d'un verre et d'un téléphone, sans rien percer.",
@@ -60,7 +60,7 @@ MODULR.products = [
     custom: { surcharge: 8, params: [param("a", "Épaisseur de la rambarde", 15, 100, 45), param("b", "Largeur de la tablette", 160, 400, 220, 10, 0.05)] }
   },
   {
-    id: "clips-guirlande", universe: "balcon", shape: "clip",
+    id: "clips-guirlande", universe: "balcon", shape: "clip", model: "clips-guirlande",
     name: "Clips guirlande lumineuse ×12", price: 12,
     tagline: "Une guirlande bien droite, sans scotch qui se décolle.",
     desc: "Chaque clip se pose sur un barreau et tient le fil de la guirlande. Se retire en un geste à la fin de l'été.",
@@ -68,7 +68,7 @@ MODULR.products = [
     custom: { surcharge: 4, params: [param("a", "Diamètre de vos barreaux", 8, 40, 16)] }
   },
   {
-    id: "pieds-pot", universe: "balcon", shape: "riser",
+    id: "pieds-pot", universe: "balcon", shape: "riser", model: "pieds-pot",
     name: "Pieds de pot ×3", price: 10,
     tagline: "L'eau s'écoule, le sol du balcon reste propre.",
     desc: "Trois petits pieds glissés sous le pot : l'arrosage s'écoule, les racines respirent, plus de marque sur le sol.",
@@ -76,7 +76,7 @@ MODULR.products = [
     custom: { surcharge: 3, params: [param("a", "Hauteur sous le pot", 10, 80, 25)] }
   },
   {
-    id: "clips-tuteur", universe: "balcon", shape: "clip",
+    id: "clips-tuteur", universe: "balcon", shape: "clip", model: "clips-tuteur",
     name: "Clips tuteur ×20", price: 9,
     tagline: "Attache tomates et grimpantes sans ficelle.",
     desc: "Le clip entoure le tuteur et retient la tige sans l'abîmer. Réutilisable d'une saison à l'autre.",
@@ -84,7 +84,7 @@ MODULR.products = [
     custom: { surcharge: 3, params: [param("a", "Diamètre de votre tuteur", 5, 30, 10)] }
   },
   {
-    id: "support-tuyau", universe: "balcon", shape: "hook",
+    id: "support-tuyau", universe: "balcon", shape: "hook", model: "support-tuyau",
     name: "Support tuyau d'arrosage", price: 18,
     tagline: "Le tuyau enroulé sur la rambarde, pas en boule au sol.",
     desc: "Se pose sur la rambarde et accueille jusqu'à 15 m de tuyau enroulé. Le balcon reste dégagé.",
@@ -92,7 +92,7 @@ MODULR.products = [
     custom: { surcharge: 5, params: [param("a", "Épaisseur de la rambarde", 15, 100, 45)] }
   },
   {
-    id: "pinces-nappe", universe: "balcon", shape: "clip",
+    id: "pinces-nappe", universe: "balcon", shape: "clip", model: "pinces-nappe",
     name: "Pinces à nappe ×4", price: 11,
     tagline: "La nappe ne s'envole plus au premier coup de vent.",
     desc: "Une pince à chaque coin de la table, ajustée à l'épaisseur du plateau. Discrète et efficace.",
@@ -102,7 +102,7 @@ MODULR.products = [
 
   /* ---------- 02 · Bureau & Tech ---------- */
   {
-    id: "goulotte-cable", universe: "bureau", shape: "tray", popular: true,
+    id: "goulotte-cable", universe: "bureau", shape: "tray", model: "goulotte-cable", popular: true,
     name: "Range-câbles sous plateau", price: 22,
     tagline: "Multiprise et câbles disparaissent sous le bureau.",
     desc: "Se clipse sur le bord du plateau, accueille multiprise et surplus de câbles. Le dessus reste nu.",
@@ -110,7 +110,7 @@ MODULR.products = [
     custom: { surcharge: 8, params: [param("a", "Épaisseur du plateau", 12, 60, 22), param("b", "Longueur du range-câbles", 150, 500, 300, 10, 0.03)] }
   },
   {
-    id: "support-casque", universe: "bureau", shape: "hook", popular: true,
+    id: "support-casque", universe: "bureau", shape: "hook", model: "support-casque", popular: true,
     name: "Support casque invisible", price: 16,
     tagline: "Le casque se range sous le bureau, hors de vue.",
     desc: "Une pince discrète qui se serre sur le plateau. Le casque pend en dessous, le bureau reste dégagé.",
@@ -118,7 +118,7 @@ MODULR.products = [
     custom: { surcharge: 4, params: [param("a", "Épaisseur du plateau", 12, 60, 28)] }
   },
   {
-    id: "dock-chargeur", universe: "bureau", shape: "clip",
+    id: "dock-chargeur", universe: "bureau", shape: "clip", model: "dock-chargeur",
     name: "Dock chargeur", price: 18,
     tagline: "Votre bloc chargeur tient tout seul, à l'abri.",
     desc: "Un étui ajusté à votre chargeur, qui se colle sous le bureau ou derrière un meuble.",
@@ -126,7 +126,7 @@ MODULR.products = [
     custom: { surcharge: 6, params: [param("a", "Largeur du chargeur", 20, 100, 50), param("b", "Épaisseur du chargeur", 15, 50, 28)] }
   },
   {
-    id: "passe-cable", universe: "bureau", shape: "ring",
+    id: "passe-cable", universe: "bureau", shape: "ring", model: "passe-cable",
     name: "Passe-câble de bureau", price: 9,
     tagline: "Un trou propre pour faire passer les câbles.",
     desc: "S'emboîte dans le trou du plateau et cache ses bords. Le couvercle s'ouvre juste assez pour les câbles.",
@@ -134,7 +134,7 @@ MODULR.products = [
     custom: { surcharge: 3, params: [param("a", "Diamètre du trou", 30, 100, 60)] }
   },
   {
-    id: "support-portable", universe: "bureau", shape: "stand", popular: true,
+    id: "support-portable", universe: "bureau", shape: "stand", model: "support-portable", popular: true,
     name: "Support vertical pour portable", price: 19,
     tagline: "L'ordinateur fermé debout, la place libérée.",
     desc: "Rangez votre portable fermé sur la tranche, à côté de l'écran. La fente est taillée à son épaisseur exacte.",
@@ -142,7 +142,7 @@ MODULR.products = [
     custom: { surcharge: 4, params: [param("a", "Épaisseur de l'ordinateur fermé", 10, 40, 18)] }
   },
   {
-    id: "support-telephone", universe: "bureau", shape: "stand",
+    id: "support-telephone", universe: "bureau", shape: "stand", model: "support-telephone",
     name: "Support téléphone incliné", price: 14,
     tagline: "Le téléphone face à vous, même avec sa coque.",
     desc: "Un support stable, incliné pour lire et taper sans se pencher. Le berceau est ajusté à votre téléphone avec sa coque.",
@@ -150,7 +150,7 @@ MODULR.products = [
     custom: { surcharge: 3, params: [param("a", "Épaisseur avec la coque", 6, 25, 11)] }
   },
   {
-    id: "clips-cables", universe: "bureau", shape: "clip",
+    id: "clips-cables", universe: "bureau", shape: "clip", model: "clips-cables",
     name: "Clips câbles de bord ×6", price: 10,
     tagline: "Les câbles de charge restent au bord du bureau.",
     desc: "Les clips se posent sur le bord du plateau et retiennent chacun un câble. Fini les câbles tombés derrière le bureau.",
@@ -158,7 +158,7 @@ MODULR.products = [
     custom: { surcharge: 3, params: [param("a", "Épaisseur du plateau", 12, 60, 22), param("b", "Diamètre du câble", 2, 10, 4)] }
   },
   {
-    id: "support-manette", universe: "bureau", shape: "hook",
+    id: "support-manette", universe: "bureau", shape: "hook", model: "support-manette",
     name: "Support manettes ×2", price: 13,
     tagline: "Les manettes rangées sous le bureau, prêtes à jouer.",
     desc: "Deux supports qui se clipsent sous le plateau. Les manettes s'y accrochent par la poignée, sans encombrer.",
@@ -166,7 +166,7 @@ MODULR.products = [
     custom: { surcharge: 3, params: [param("a", "Épaisseur du plateau", 12, 60, 25)] }
   },
   {
-    id: "support-uc", universe: "bureau", shape: "bracket",
+    id: "support-uc", universe: "bureau", shape: "bracket", model: "support-uc",
     name: "Support unité centrale", price: 34,
     tagline: "La tour du PC suspendue sous le bureau.",
     desc: "Deux étriers sous le plateau portent la tour à hauteur. Le sol reste libre et l'aspirateur passe dessous.",
@@ -174,7 +174,7 @@ MODULR.products = [
     custom: { surcharge: 10, params: [param("a", "Largeur de la tour", 80, 280, 200, 5, 0.05)] }
   },
   {
-    id: "organiseur-bureau", universe: "bureau", shape: "tray",
+    id: "organiseur-bureau", universe: "bureau", shape: "tray", model: "organiseur-bureau",
     name: "Vide-poche modulable", price: 17,
     tagline: "Stylos, clés et câbles chacun dans sa case.",
     desc: "Des cases qui s'assemblent comme des briques. Choisissez la longueur pour qu'il épouse le pied de votre écran.",
@@ -196,7 +196,7 @@ MODULR.products = [
     ] }
   },
   {
-    id: "rehausseur", universe: "meubles", shape: "riser", popular: true,
+    id: "rehausseur", universe: "meubles", shape: "riser", model: "rehausseur", popular: true,
     name: "Rehausseurs de pieds ×4", price: 26,
     tagline: "Gagnez de la hauteur sous un lit ou un canapé.",
     desc: "Glissez sous chaque pied : vos meubles prennent de la hauteur et libèrent de la place pour ranger.",
@@ -204,7 +204,7 @@ MODULR.products = [
     custom: { surcharge: 8, params: [param("a", "Diamètre / côté du pied", 20, 80, 45), param("b", "Hauteur ajoutée", 30, 150, 90, 5, 0.08)] }
   },
   {
-    id: "organiseur-tiroir", universe: "meubles", shape: "tray", popular: true,
+    id: "organiseur-tiroir", universe: "meubles", shape: "tray", model: "organiseur-tiroir", popular: true,
     name: "Organiseur de tiroir", price: 28,
     tagline: "Un casier qui épouse exactement votre tiroir.",
     desc: "Fini les centimètres perdus : l'organiseur est fabriqué à la cote intérieure de votre tiroir.",
@@ -212,7 +212,7 @@ MODULR.products = [
     custom: { surcharge: 10, params: [param("a", "Largeur intérieure du tiroir", 120, 560, 320, 5, 0.03), param("b", "Profondeur intérieure du tiroir", 150, 560, 420, 5, 0.02)] }
   },
   {
-    id: "crochet-porte", universe: "meubles", shape: "hook",
+    id: "crochet-porte", universe: "meubles", shape: "hook", model: "crochet-porte",
     name: "Crochets de porte ×2", price: 15,
     tagline: "Des patères sur une porte de placard, sans visser.",
     desc: "Se posent par-dessus la porte et la laissent fermer normalement. Pour sacs, peignoirs, manteaux.",
@@ -220,7 +220,7 @@ MODULR.products = [
     custom: { surcharge: 4, params: [param("a", "Épaisseur de votre porte", 12, 50, 22)] }
   },
   {
-    id: "taquets-etagere", universe: "meubles", shape: "bracket",
+    id: "taquets-etagere", universe: "meubles", shape: "bracket", model: "taquets-etagere",
     name: "Taquets d'étagère ×8", price: 9,
     tagline: "Les taquets perdus au déménagement, refaits à l'identique.",
     desc: "Taquets à tige, au diamètre exact des trous de votre meuble. Ajoutez enfin l'étagère qui manquait.",
@@ -228,7 +228,7 @@ MODULR.products = [
     custom: { surcharge: 3, params: [param("a", "Diamètre des trous", 3, 12, 5)] }
   },
   {
-    id: "poignee-meuble", universe: "meubles", shape: "handle",
+    id: "poignee-meuble", universe: "meubles", shape: "handle", model: "poignee-meuble",
     name: "Poignée de meuble", price: 8,
     tagline: "Remplacez une poignée cassée sans refaire de trous.",
     desc: "L'écart entre les vis est fait sur mesure, pour reprendre les trous existants. Idéal pour relooker une commode.",
@@ -236,7 +236,7 @@ MODULR.products = [
     custom: { surcharge: 3, params: [param("a", "Entraxe entre les deux vis", 32, 320, 128)] }
   },
   {
-    id: "cales-meuble", universe: "meubles", shape: "riser",
+    id: "cales-meuble", universe: "meubles", shape: "riser", model: "cales-meuble",
     name: "Cales de mise à niveau ×4", price: 8,
     tagline: "Fini le meuble bancal sur un vieux parquet.",
     desc: "Des cales fines glissées sous les pieds, à la hauteur exacte qu'il manque. Invisibles une fois posées.",
@@ -244,7 +244,7 @@ MODULR.products = [
     custom: { surcharge: 2, params: [param("a", "Épaisseur de la cale", 1, 30, 4)] }
   },
   {
-    id: "separateurs-etagere", universe: "meubles", shape: "tray",
+    id: "separateurs-etagere", universe: "meubles", shape: "tray", model: "separateurs-etagere",
     name: "Séparateurs d'étagère ×2", price: 16,
     tagline: "Planches, plaques et sacs rangés à la verticale.",
     desc: "Les séparateurs se clipsent sur l'étagère, sans outil. Idéal pour ranger plaques de cuisson, plateaux ou sacs.",
@@ -252,7 +252,7 @@ MODULR.products = [
     custom: { surcharge: 5, params: [param("a", "Épaisseur de l'étagère", 10, 40, 18), param("b", "Hauteur du séparateur", 80, 300, 150, 10, 0.04)] }
   },
   {
-    id: "support-tringle", universe: "meubles", shape: "bracket",
+    id: "support-tringle", universe: "meubles", shape: "bracket", model: "support-tringle",
     name: "Supports tringle sans perçage ×2", price: 18,
     tagline: "Un rideau sur la fenêtre, sans toucher au mur.",
     desc: "Les supports se clipsent sur le cadre de la fenêtre et portent une tringle légère. Parfait en location.",
@@ -260,7 +260,7 @@ MODULR.products = [
     custom: { surcharge: 5, params: [param("a", "Épaisseur du cadre", 30, 120, 60), param("b", "Diamètre de la tringle", 8, 28, 16)] }
   },
   {
-    id: "embouts-pieds", universe: "meubles", shape: "ring",
+    id: "embouts-pieds", universe: "meubles", shape: "ring", model: "embouts-pieds",
     name: "Embouts de pieds de chaise ×4", price: 10,
     tagline: "Plus de bruit ni de rayures quand on tire la chaise.",
     desc: "Des embouts ajustés au pied de votre chaise, qui ne glissent pas et protègent le parquet.",
@@ -268,7 +268,7 @@ MODULR.products = [
     custom: { surcharge: 3, params: [param("a", "Diamètre du pied", 12, 60, 25)] }
   },
   {
-    id: "penderie-etagere", universe: "meubles", shape: "hook",
+    id: "penderie-etagere", universe: "meubles", shape: "hook", model: "penderie-etagere",
     name: "Penderie sous étagère ×2", price: 14,
     tagline: "Transforme une étagère en penderie.",
     desc: "Deux crochets se glissent sur l'étagère et portent une barre de penderie dessous. Vos cintres trouvent leur place.",
