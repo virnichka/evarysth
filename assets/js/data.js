@@ -92,6 +92,17 @@ MODULR.products = [
     custom: { surcharge: 5, params: [param("a", "Épaisseur de la rambarde", 15, 100, 45)] }
   },
   {
+    id: "enrouleur-mural", universe: "balcon", shape: "reel", model: "enrouleur-mural",
+    name: "Enrouleur mural tuyau & corde", price: 26,
+    tagline: "Le tuyau rangé en boucles larges, sans pli, contre le mur.",
+    desc: "Une plaque murale, une selle cintrée à grand rayon pour que le tuyau ne se plie pas, et une joue avant qui retient les boucles. La selle est en lattes : l'eau s'écoule au lieu de stagner. Réglez la largeur d'enroulement et le diamètre du tuyau ou de la corde : la joue s'adapte. Fixation par 3 vis Ø 4–5 mm (non fournies).",
+    variants: sizes("Largeur d'enroulement", [["Corde", "60 mm · Ø 12 mm", { a: 60, b: 12 }], ["Tuyau", "80 mm · Ø 25 mm", { a: 80, b: 25 }], ["Grand", "120 mm · Ø 25 mm", { a: 120, b: 25 }]]),
+    custom: { surcharge: 5, params: [
+      param("a", "Largeur d'enroulement", 50, 140, 80, 5, 0.08),
+      param("b", "Diamètre du tuyau ou de la corde", 8, 35, 25)
+    ] }
+  },
+  {
     id: "pinces-nappe", universe: "balcon", shape: "clip", model: "pinces-nappe",
     name: "Pinces à nappe ×4", price: 11,
     tagline: "La nappe ne s'envole plus au premier coup de vent.",

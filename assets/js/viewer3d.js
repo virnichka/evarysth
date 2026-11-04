@@ -200,6 +200,39 @@
       k.ext(uPts(a, 40, 6), 50),
       k.box(6, 86, 50, a / 2 + 3, 3, 0),
       k.ext(arc(55, 63, 180, 360), 50).translate(a / 2 + 59, -40, 0))),
+    /* Enrouleur mural (repris d'un G-code de support de tuyau, redessiné) :
+       a = largeur d'enroulement (profondeur de la selle), b = diamètre du tuyau ou de la corde.
+       Repère : y vers le haut, mur en z = 0, sommet de la selle en y = 0. */
+    "enrouleur-mural": m((k, { a, b }) => {
+      const R = 110, e = 5, A = 34, tp = 8, tl = 6, L = Math.max(12, b), cy = -R;
+      const at = (r, d) => [r * Math.cos(rad(d)), cy + r * Math.sin(rad(d))];
+      /* joue avant : croissant à bouts ronds, dépasse la selle de L (≈ Ø du tuyau) */
+      const ri = R - 22, ro = R + L, rm = (ri + ro) / 2, rc = (ro - ri) / 2, l0 = 90 - A, l1 = 90 + A;
+      const cap = (d, s0) => { const c = at(rm, d); return Array.from({ length: 13 }, (_, i) =>
+        [c[0] + rc * Math.cos(rad(s0 + 180 * i / 12)), c[1] + rc * Math.sin(rad(s0 + 180 * i / 12))]); };
+      const span = (r, d0, d1) => Array.from({ length: 31 }, (_, i) => at(r, d0 + (d1 - d0) * i / 30));
+      const lip = [...span(ro, l0, l1), ...cap(l1, l1), ...span(ri, l1, l0), ...cap(l0, l0 + 180)];
+      /* plaque murale : haut en arc, bas chanfreiné, 3 trous de vis Ø5 hors des nervures */
+      const plate = [...Array.from({ length: 25 }, (_, i) => at(R + 6, 90 - A - 3 + (2 * A + 6) * i / 24)),
+        [-52, -92], [-44, -100], [44, -100], [52, -92]];
+      const holes = [circ(2.6, -22, -40, 24), circ(2.6, 22, -40, 24), circ(2.6, 0, -82, 24)];
+      /* selle : 5 lattes en arc séparées de 3° (le tuyau s'égoutte) */
+      const w = (2 * A - 4 * 3) / 5;
+      const slats = Array.from({ length: 5 }, (_, i) => {
+        const a0 = 90 - A + i * (w + 3);
+        return k.ext(arc(R - e, R, a0, a0 + w, 12), a + 1).translate(0, cy, tp + a / 2);
+      });
+      /* nervures sous la selle (au centre et sous les lattes extérieures) */
+      const web = x => {
+        const yu = cy + Math.sqrt((R - e) ** 2 - x * x) + 1;
+        return k.ext([[0, yu], [tp + a + 1, yu], [tp + a + 1, yu - 15], [0, Math.max(yu - 70, -96)]], 5)
+          .rotateY(-Math.PI / 2).translate(x, 0, 0);
+      };
+      return k.join(
+        k.ext(plate, tp, holes).translate(0, 0, tp / 2),
+        ...slats, web(0), web(-48), web(48),
+        k.ext(lip, tl).translate(0, 0, tp + a + tl / 2));
+    }),
     /* a = épaisseur du plateau de table */
     "pinces-nappe": m((k, { a }) => k.join(sideClamp(k, a, 25, 4, 20), k.box(4, a + 16, 20, -31, 0, 0))),
 
