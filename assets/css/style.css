@@ -318,6 +318,12 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .stage .dims, .stage__mat, .stage__hint { pointer-events: none; z-index: 1; }
 .stage__hint { position: absolute; bottom: 18px; left: 18px; font-size: 11px; padding: 6px 12px; border-radius: 999px; background: var(--bg-2); color: var(--soft); opacity: 0; transition: opacity .4s; }
 .stage.is-3d .stage__hint { opacity: 1; }
+/* Curseur d'ouverture (modèles ouvrables) : affichage seulement */
+.stage__open { position: absolute; top: 18px; right: 18px; z-index: 1; display: flex; align-items: center; gap: 10px; font-size: 11px; padding: 8px 14px; border-radius: 999px; background: var(--bg-2); color: var(--soft); opacity: 0; pointer-events: none; transition: opacity .4s; }
+.stage.is-3d .stage__open { opacity: 1; pointer-events: auto; }
+.stage__open input[type=range] { width: 120px; height: 4px; }
+.stage__open input[type=range]::-webkit-slider-thumb { width: 18px; height: 18px; border-width: 4px; }
+.stage__open input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-width: 4px; }
 .stage.is-3d .dim { font-size: 18px; padding: 8px 12px; }
 /* Écrans étroits : la vue 3D reste épinglée sous l'en-tête pendant qu'on règle les cotes */
 @media (max-width: 900px) {
@@ -331,6 +337,7 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
   .pdp--3d .stage__hint, .pdp--3d .stage__mat { bottom: 12px; }
   .pdp--3d .stage__hint { left: 12px; }
   .pdp--3d .stage__mat { right: 12px; }
+  .pdp--3d .stage__open { top: auto; bottom: 52px; right: 12px; }
   .pdp--3d .slider { padding: 14px 16px; margin-bottom: 8px; }
   .pdp--3d .pane { scroll-margin-top: calc(var(--header-h, 64px) + min(40vh, 380px) + 12px); }
   .pdp--3d .slider__head { margin-bottom: 10px; }
