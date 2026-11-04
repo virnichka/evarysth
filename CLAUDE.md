@@ -20,6 +20,8 @@ pas un gabarit de forme.
 1. **Analyse** : `python3 -I tools/analyse-stl.py <fichiers.stl>` (dimensions, zones sans
    détail par axe, trous et axes cylindriques). Ne réécris pas ce script : complète-le si
    un objet en a besoin. Autre format (OBJ, 3MF…) : convertis d'abord en STL.
+   G-code binaire Prusa (`.bgcode`, pas de maillage) : `tools/bgcode-decode.py`, puis lire les
+   trajectoires couche par couche et reconstruire en paramétrique.
    Maillage lourd (> ~2 Mo ou > 100 000 triangles) : simplifie-le avant de l'intégrer.
 2. **Comprendre l'objet** : à quoi il sert, ce qui s'ajuste à l'utilisateur (ce qu'il
    mesure chez lui), quels détails sont fonctionnels (clips, trous, charnières,

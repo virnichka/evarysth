@@ -18,6 +18,9 @@
       <path d="M60 66v28"/><path d="M38 56v28" class="ghost"/><path d="M82 56v28" class="ghost"/>`,
     riser: `<ellipse cx="60" cy="34" rx="30" ry="10"/><path d="M30 34v46c0 5.5 13.4 10 30 10s30-4.5 30-10V34"/>
       <ellipse cx="60" cy="34" rx="14" ry="4.6" class="ghost"/><path d="M30 56c0 5.5 13.4 10 30 10s30-4.5 30-10" class="ghost"/>`,
+    reel: `<rect x="14" y="20" width="10" height="84" rx="2" class="ghost"/>
+      <path d="M24 34c20-12 52-12 72 0"/><path d="M24 44c20-10 52-10 72 0"/><path d="M96 26v22"/>
+      <path d="M40 46v30M80 46v12"/><path d="M34 60c-10 16-10 30 6 36s40 4 46-10" class="ghost"/>`,
     bracket: `<rect x="20" y="16" width="10" height="88" rx="2" class="ghost"/>
       <path d="M34 30h66v10H46"/><path d="M34 30v58l12-8V40"/><path d="M46 76 88 40"/>`,
     ring: `<ellipse cx="60" cy="42" rx="40" ry="14"/><path d="M20 42v12c0 7.7 17.9 14 40 14s40-6.3 40-14V42"/>
