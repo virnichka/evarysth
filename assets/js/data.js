@@ -297,6 +297,14 @@ MODULR.products = [
     desc: "Deux crochets se glissent sur l'étagère et portent une barre de penderie dessous. Vos cintres trouvent leur place.",
     variants: sizes("Épaisseur de l'étagère", [["16 mm", "standard", { a: 16, b: 20 }], ["19 mm", "armoire", { a: 19, b: 20 }], ["25 mm", "massive", { a: 25, b: 25 }]]),
     custom: { surcharge: 4, params: [param("a", "Épaisseur de l'étagère", 10, 40, 18), param("b", "Diamètre de la barre", 12, 32, 20)] }
+  },
+  {
+    id: "cintre-sac", universe: "meubles", shape: "hook", model: "cintre-sac",
+    name: "Cintre à sac pour tringle", price: 9,
+    tagline: "Le sac à dos rangé dans la penderie, comme une veste.",
+    desc: "Un crochet épais qui se pose sur la tringle de votre penderie, et une large barre courbe pour accrocher la poignée ou les bretelles d'un sac à dos, d'un cabas ou d'un sac de sport. Le crochet est ajusté au diamètre de votre tringle.",
+    variants: sizes("Diamètre de la tringle", [["Ø 19", "fine", { a: 19 }], ["Ø 25", "standard", { a: 25 }], ["Ø 32", "épaisse", { a: 32 }]]),
+    custom: { surcharge: 3, params: [param("a", "Diamètre de la tringle", 15, 40, 25)] }
   }
 ];
 
