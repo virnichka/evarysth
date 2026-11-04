@@ -279,7 +279,7 @@
 
           <div class="accordion accordion--pdp">
             <details open><summary>Matière &amp; entretien</summary><p>Nylon PA12 noir, imprimé en 3D industrielle : léger, très résistant aux chocs, à l'humidité et aux UV. Un coup de chiffon humide suffit.</p></details>
-            <details><summary>Livraison &amp; retours</summary><p>Fabriqué à la commande, expédié sous 3 à 5 jours. Livraison offerte dès 49 €. Retour gratuit sous 30 jours.</p></details>
+            <details><summary>Livraison &amp; retours</summary><p>Fabriqué à la commande, expédié sous 3 à 5 jours. Retour gratuit sous 30 jours.</p></details>
             <details><summary>Garantie 2 ans</summary><p>Si la pièce se casse ou ne s'ajuste pas malgré vos mesures, nous la refabriquons.</p></details>
             <details><summary>Avis clients</summary><p>Les avis s'afficheront ici après les premières commandes. <button class="link" data-soon="Avis clients">Être prévenu</button></p></details>
           </div>
