@@ -25,6 +25,6 @@ Pas encore actives (affichent « pas encore disponible ») : compte client, chat
 
 ## Ajouter un objet 3D à partir de fichiers STL
 La méthode complète est dans `CLAUDE.md` (lu automatiquement par Claude Code à chaque session).
-Il suffit d'ouvrir une session sur ce dépôt, de joindre les STL et de décrire chaque objet :
-nom, univers, prix, paramètres voulus. L'analyse des STL se fait avec `tools/analyse-stl.py`
+Il suffit d'ouvrir une session sur ce dépôt, de joindre les STL et de décrire chaque objet
+(nom, univers, prix, paramètres voulus) ; tout type de forme est accepté. L'analyse des STL se fait avec `tools/analyse-stl.py`
 (`python3 -I tools/analyse-stl.py fichier.stl`, nécessite numpy). Exemple en place : `index.html#p-boite-rugged`.
