@@ -11,6 +11,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script>try { document.documentElement.dataset.theme = localStorage.getItem("modulr.theme") || "light"; } catch (e) { document.documentElement.dataset.theme = "light"; }</script>
   <link rel="stylesheet" href="assets/css/style.css">
+  <!-- Three.js (modules ES), chargé à la demande par assets/js/viewer3d.js sur les fiches produit 3D -->
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    } }
+  </script>
 </head>
 <body>
   <div class="topbar">Livraison offerte dès 49 € · Chaque pièce est fabriquée à la commande, en France</div>
@@ -121,7 +128,7 @@
 
    <div id="catalogue-view" hidden>
     <header class="page-head">
-      <span class="mono eyebrow">Catalogue · 30 hacks</span>
+      <span class="mono eyebrow">Catalogue · 31 hacks</span>
       <h1>Tous nos hacks</h1>
       <p>Balayez chaque univers, ou ouvrez-le pour tout voir d'un coup.</p>
     </header>
@@ -157,6 +164,7 @@
   <div class="toasts" id="toasts" aria-live="polite"></div>
   <script src="assets/js/data.js"></script>
   <script src="assets/js/ui.js"></script>
+  <script src="assets/js/viewer3d.js"></script>
   <script src="assets/js/app.js"></script>
   <script src="assets/js/cart.js"></script>
 </body>

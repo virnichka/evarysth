@@ -184,6 +184,18 @@ MODULR.products = [
 
   /* ---------- 03 · Meubles & Rangement ---------- */
   {
+    id: "equerre-l", universe: "meubles", shape: "bracket", model: "equerre",
+    name: "Équerre en L sur-mesure", price: 9,
+    tagline: "Renforce un angle ou soutient une étagère, à vos cotes.",
+    desc: "Une équerre pleine en Nylon PA12, avec un congé dans l'angle pour plus de rigidité. Réglez la longueur de chaque branche et la largeur, et faites tourner la pièce en 3D avant de commander.",
+    variants: sizes("Taille", [["Petite", "60 × 60 mm", { a: 60, b: 60, c: 15 }], ["Moyenne", "100 × 100 mm", { a: 100, b: 100, c: 20 }], ["Grande", "150 × 150 mm", { a: 150, b: 150, c: 30 }]]),
+    custom: { surcharge: 3, params: [
+      param("a", "Longueur de la 1re branche", 50, 200, 100, 1, 0.02),
+      param("b", "Longueur de la 2e branche", 50, 200, 100, 1, 0.02),
+      param("c", "Largeur de la pièce", 10, 40, 20, 1, 0.05)
+    ] }
+  },
+  {
     id: "rehausseur", universe: "meubles", shape: "riser", popular: true,
     name: "Rehausseurs de pieds ×4", price: 26,
     tagline: "Gagnez de la hauteur sous un lit ou un canapé.",
