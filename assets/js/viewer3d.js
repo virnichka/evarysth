@@ -2,7 +2,9 @@
    Three.js n'est chargé (via l'importmap d'index.html) qu'à l'ouverture d'une fiche produit qui a un modèle 3D.
    Usage : const v = MODULR.viewer3d.mount(conteneur, "equerre", p.custom.params, onReady);
            v.update({ a, b, c });  v.dispose();
-   Unités de la scène : 1 unité = 1 mm. */
+   Unités de la scène : 1 unité = 1 mm.
+   Un modèle peut aussi partir de fichiers STL (assets/models/) : il expose alors prepare(THREE),
+   appelé une fois avant le premier rendu, puis se reconstruit de façon synchrone comme les autres. */
 (function () {
   let libs = null;
   const load = () => libs || (libs = Promise.all([
@@ -52,6 +54,55 @@
     return { ext, box, cyl, join };
   })());
   const m = f => (T, v) => f(kit(T), v);
+
+  /* Fichiers STL : chargés une seule fois, à la demande */
+  const stlCache = {};
+  const fetchSTL = url => stlCache[url] || (stlCache[url] = import("three/addons/loaders/STLLoader.js")
+    .then(({ STLLoader }) => new Promise((ok, ko) => new STLLoader().load(url, ok, undefined, ko)))
+    .catch(err => { delete stlCache[url]; throw err; }));
+
+  /* Boîte Rugged : boîte + couvercle + 2 loquets, assemblés fermés à partir des STL d'impression.
+     Repère d'assemblage : Z vers le haut, origine au centre du fond, cotes intérieures 150 × 100 × 50 mm.
+     Redimensionnement « par zones » : on n'étire que des bandes où la pièce n'a que des parois droites
+     (milieu des grands côtés, milieu de la hauteur). Charnières, loquets, congés et épaisseurs de paroi
+     gardent leurs vraies dimensions, ils se déplacent simplement avec les bords. */
+  const rugged = (() => {
+    const DIR = "assets/models/boite-rugged/";
+    const NOM = { a: 150, b: 100, c: 50 };  // cotes intérieures des fichiers d'origine
+    const BAND = { x: 22, y: 23, z0: 4.4, z1: 22.4 };  // zones sans détail : |x| < 22, |y| < 23, 4,4 < z < 22,4
+    let base = null;
+    const model = (T, v) => {
+      const dx = (v.b - NOM.b) / 2, dy = (v.a - NOM.a) / 2, dz = v.c - NOM.c;
+      const sx = (BAND.x + dx) / BAND.x, sy = (BAND.y + dy) / BAND.y, sz = (BAND.z1 - BAND.z0 + dz) / (BAND.z1 - BAND.z0);
+      const out = new Float32Array(base.length);
+      for (let i = 0; i < base.length; i += 3) {
+        const x = base[i], y = base[i + 1], z = base[i + 2];
+        out[i] = x > BAND.x ? x + dx : x < -BAND.x ? x - dx : x * sx;
+        out[i + 1] = y > BAND.y ? y + dy : y < -BAND.y ? y - dy : y * sy;
+        out[i + 2] = z > BAND.z1 ? z + dz : z > BAND.z0 ? BAND.z0 + (z - BAND.z0) * sz : z;
+      }
+      const g = new T.BufferGeometry();
+      g.setAttribute("position", new T.BufferAttribute(out, 3));
+      g.computeVertexNormals();
+      return g.rotateX(-Math.PI / 2).center();  // Z vers le haut -> Y vers le haut (convention du viewer)
+    };
+    model.prepare = T => base ? Promise.resolve() : Promise.all(["boite", "couvercle", "loquet"].map(n => fetchSTL(DIR + n + ".stl")))
+      .then(([box, lid, latch]) => {
+        const M = (...e) => new T.Matrix4().set(...e, 0, 0, 0, 1);
+        const parts = [
+          box.clone().applyMatrix4(M(1, 0, 0, -125, 0, 1, 0, -126.9, 0, 0, 1, 0)),
+          /* Couvercle retourné (demi-tour autour de X) : son axe de charnière (z 14,5) vient sur celui de la boîte (z 40,5) */
+          lid.clone().applyMatrix4(M(1, 0, 0, -125, 0, -1, 0, 113.9, 0, 0, -1, 55)),
+          /* Loquet : œil sur l'axe du couvercle (z 48,6), crochet sur l'axe de la boîte (z 32,4) */
+          ...[-43, 43].map(yc => latch.clone().applyMatrix4(M(-1, 0, 0, 209.31, 0, 0, 1, yc - 11.6, 0, 1, 0, -11.32)))
+        ];
+        const arrs = parts.map(g => g.attributes.position.array);
+        base = new Float32Array(arrs.reduce((n, a) => n + a.length, 0));
+        arrs.reduce((o, a) => (base.set(a, o), o + a.length), 0);
+        parts.forEach(g => g.dispose());
+      });
+    return model;
+  })();
 
   /* Compositions récurrentes */
   const tray = ({ box }, w, d, h, nx, nz) => [
@@ -210,7 +261,10 @@
     "penderie-etagere": m((k, { a, b }) => k.join(
       sideClamp(k, a, 50, 5, 25),
       k.box(5, 60, 25, -30, -a / 2 - 35, 0),
-      k.ext(arc(b / 2, b / 2 + 5, 30, 330), 25).translate(-30, -a / 2 - 65 - b / 2 - 3, 0)))
+      k.ext(arc(b / 2, b / 2 + 5, 30, 330), 25).translate(-30, -a / 2 - 65 - b / 2 - 3, 0))),
+
+    /* a = longueur, b = largeur, c = hauteur intérieures (à partir des STL) */
+    "boite-rugged": rugged
   };
 
   const webglOK = () => {
@@ -227,7 +281,8 @@
     const build = MODELS[modelId];
     if (!container || !build || !webglOK()) return handle;
 
-    load().then(({ THREE, OrbitControls }) => {
+    load().then(async ({ THREE, OrbitControls }) => {
+      if (build.prepare) await build.prepare(THREE);
       if (disposed) return;
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
