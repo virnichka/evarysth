@@ -184,6 +184,9 @@
   document.addEventListener("modulr:favs", () => { if (location.hash === "#favoris") { renderFavorites(); MODULR.syncFavs(); } });
 
   /* ---------- Page produit ---------- */
+  let viewer = null; // viewer 3D de la fiche affichée (libéré à chaque changement de page)
+  function disposeViewer() { if (viewer) { viewer.dispose(); viewer = null; } }
+
   function renderProduct(id) {
     const root = $("#product-root");
     const p = MODULR.getProduct(id);
@@ -196,7 +199,7 @@
       custom: Object.fromEntries(p.custom.params.map(x => [x.key, x.def])),
       qty: 1
     };
-    const LETTERS = ["A", "B"];
+    const LETTERS = ["A", "B", "C"];
 
     root.innerHTML = `
       <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <a href="#f-${u.id}">${u.name}</a> / <span>${p.name}</span></nav>
@@ -204,6 +207,8 @@
         <div class="pdp__visual">
           <div class="stage" id="stage" data-u="${p.universe}">
             ${MODULR.shapeSVG(p.shape, "shape--xl")}
+            ${p.model ? `<div class="viewer3d" id="viewer3d" role="img" aria-label="Aperçu 3D de ${p.name} : faites glisser pour tourner la pièce"></div>
+            <span class="stage__hint mono" aria-hidden="true">↻ Glissez pour tourner</span>` : ""}
             <div class="dims" id="dims"></div>
             <span class="stage__mat mono">NYLON PA12 · NOIR MAT</span>
           </div>
@@ -321,6 +326,7 @@
       $("#summary").innerHTML = rows.map(r => `<li><span>${r[0]}</span><b>${r[1]}</b></li>`).join("") +
         `<li class="summary__total"><span>Total</span><b>${fmt(unit * state.qty)}</b></li>`;
       state._unit = unit; state._dimRows = dimRows;
+      if (viewer) viewer.update(v);
     }
 
     function pulse() { const d = $("#dims"); d.classList.remove("pulse"); void d.offsetWidth; d.classList.add("pulse"); }
@@ -357,6 +363,11 @@
       });
     });
 
+    disposeViewer();
+    if (p.model && MODULR.viewer3d) {
+      viewer = MODULR.viewer3d.mount($("#viewer3d"), p.model, p.custom.params, () => $("#stage").classList.add("is-3d"));
+    }
+
     update();
   }
 
@@ -375,6 +386,7 @@
     const prod = h.startsWith("p-") && MODULR.getProduct(h.slice(2));
     const fam = h.startsWith("f-") && MODULR.getUniverse(h.slice(2));
     let top = true, nav = "";
+    disposeViewer();
     if (prod) { show("product-root"); renderProduct(prod.id); nav = "f-" + prod.universe; }
     else if (fam) { show("family-view"); renderFamily(fam.id); nav = h; }
     else if (h === "favoris") { show("family-view"); renderFavorites(); nav = ""; }

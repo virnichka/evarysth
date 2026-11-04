@@ -310,6 +310,16 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .dims.pulse .dim { animation: pulse .45s var(--ease); }
 @keyframes pulse { 40% { transform: translateX(4px); box-shadow: 0 0 0 2px var(--accent); } }
 .stage__mat { position: absolute; bottom: 18px; right: 18px; font-size: 11px; padding: 6px 12px; border-radius: 999px; background: var(--bg-2); color: var(--soft); }
+/* Viewer 3D (fiches avec model) */
+.viewer3d { position: absolute; inset: 0; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+.viewer3d:active { cursor: grabbing; }
+.viewer3d canvas { display: block; width: 100%; height: 100%; outline: none; }
+.stage.is-3d > .shape { display: none; }
+.stage .dims, .stage__mat, .stage__hint { pointer-events: none; z-index: 1; }
+.stage__hint { position: absolute; bottom: 18px; left: 18px; font-size: 11px; padding: 6px 12px; border-radius: 999px; background: var(--bg-2); color: var(--soft); opacity: 0; transition: opacity .4s; }
+.stage.is-3d .stage__hint { opacity: 1; }
+.stage.is-3d .dim { font-size: 18px; padding: 8px 12px; }
+@media (max-width: 520px) { .stage.is-3d .stage__mat { display: none; } }
 .perks { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
 .perks li { padding: 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; font-size: 14px; }
 .perks b { display: block; font-weight: 600; }
