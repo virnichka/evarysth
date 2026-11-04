@@ -70,7 +70,20 @@
     const DIR = "assets/models/boite-rugged/";
     const NOM = { a: 150, b: 100, c: 50 };  // cotes intérieures des fichiers d'origine
     const BAND = { x: 22, y: 23, z0: 4.4, z1: 22.4 };  // zones sans détail : |x| < 22, |y| < 23, 4,4 < z < 22,4
-    let base = null;
+    /* Axes de rotation (repère d'assemblage, cotes d'origine) : charnière côté -X, œil des loquets côté +X */
+    const HINGE = { x: -57.86, z: 40.5 }, LATCH_PIN = { x: 56.76, z: 48.6 };
+    let base = null, lidAt = 0, latchAt = 0;  // positions à plat ; indices de début du couvercle et des loquets
+    /* Rotation autour d'un axe parallèle à Y passant par (cx, cz), sur out[from..to[ */
+    const swing = (out, from, to, cx, cz, ang) => {
+      const c = Math.cos(ang), s = Math.sin(ang);
+      for (let i = from; i < to; i += 3) {
+        const x = out[i] - cx, z = out[i + 2] - cz;
+        out[i] = cx + x * c - z * s;
+        out[i + 2] = cz + x * s + z * c;
+      }
+    };
+    /* v.open (0 → 1, facultatif) : affichage seulement. 0–30 % : les loquets basculent vers l'extérieur,
+       30–100 % : le couvercle (avec ses loquets) pivote jusqu'à 105° sur sa charnière. */
     const model = (T, v) => {
       const dx = (v.b - NOM.b) / 2, dy = (v.a - NOM.a) / 2, dz = v.c - NOM.c;
       const sx = (BAND.x + dx) / BAND.x, sy = (BAND.y + dy) / BAND.y, sz = (BAND.z1 - BAND.z0 + dz) / (BAND.z1 - BAND.z0);
@@ -81,11 +94,20 @@
         out[i + 1] = y > BAND.y ? y + dy : y < -BAND.y ? y - dy : y * sy;
         out[i + 2] = z > BAND.z1 ? z + dz : z > BAND.z0 ? BAND.z0 + (z - BAND.z0) * sz : z;
       }
+      /* Centre de la boîte fermée : la boîte reste immobile pendant l'ouverture */
+      const cz = (out.reduce((m, val, i) => i % 3 === 2 && val > m ? val : m, 0)) / 2;
+      const open = Math.min(1, Math.max(0, v.open || 0));
+      const ease = t => t * t * (3 - 2 * t);
+      if (open > 0) {
+        swing(out, latchAt, out.length, LATCH_PIN.x + dx, LATCH_PIN.z + dz, -ease(Math.min(1, open / 0.3)) * Math.PI * 0.6);
+        swing(out, lidAt, out.length, HINGE.x - dx, HINGE.z + dz, ease(Math.max(0, (open - 0.3) / 0.7)) * Math.PI * 105 / 180);
+      }
       const g = new T.BufferGeometry();
       g.setAttribute("position", new T.BufferAttribute(out, 3));
-      g.computeVertexNormals();
-      return g.rotateX(-Math.PI / 2).center();  // Z vers le haut -> Y vers le haut (convention du viewer)
+      g.translate(0, 0, -cz).computeVertexNormals();
+      return g.rotateX(-Math.PI / 2);  // Z vers le haut -> Y vers le haut (convention du viewer)
     };
+    model.openable = true;
     model.prepare = T => base ? Promise.resolve() : Promise.all(["boite", "couvercle", "loquet"].map(n => fetchSTL(DIR + n + ".stl")))
       .then(([box, lid, latch]) => {
         const M = (...e) => new T.Matrix4().set(...e, 0, 0, 0, 1);
@@ -97,6 +119,7 @@
           ...[-43, 43].map(yc => latch.clone().applyMatrix4(M(-1, 0, 0, 209.31, 0, 0, 1, yc - 11.6, 0, 1, 0, -11.32)))
         ];
         const arrs = parts.map(g => g.attributes.position.array);
+        lidAt = arrs[0].length; latchAt = lidAt + arrs[1].length;
         base = new Float32Array(arrs.reduce((n, a) => n + a.length, 0));
         arrs.reduce((o, a) => (base.set(a, o), o + a.length), 0);
         parts.forEach(g => g.dispose());
@@ -273,9 +296,11 @@
   };
 
   function mount(container, modelId, params, onReady) {
-    let disposed = false, ready = false, pending = null, api = null;
+    let disposed = false, ready = false, pending = null, api = null, open = 0;
     const handle = {
       update(values) { pending = { ...values }; if (ready) api.rebuild(pending); },
+      /* Ouverture (0 → 1) pour les modèles « openable » : affichage seulement, n'entre pas dans les cotes */
+      setOpen(t) { open = t; if (ready && pending) api.rebuild(pending); },
       dispose() { disposed = true; if (api) api.destroy(); api = null; }
     };
     const build = MODELS[modelId];
@@ -304,8 +329,13 @@
 
       /* Caméra fixe, cadrée sur la plus grande pièce possible : on voit la pièce grandir ou rétrécir */
       const maxVals = Object.fromEntries(params.map(p => [p.key, p.max]));
-      const probe = build(THREE, maxVals); probe.computeBoundingSphere();
-      const radius = probe.boundingSphere.radius; probe.dispose();
+      /* Rayon depuis l'origine (les modèles sont centrés ; un modèle ouvrable garde la boîte fermée au centre) */
+      const reach = vals => {
+        const g = build(THREE, vals), a = g.attributes.position.array; let r = 0;
+        for (let i = 0; i < a.length; i += 3) r = Math.max(r, a[i] * a[i] + a[i + 1] * a[i + 1] + a[i + 2] * a[i + 2]);
+        g.dispose(); return Math.sqrt(r);
+      };
+      const radius = Math.max(reach(maxVals), build.openable ? reach({ ...maxVals, open: 1 }) * 0.9 : 0);
       const camera = new THREE.PerspectiveCamera(32, 1, radius / 50, radius * 20);
       const dist = radius / Math.sin(THREE.MathUtils.degToRad(32 / 2)) * 0.92;
       camera.position.set(0.9, 0.75, 1.1).normalize().multiplyScalar(dist);
@@ -337,7 +367,7 @@
 
       api = {
         rebuild(values) {
-          const g = build(THREE, values);
+          const g = build(THREE, build.openable ? { ...values, open } : values);
           if (mesh.geometry) mesh.geometry.dispose();
           if (edges.geometry) edges.geometry.dispose();
           mesh.geometry = g;
@@ -357,7 +387,8 @@
         }
       };
 
-      api.rebuild(pending || Object.fromEntries(params.map(p => [p.key, p.def])));
+      pending = pending || Object.fromEntries(params.map(p => [p.key, p.def]));
+      api.rebuild(pending);
       ready = true;
       resize(); tick();
       if (onReady) onReady();
