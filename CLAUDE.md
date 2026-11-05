@@ -61,3 +61,10 @@ pas un gabarit de forme.
 `assets/photos/<id-produit>/1.webp, 2.webp…` (≤ 1600 px de large, ~200 Ko). Dans `data.js` :
 `photos: [{ src, alt, pos? }]` (pos = object-position du recadrage) + `photosNote` facultatif.
 La 1re photo sert de vignette au catalogue (2e au survol) ; sur la fiche, la 3D reste la vue 1.
+
+## Mise en ligne (autorisée par le propriétaire, sans redemander)
+Chaque push sur `main` republie le site (GitHub Pages, `.github/workflows/pages.yml`).
+Une fois le travail vérifié : push de la branche, PR vers `main`, fusion en squash, puis
+contrôle que le workflow « Publier le site » réussit et que le site en ligne sert la nouvelle
+version. Avant d'ouvrir la PR, se mettre à jour sur `main` (d'autres sessions publient en
+parallèle) et éviter les doublons de produit. Si le déploiement échoue, corriger et republier.
