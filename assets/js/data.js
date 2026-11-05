@@ -216,7 +216,12 @@ MODULR.products = [
       param("a", "Longueur intérieure", 110, 300, 150, 5, 0.06),
       param("b", "Largeur intérieure", 60, 250, 100, 5, 0.08),
       param("c", "Hauteur intérieure", 35, 150, 50, 5, 0.1)
-    ] }
+    ] },
+    photos: [
+      { src: "assets/photos/boite-rugged/1.webp", alt: "Boîte robuste ouverte, couvercle garni de mousse, outils et multimètre rangés à l'intérieur" },
+      { src: "assets/photos/boite-rugged/2.webp", alt: "Gros plan d'un loquet clipsé sur le rebord du couvercle", pos: "50% 40%" }
+    ],
+    photosNote: "Photos : coloris de démonstration, mousse et outils non fournis"
   },
   {
     id: "rehausseur", universe: "meubles", shape: "riser", model: "rehausseur", popular: true,
