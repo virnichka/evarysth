@@ -356,7 +356,13 @@ MODULR.products = [
     variants: sizes("Hauteur", [["S", "80 mm", { a: 80 }], ["M", "120 mm", { a: 120 }], ["L", "160 mm", { a: 160 }]]),
     custom: { surcharge: 5, params: [
       param("a", "Hauteur de la figurine", 60, 200, 120, 5, 0.15)
-    ] }
+    ] },
+    photos: [
+      { src: "assets/photos/carapuce/1.webp", alt: "Carapuce de face, doigt levé, carapace sur le dos et queue en spirale" },
+      { src: "assets/photos/carapuce/2.webp", alt: "Carapuce vu de dos : carapace à alvéoles et queue enroulée" },
+      { src: "assets/photos/carapuce/3.webp", alt: "Maillage 3D de la figurine, vue de trois quarts" }
+    ],
+    photosNote: "Photos : rendus de démonstration, coloris beige ; pièce livrée en noir mat"
   }
 ];
 
