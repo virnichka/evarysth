@@ -304,7 +304,13 @@ MODULR.products = [
     tagline: "Le sac à dos rangé dans la penderie, comme une veste.",
     desc: "Un crochet épais qui se pose sur la tringle de votre penderie, et une large barre courbe pour accrocher la poignée ou les bretelles d'un sac à dos, d'un cabas ou d'un sac de sport. Le crochet est ajusté au diamètre de votre tringle.",
     variants: sizes("Diamètre de la tringle", [["Ø 19", "fine", { a: 19 }], ["Ø 25", "standard", { a: 25 }], ["Ø 32", "épaisse", { a: 32 }]]),
-    custom: { surcharge: 3, params: [param("a", "Diamètre de la tringle", 15, 40, 25)] }
+    custom: { surcharge: 3, params: [param("a", "Diamètre de la tringle", 15, 40, 25)] },
+    /* Photos commerciales (facultatif) : 1re = vignette du catalogue. note = taille photographiée */
+    photos: [
+      { src: "assets/photos/cintre-sac/1.webp", alt: "Deux sacs à dos suspendus à la tringle d'une penderie par les cintres" },
+      { src: "assets/photos/cintre-sac/2.webp", alt: "Gros plan du cintre posé sur la tringle, une poignée de sac accrochée", pos: "50% 45%" }
+    ],
+    photosNote: "Photos : modèle standard, coloris de démonstration"
   }
 ];
 
