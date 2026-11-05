@@ -234,7 +234,14 @@ MODULR.products = [
     custom: { surcharge: 6, params: [
       param("a", "Hauteur totale du support", 200, 320, 250, 5, 0.05),
       param("b", "Largeur de l'appui sous l'arceau", 80, 160, 120, 5, 0.06)
-    ] }
+    ] },
+    photos: [
+      { src: "assets/photos/support-casque-gyroide/1.webp", alt: "Support casque Gyroïde posé sur un bureau en bois, un casque circum-auriculaire suspendu à son appui" },
+      { src: "assets/photos/support-casque-gyroide/2.webp", alt: "Support casque Gyroïde vu de trois quarts : socle plein, colonne et tête en treillis" },
+      { src: "assets/photos/support-casque-gyroide/3.webp", alt: "Support casque Gyroïde vu de l'autre côté, nervure centrale dans la tête" },
+      { src: "assets/photos/support-casque-gyroide/4.webp", alt: "Gros plan du treillis gyroïde sous l'appui bombé" }
+    ],
+    photosNote: "Photos : coloris de démonstration, casque non fourni"
   },
   {
     id: "rehausseur", universe: "meubles", shape: "riser", model: "rehausseur", popular: true,
