@@ -342,14 +342,23 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .views__btn .shape { width: 60%; opacity: .5; }
 .views__btn span { position: absolute; font-size: 12px; font-weight: 700; }
 .views__note { flex-basis: 100%; margin: 0; font-size: 11px; color: var(--soft); }
-/* Vignette du catalogue : 1re photo, la 2e au survol */
-.card__photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity .4s var(--ease), transform .6s var(--ease); }
+/* Vignette du catalogue : photos à faire défiler au doigt, points indicateurs */
 .card__media.has-photo { overflow: hidden; }
 .card__media.has-photo .shape { visibility: hidden; }
-.card__photo--2 { opacity: 0; }
-.card:hover .card__photo--2 { opacity: 1; }
-.card:hover .card__photo { transform: scale(1.04); }
-.card__media.has-photo .card__badge, .card__media.has-photo .fav { z-index: 1; }
+.card__photos { position: absolute; inset: 0; z-index: 2; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.card__photos::-webkit-scrollbar { display: none; }
+.card__photo { flex: 0 0 100%; width: 100%; height: 100%; object-fit: cover; scroll-snap-align: start; scroll-snap-stop: always; user-select: none; -webkit-user-drag: none; }
+.card__dots { position: absolute; z-index: 3; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; padding: 5px 8px; border-radius: 999px; background: rgba(0, 0, 0, .35); pointer-events: none; }
+.card__dots i { width: 6px; height: 6px; border-radius: 50%; background: #fff; opacity: .5; transition: opacity .2s, transform .2s; }
+.card__dots i.is-on { opacity: 1; transform: scale(1.25); }
+.card__step { position: absolute; z-index: 3; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; background: var(--bg-2); color: var(--text); font-size: 22px; line-height: 1; display: grid; place-items: center; opacity: 0; transition: opacity .2s; box-shadow: var(--shadow-card); }
+.card__step[hidden] { display: none; }
+.card__step--prev { left: 10px; } .card__step--next { right: 10px; }
+.card:hover .card__step, .card__step:focus-visible { opacity: 1; }
+@media (hover: none) { .card__step { display: none; } }
+.card__media.has-photo .card__badge, .card__media.has-photo .fav { z-index: 3; }
+.card__media.has-photo .card__badge { pointer-events: none; }
+.card__media.has-photo:has(.card__dots) .card__badge { bottom: auto; top: 12px; }
 /* Écrans étroits : la vue 3D reste épinglée sous l'en-tête pendant qu'on règle les cotes */
 @media (max-width: 900px) {
   .pdp--3d .pdp__visual { display: contents; }
