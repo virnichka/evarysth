@@ -393,6 +393,14 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .opt small { color: var(--muted); font: 13px var(--mono); }
 .opt:hover { border-color: var(--line-strong); }
 .opt.is-active { border-color: var(--text); }
+.colors { margin: 0 0 18px; }
+.colors .label { margin-bottom: 8px; }
+.colors__name { font-weight: 400; color: var(--muted); margin-left: 6px; }
+.colors__list { display: flex; gap: 12px; }
+.swatch { width: 34px; height: 34px; border-radius: 50%; background: var(--c); border: 0; padding: 0; cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .15), 0 0 0 2px var(--bg), 0 0 0 3px transparent; transition: box-shadow .2s var(--ease), transform .2s var(--ease); }
+.swatch:hover { transform: scale(1.08); }
+.swatch.is-active { box-shadow: inset 0 0 0 1px rgb(0 0 0 / .15), 0 0 0 3px var(--bg), 0 0 0 5px var(--text); }
 
 /* Curseur compact : titre + valeur sur une ligne, puis min — curseur — max */
 .slider { display: grid; grid-template-columns: 28px 1fr 52px; align-items: center; column-gap: 12px; row-gap: 8px; padding: 10px 14px 12px; border: 1px solid var(--line); border-radius: 16px; margin-bottom: 8px; background: var(--bg-2); }
