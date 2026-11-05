@@ -346,7 +346,14 @@ MODULR.products = [
     variants: sizes("Hauteur", [["S", "100 mm", { a: 100 }], ["M", "150 mm", { a: 150 }], ["L", "200 mm", { a: 200 }]]),
     custom: { surcharge: 5, params: [
       param("a", "Hauteur du buste", 80, 220, 150, 5, 0.2)
-    ] }
+    ] },
+    photos: [
+      { src: "assets/photos/chat-lord/1.webp", alt: "Buste de chat couronné de lauriers posé sur un bureau en bois, près d'une fenêtre", pos: "40% 50%" },
+      { src: "assets/photos/chat-lord/2.webp", alt: "Le buste vu de profil : couronne de lauriers et toge drapée" },
+      { src: "assets/photos/chat-lord/3.webp", alt: "Gros plan sur le visage du chat et les feuilles de laurier" },
+      { src: "assets/photos/chat-lord/4.webp", alt: "Le buste vu de dos, toge et piédouche" }
+    ],
+    photosNote: "Photos : coloris gris de démonstration, livré en noir mat"
   }
 ];
 
