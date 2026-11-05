@@ -226,6 +226,17 @@ MODULR.products = [
     photosNote: "Photos : coloris de démonstration, mousse et outils non fournis"
   },
   {
+    id: "support-casque-gyroide", universe: "meubles", shape: "headstand", model: "support-casque-gyroide",
+    name: "Support casque Gyroïde", price: 29,
+    tagline: "Un vrai présentoir pour votre casque, léger comme une dentelle.",
+    desc: "Socle plein, colonne et tête en treillis gyroïde, appui bombé qui épouse l'arceau sans le marquer. Réglez la hauteur pour que les coussinets ne touchent pas le bureau, et la largeur de l'appui selon votre arceau : le treillis garde la même maille, il gagne simplement des cellules.",
+    variants: sizes("Taille du casque", [["Compact", "supra-auriculaire", { a: 220, b: 100 }], ["Standard", "circum-auriculaire", { a: 250, b: 120 }], ["Grand", "casque de studio", { a: 290, b: 140 }]]),
+    custom: { surcharge: 6, params: [
+      param("a", "Hauteur totale du support", 200, 320, 250, 5, 0.05),
+      param("b", "Largeur de l'appui sous l'arceau", 80, 160, 120, 5, 0.06)
+    ] }
+  },
+  {
     id: "rehausseur", universe: "meubles", shape: "riser", model: "rehausseur", popular: true,
     name: "Rehausseurs de pieds ×4", price: 26,
     tagline: "Gagnez de la hauteur sous un lit ou un canapé.",
