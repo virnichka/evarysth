@@ -127,6 +127,27 @@
     return model;
   })();
 
+  /* Chat Lord : buste sculpté (maillage d'origine allégé à 80 000 triangles).
+     Repère du STL : Z vers le haut, centré en X/Y, socle en z = 0, hauteur nominale 172,9 mm.
+     Forme organique sans détail fonctionnel : mise à l'échelle uniforme, a = hauteur totale. */
+  const chat = (() => {
+    const URL = "assets/models/chat-lord/chat.stl", H0 = 172.9;
+    let base = null;
+    const model = (T, v) => {
+      const s = v.a / H0;
+      return base.clone().scale(s, s, s).translate(0, 0, -v.a / 2).rotateX(-Math.PI / 2);
+    };
+    model.smooth = true;  // surface sculptée : pas d'arêtes vives à souligner
+    /* Sommets fusionnés pour un ombrage lisse (le STL répète chaque sommet par triangle) */
+    model.prepare = () => base ? Promise.resolve() : Promise.all([fetchSTL(URL), import("three/addons/utils/BufferGeometryUtils.js")])
+      .then(([g, { mergeVertices }]) => {
+        const flat = g.clone(); flat.deleteAttribute("normal");
+        base = mergeVertices(flat, 1e-3); flat.dispose();
+        base.computeVertexNormals();
+      });
+    return model;
+  })();
+
   /* Compositions récurrentes */
   const tray = ({ box }, w, d, h, nx, nz) => [
     box(w, 3, d, 0, 1.5, 0),
@@ -409,7 +430,10 @@
     "boite-rugged": rugged,
 
     /* a = diamètre de la bombe, b = hauteur du support */
-    "support-aerosol-skadis": aerosol
+    "support-aerosol-skadis": aerosol,
+
+    /* a = hauteur du buste (à partir du STL, mise à l'échelle uniforme) */
+    "chat-lord": chat
   };
 
   const webglOK = () => {
@@ -493,7 +517,7 @@
           if (mesh.geometry) mesh.geometry.dispose();
           if (edges.geometry) edges.geometry.dispose();
           mesh.geometry = g;
-          edges.geometry = new THREE.EdgesGeometry(g, 30);
+          edges.geometry = build.smooth ? new THREE.BufferGeometry() : new THREE.EdgesGeometry(g, 30);
           dirty = true;
         },
         destroy() {

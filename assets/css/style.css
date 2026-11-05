@@ -1,6 +1,6 @@
 /* Modulr Studio — design system « atelier clair »
    Fond papier, pièces noires (nylon PA12), une seule couleur d'accent : l'orange.
-   Chaque univers a sa teinte douce : sauge (balcon), bleu-gris (bureau), sable (meubles). */
+   Chaque univers a sa teinte douce : sauge (balcon), bleu-gris (bureau), sable (meubles), rose poudré (déco). */
 :root {
   color-scheme: light;
   --bg: #f4f1ea;
@@ -30,6 +30,7 @@
   --t-balcon: #e3ead8; --t-balcon-deep: #9aa88a; --t-balcon-ink: #3d4535;
   --t-bureau: #dce3ec; --t-bureau-deep: #9aa6b5; --t-bureau-ink: #36404c;
   --t-meubles: #efe0cf; --t-meubles-deep: #c7a888; --t-meubles-ink: #4e4030;
+  --t-deco: #ece0e6; --t-deco-deep: #bb9dac; --t-deco-ink: #4b3843;
 
   --radius: 24px;
   --radius-lg: 32px;
@@ -53,10 +54,12 @@
   --t-balcon: #232a1e; --t-balcon-deep: #4b5940; --t-balcon-ink: #c9d4bb;
   --t-bureau: #1e2530; --t-bureau-deep: #4a5666; --t-bureau-ink: #c3cfdd;
   --t-meubles: #2e261c; --t-meubles-deep: #6e5a44; --t-meubles-ink: #e3cfb7;
+  --t-deco: #2b2128; --t-deco-deep: #644b59; --t-deco-ink: #dfc9d5;
 }
 [data-u="balcon"] { --tint: var(--t-balcon); --tint-deep: var(--t-balcon-deep); --tint-ink: var(--t-balcon-ink); }
 [data-u="bureau"] { --tint: var(--t-bureau); --tint-deep: var(--t-bureau-deep); --tint-ink: var(--t-bureau-ink); }
 [data-u="meubles"] { --tint: var(--t-meubles); --tint-deep: var(--t-meubles-deep); --tint-ink: var(--t-meubles-ink); }
+[data-u="deco"] { --tint: var(--t-deco); --tint-deep: var(--t-deco-deep); --tint-ink: var(--t-deco-ink); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; overflow-x: clip; }
