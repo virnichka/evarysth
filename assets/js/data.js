@@ -8,7 +8,9 @@ MODULR.universes = [
   { id: "bureau", code: "02", name: "Bureau & Tech", short: "Bureau", sub: "invisible",
     pitch: "Câbles, chargeurs, casques : tout disparaît sous le plateau." },
   { id: "meubles", code: "03", name: "Meubles & Rangement", short: "Meubles", sub: "malins",
-    pitch: "Les petites pièces qui manquaient à vos meubles du commerce." }
+    pitch: "Les petites pièces qui manquaient à vos meubles du commerce." },
+  { id: "deco", code: "04", name: "Déco & Objets", short: "Déco", sub: "à poser",
+    pitch: "Des pièces à exposer, imprimées à la taille de votre étagère." }
 ];
 
 /* Petites fabriques pour garder le catalogue lisible */
@@ -333,6 +335,18 @@ MODULR.products = [
       { src: "assets/photos/support-aerosol-skadis/3.webp", alt: "Le support vu de profil : côté en creux et crochets SKADIS" }
     ],
     photosNote: "Photos : prototype Ø 54 imprimé en gris, coloris de démonstration ; bombe non fournie"
+  },
+
+  /* ---------- 04 · Déco & Objets ---------- */
+  {
+    id: "chat-lord", universe: "deco", shape: "cat", model: "chat-lord",
+    name: "Chat Lord", price: 29,
+    tagline: "Un buste de chat couronné de lauriers, drapé à l'antique.",
+    desc: "Un buste sculpté façon empereur romain, imprimé d'un seul bloc sur son piédouche. Choisissez sa hauteur, du petit compagnon de bureau à la pièce qui trône sur une étagère : les proportions restent identiques.",
+    variants: sizes("Hauteur", [["S", "100 mm", { a: 100 }], ["M", "150 mm", { a: 150 }], ["L", "200 mm", { a: 200 }]]),
+    custom: { surcharge: 5, params: [
+      param("a", "Hauteur du buste", 80, 220, 150, 5, 0.2)
+    ] }
   }
 ];
 

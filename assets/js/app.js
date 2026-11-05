@@ -32,6 +32,10 @@
     cup: `<rect x="18" y="10" width="84" height="100" rx="3" class="ghost"/><path d="M34 22v8M86 22v8M34 70v8M86 70v8" class="ghost"/>
       <path d="M36 40h48v14"/><path d="M36 40v14"/><ellipse cx="60" cy="54" rx="24" ry="8"/>
       <path d="M36 54v32c0 4.4 10.7 8 24 8s24-3.6 24-8V54"/><path d="M50 61.4c0 14 20 14 20 0" />`,
+    cat: `<ellipse cx="60" cy="98" rx="30" ry="6" class="ghost"/>
+      <path d="M42 40 44 18l12 12h8l12-12 2 22"/><path d="M42 40c-4 6-4 16 2 22M78 40c4 6 4 16-2 22"/>
+      <path d="M44 62c-8 8-10 22-6 34h44c4-12 2-26-6-34"/><path d="M50 46h4M66 46h4"/><path d="M56 54l4 3 4-3"/>
+      <path d="M82 96c12 0 16-12 8-20"/>`,
     handle: `<path d="M16 76h22V50a8 8 0 0 1 8-8h28a8 8 0 0 1 8 8v26h22"/><path d="M38 76h44" class="ghost"/>
       <circle cx="38" cy="86" r="3"/><circle cx="82" cy="86" r="3"/>`
   };
@@ -86,6 +90,7 @@
     </article>`;
 
   /* ---------- Accueil ---------- */
+  const nHacks = n => n + (n > 1 ? " hacks" : " hack");
   const inFamily = u => MODULR.products.filter(p => p.universe === u.id);
   const heading = u => `<h2>${u.name} <em>${u.sub}</em></h2>`;
 
@@ -93,13 +98,13 @@
     /* Carrousel des univers : une grande carte par famille, à balayer */
     $("#families-root").innerHTML = MODULR.universes.map((u, i) => {
       const list = inFamily(u);
-      return `<a class="u-card" data-u="${u.id}" href="#f-${u.id}" aria-label="${u.name} : ${list.length} hacks" data-slide="${i}">
-        <div class="u-card__top"><span class="u-card__code mono">${u.code}</span><span class="u-card__count">${list.length} hacks</span></div>
+      return `<a class="u-card" data-u="${u.id}" href="#f-${u.id}" aria-label="${u.name} : ${nHacks(list.length)}" data-slide="${i}">
+        <div class="u-card__top"><span class="u-card__code mono">${u.code}</span><span class="u-card__count">${nHacks(list.length)}</span></div>
         <div class="u-card__art" aria-hidden="true">${list.slice(0, 3).map(p => `<span>${MODULR.shapeSVG(p.shape)}</span>`).join("")}</div>
         <div class="u-card__text">
           <h3>${u.name}</h3>
           <p>${u.pitch}</p>
-          <ul class="u-card__list">${list.slice(0, 4).map(p => `<li>${p.name}</li>`).join("")}<li>et ${list.length - 4} autres…</li></ul>
+          <ul class="u-card__list">${list.slice(0, 4).map(p => `<li>${p.name}</li>`).join("")}${list.length > 4 ? `<li>et ${list.length - 4} autres…</li>` : ""}</ul>
         </div>
         <span class="u-card__cta">Explorer <span class="arrow" aria-hidden="true">→</span></span>
       </a>`;
@@ -109,7 +114,7 @@
     setupCarousel($("#univers"));
 
     $("#popular-root").innerHTML = MODULR.products.filter(p => p.popular).map(card).join("") +
-      `<a class="card card--more" href="#catalogue"><span>Tout le catalogue</span><span class="arrow" aria-hidden="true">→</span><small>${MODULR.products.length} hacks</small></a>`;
+      `<a class="card card--more" href="#catalogue"><span>Tout le catalogue</span><span class="arrow" aria-hidden="true">→</span><small>${nHacks(MODULR.products.length)}</small></a>`;
   }
 
   /* Carrousel : glisser au doigt (scroll-snap), flèches, points, clavier */
@@ -153,6 +158,7 @@
 
   /* ---------- Page catalogue : une rangée défilante par famille ---------- */
   function renderCatalogue() {
+    $("#catalogue-count").textContent = `Catalogue · ${nHacks(MODULR.products.length)}`;
     $("#catalogue-root").innerHTML = MODULR.universes.map(u => {
       const list = inFamily(u);
       return `<section class="row-block">
@@ -180,12 +186,12 @@
     $("#family-view").innerHTML = `
       <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <span>${u.name}</span></nav>
       <header class="page-head page-head--u" data-u="${u.id}">
-        <span class="mono eyebrow">Univers ${u.code} · ${list.length} hacks</span>
+        <span class="mono eyebrow">Univers ${u.code} · ${nHacks(list.length)}</span>
         <h1>${u.name} <em>${u.sub}</em></h1>
         <p>${u.pitch}</p>
       </header>
       <div class="toolbar">
-        <span class="mono">${list.length} hacks</span>
+        <span class="mono">${nHacks(list.length)}</span>
         <label class="sort mono">Trier par
           <select id="sort">
             <option value="rec">Sélection</option><option value="asc">Prix croissant</option>
