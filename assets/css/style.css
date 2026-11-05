@@ -133,7 +133,7 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .section-head p { color: var(--muted); font-size: 17px; margin-top: 10px; max-width: 560px; }
 
 /* ---------- Héros ---------- */
-.hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; padding: clamp(40px, 7vw, 88px) 0 56px; }
+.hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; padding: clamp(40px, 7vw, 88px) 0 88px; }
 .eyebrow-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; margin-bottom: 22px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; font-size: 14px; font-weight: 500; color: var(--soft); }
 .eyebrow-pill span { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .hero h1 { font-size: clamp(44px, 6.4vw, 84px); font-weight: 800; line-height: .97; letter-spacing: -.04em; }
@@ -156,22 +156,12 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .hero__chip--dim { left: 24px; top: 24px; padding: 12px 18px; }
 .hero__chip--dim small { display: block; font-size: 13px; color: var(--muted); }
 .hero__chip--dim b { font: 500 26px var(--mono); }
-.hero__chip--mode { right: 20px; bottom: 20px; display: flex; gap: 4px; padding: 4px; border-radius: 999px; font-size: 14px; font-weight: 600; }
-.hero__chip--mode span { padding: 9px 16px; border-radius: 999px; color: var(--soft); }
-.hero__chip--mode .is-on { background: var(--inv); color: var(--inv-text); }
+.hero__chip--mode { right: 20px; bottom: 20px; padding: 6px 6px 10px; border-radius: 24px; }
+.hero__switch { display: flex; gap: 4px; }
+.hero__switch button { flex: 1; padding: 9px 16px; border: 0; border-radius: 999px; background: none; color: var(--soft); font: 600 14px var(--sans); white-space: nowrap; cursor: pointer; }
+.hero__switch .is-on { background: var(--inv); color: var(--inv-text); }
+.hero__chip--mode p { margin-top: 8px; text-align: center; font-size: 13px; color: var(--muted); }
 
-/* ---------- Deux façons de commander ---------- */
-.ways { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-bottom: 88px; }
-.way { display: flex; gap: 22px; align-items: flex-start; padding: 32px; border-radius: var(--radius); background: var(--bg-2); border: 1px solid var(--line); }
-.way__ico { flex: none; width: 56px; height: 56px; border-radius: 16px; background: var(--bg-3); display: grid; place-items: center; }
-.way__ico svg { width: 28px; height: 28px; }
-.way h3 { font-size: 26px; font-weight: 700; }
-.way p { color: var(--soft); margin: 8px 0 12px; }
-.way b { font-size: 14px; }
-.way--dark { background: var(--inv); color: var(--inv-text); border-color: var(--inv); }
-.way--dark p { color: var(--inv-muted); }
-.way--dark .way__ico { background: var(--accent); color: var(--accent-ink); }
-.way--dark b { color: var(--accent); }
 
 /* ---------- Carrousel des univers ---------- */
 .univers { padding-bottom: 88px; }
@@ -557,7 +547,6 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 @media (max-width: 900px) {
   .hero, .pdp { grid-template-columns: 1fr; }
   .hero { gap: 36px; }
-  .ways { grid-template-columns: 1fr; }
   .steps__list { grid-template-columns: 1fr; }
   .pdp__visual { position: static; }
   .nav { display: none; }
@@ -579,9 +568,9 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
   .cart-btn__count[hidden] { visibility: visible; width: auto; min-width: 28px; padding: 0 7px; }
   .hero__chip--dim { left: 12px; top: 12px; padding: 8px 12px; }
   .hero__chip--dim b { font-size: 20px; }
-  .hero__chip--mode { right: 12px; bottom: 12px; font-size: 13px; }
-  .hero__chip--mode span { padding: 8px 12px; }
-  .way { flex-direction: column; padding: 24px; }
+  .hero__chip--mode { right: 12px; bottom: 12px; }
+  .hero__switch button { padding: 8px 12px; font-size: 13px; }
+  .hero__chip--mode p { font-size: 12px; }
   .carousel__nav { display: none; }
   .u-card { padding: 24px; gap: 16px; min-height: 0; }
   .u-card__list li:nth-child(n+3):not(:last-child) { display: none; }

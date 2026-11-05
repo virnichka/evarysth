@@ -45,13 +45,13 @@
       <div class="hero__text">
         <p class="eyebrow-pill"><span></span>Hacks d'intérieur imprimés en 3D</p>
         <h1>Votre intérieur,<br>ajusté au <em>millimètre.</em></h1>
-        <p class="hero__lead">Des petites pièces malines pour le balcon, le bureau et vos meubles. Prenez-les en taille standard, ou donnez-nous vos cotes : on imprime la vôtre.</p>
+        <p class="hero__lead">Des pièces malines pour le balcon, le bureau et vos meubles, en taille standard ou imprimées à vos cotes.</p>
         <div class="hero__cta">
           <a class="btn btn--primary btn--lg" href="#univers">Découvrir les hacks <span aria-hidden="true">→</span></a>
           <a class="btn btn--ghost btn--lg" href="#etapes">Comment mesurer ?</a>
         </div>
         <ul class="checks">
-          <li>Sans percer</li><li>Livré sous 5 jours</li><li>Garantie 2 ans</li>
+          <li>Sans percer</li><li>Fabriqué à la commande</li>
         </ul>
       </div>
       <div class="hero__visual">
@@ -65,25 +65,21 @@
             <path d="M196 112h66M196 102v20M262 102v20" class="hv-dim"/>
           </svg>
         </div>
-        <div class="hero__chip hero__chip--dim"><small>Votre rambarde</small><b>47 mm</b></div>
-        <div class="hero__chip hero__chip--mode" aria-hidden="true"><span>Standard</span><span class="is-on">Sur-mesure</span></div>
+        <div class="hero__chip hero__chip--dim" aria-live="polite"><small id="hero-dim-label">Votre rambarde</small><b id="hero-dim-val">47 mm</b></div>
+        <div class="hero__chip hero__chip--mode" role="group" aria-label="Deux façons de commander">
+          <div class="hero__switch">
+            <button type="button" data-hero-mode="standard" aria-pressed="false">Standard</button>
+            <button type="button" data-hero-mode="custom" aria-pressed="true" class="is-on">Sur-mesure</button>
+          </div>
+          <p id="hero-mode-note">Imprimé à vos cotes · de +2 à +10 €</p>
+        </div>
       </div>
     </section>
 
-    <section class="ways" aria-label="Deux façons de commander">
-      <div class="way">
-        <span class="way__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 8 12 3l9 5v8l-9 5-9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></span>
-        <div><h3>Taille standard</h3><p>Trois tailles pensées pour les cas les plus courants. Vous choisissez, on expédie.</p><b>Le prix affiché, rien de plus</b></div>
-      </div>
-      <div class="way way--dark">
-        <span class="way__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 17 17 3l4 4L7 21H3z"/><path d="m7 13 2 2M10 10l2 2M13 7l2 2"/></svg></span>
-        <div><h3>Sur-mesure</h3><p>Entrez vos cotes en millimètres avec un simple curseur. La pièce est imprimée pour votre meuble, et seulement le vôtre.</p><b>De +2 € à +10 € selon l'article</b></div>
-      </div>
-    </section>
 
     <section class="univers carousel" id="univers" aria-labelledby="t-univers">
       <div class="section-head">
-        <div><h2 id="t-univers">Trois univers,<br>plein d'idées malines</h2><p>Balayez pour passer d'une famille à l'autre.</p></div>
+        <div><h2 id="t-univers">Trois univers,<br>plein d'idées malines</h2></div>
         <div class="carousel__nav">
           <button class="icon-btn icon-btn--lg" data-prev aria-label="Univers précédent">←</button>
           <button class="icon-btn icon-btn--lg" data-next aria-label="Univers suivant">→</button>
@@ -95,7 +91,7 @@
 
     <section class="row-block row-block--home" aria-labelledby="t-pop">
       <header class="row-block__head">
-        <div class="row-block__title"><h2 id="t-pop">Les plus demandés</h2><p>Les hacks que l'on imprime le plus souvent.</p></div>
+        <div class="row-block__title"><h2 id="t-pop">Les plus demandés</h2></div>
         <div class="row-block__tools">
           <a class="link-arrow" href="#catalogue">Tout le catalogue →</a>
           <button class="icon-btn" data-scroll="-1" aria-label="Précédent">←</button>
@@ -106,22 +102,20 @@
     </section>
 
     <section class="steps" id="etapes" aria-labelledby="t-etapes">
-      <div class="section-head"><div><h2 id="t-etapes">Un mètre ruban suffit</h2><p>Pas besoin d'être bricoleur. Trois étapes, et la pièce arrive prête à poser.</p></div></div>
+      <div class="section-head"><div><h2 id="t-etapes">Un mètre ruban suffit</h2></div></div>
       <ol class="steps__list">
-        <li class="step"><span class="step__n">1</span><h3>Choisissez votre hack</h3><p>Parcourez les trois univers et trouvez la pièce qui règle votre petit problème.</p></li>
-        <li class="step"><span class="step__n">2</span><h3>Mesurez, ajustez</h3><p>Taille standard, ou glissez le curseur jusqu'à votre cote. Un guide vous montre où mesurer.</p></li>
-        <li class="step"><span class="step__n">3</span><h3>Recevez, posez</h3><p>Imprimée en nylon noir, livrée sous 5 jours, posée en dix secondes.</p></li>
+        <li class="step"><span class="step__n">1</span><h3>Choisissez</h3><p>La pièce qui règle votre petit problème.</p></li>
+        <li class="step"><span class="step__n">2</span><h3>Mesurez</h3><p>Chaque fiche montre quelle cote relever. On ajoute la tolérance.</p></li>
+        <li class="step"><span class="step__n">3</span><h3>Posez</h3><p>Elle se clipse ou se glisse à la main, sans outil ni trou.</p></li>
       </ol>
     </section>
 
     <section class="faq" id="faq">
       <div class="section-head"><div><h2>Questions fréquentes</h2></div><button class="link-arrow" data-soon="Chat avec l'atelier">Une autre question ? →</button></div>
       <div class="accordion">
-        <details><summary>Comment je prends mes mesures ?</summary><p>Un simple mètre ruban suffit. Chaque produit sur-mesure affiche un guide en un clic, avec la cote à relever et où la mesurer. On ajoute nous-mêmes la tolérance pour un ajustement parfait.</p></details>
         <details><summary>Quel est le délai de livraison ?</summary><p>Chaque pièce est fabriquée à la commande : comptez 3 à 5 jours avant l'expédition, puis 2 à 3 jours de livraison. La date estimée est affichée sur chaque fiche produit.</p></details>
         <details><summary>Et si ça ne convient pas ?</summary><p>Retour gratuit sous 30 jours. Si la pièce sur-mesure ne s'ajuste pas malgré vos mesures, on la refabrique.</p></details>
         <details><summary>Est-ce solide, même dehors ?</summary><p>Les pièces sont imprimées en Nylon PA12 noir, une matière industrielle résistante aux chocs, à l'humidité et aux UV.</p></details>
-        <details><summary>Faut-il percer ou visser quelque chose ?</summary><p>Non. Tout se clipse, se glisse ou se pose à la main, sans outil et sans trou.</p></details>
       </div>
     </section>
    </div>
