@@ -127,11 +127,10 @@
     return model;
   })();
 
-  /* Chat Lord : buste sculpté (maillage d'origine allégé à 80 000 triangles).
-     Repère du STL : Z vers le haut, centré en X/Y, socle en z = 0, hauteur nominale 172,9 mm.
-     Forme organique sans détail fonctionnel : mise à l'échelle uniforme, a = hauteur totale. */
-  const chat = (() => {
-    const URL = "assets/models/chat-lord/chat.stl", H0 = 172.9;
+  /* Figurines sculptées (maillages d'origine allégés à 80 000 triangles).
+     Repère des STL : Z vers le haut, centré en X/Y, socle en z = 0, face vers +Y.
+     Formes organiques sans détail fonctionnel : mise à l'échelle uniforme, a = hauteur totale. */
+  const sculpt = (URL, H0) => {
     let base = null;
     const model = (T, v) => {
       const s = v.a / H0;
@@ -146,7 +145,11 @@
         base.computeVertexNormals();
       });
     return model;
-  })();
+  };
+  /* Chat Lord : buste, hauteur nominale 172,9 mm */
+  const chat = sculpt("assets/models/chat-lord/chat.stl", 172.9);
+  /* Carapuce : figurine (Bambu MakerLab « Image to 3D »), hauteur nominale 61,0 mm */
+  const carapuce = sculpt("assets/models/carapuce/carapuce.stl", 61.0);
 
   /* Compositions récurrentes */
   const tray = ({ box }, w, d, h, nx, nz) => [
@@ -433,7 +436,10 @@
     "support-aerosol-skadis": aerosol,
 
     /* a = hauteur du buste (à partir du STL, mise à l'échelle uniforme) */
-    "chat-lord": chat
+    "chat-lord": chat,
+
+    /* a = hauteur de la figurine (à partir du STL, mise à l'échelle uniforme) */
+    "carapuce": carapuce
   };
 
   const webglOK = () => {

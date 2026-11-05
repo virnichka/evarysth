@@ -36,6 +36,10 @@
       <path d="M42 40 44 18l12 12h8l12-12 2 22"/><path d="M42 40c-4 6-4 16 2 22M78 40c4 6 4 16-2 22"/>
       <path d="M44 62c-8 8-10 22-6 34h44c4-12 2-26-6-34"/><path d="M50 46h4M66 46h4"/><path d="M56 54l4 3 4-3"/>
       <path d="M82 96c12 0 16-12 8-20"/>`,
+    turtle: `<ellipse cx="60" cy="100" rx="32" ry="5" class="ghost"/>
+      <circle cx="58" cy="34" r="18"/><path d="M51 32v4M65 32v4"/><path d="M52 43c4 3 8 3 12 0"/>
+      <path d="M44 50c-8 8-10 22-6 34h40c4-12 2-26-6-34"/><path d="M47 64h26M48 76h24" class="ghost"/>
+      <path d="M44 84v12h10v-12M66 84v12h10v-12"/><path d="M38 80c-14 0-20 8-14 16 5 6 14 2 12-4"/>`,
     handle: `<path d="M16 76h22V50a8 8 0 0 1 8-8h28a8 8 0 0 1 8 8v26h22"/><path d="M38 76h44" class="ghost"/>
       <circle cx="38" cy="86" r="3"/><circle cx="82" cy="86" r="3"/>`
   };

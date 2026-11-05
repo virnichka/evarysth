@@ -354,6 +354,22 @@ MODULR.products = [
       { src: "assets/photos/chat-lord/4.webp", alt: "Le buste vu de dos, toge et piédouche" }
     ],
     photosNote: "Photos : coloris gris de démonstration, livré en noir mat"
+  },
+  {
+    id: "carapuce", universe: "deco", shape: "turtle", model: "carapuce",
+    name: "Carapuce", price: 19,
+    tagline: "La petite tortue la plus effrontée de l'étagère.",
+    desc: "Une figurine de Carapuce, carapace sur le dos et queue en spirale, qui adresse un geste bien senti à qui passe devant. Imprimée d'un seul bloc, debout sur ses pattes, elle se règle en hauteur : du clin d'œil posé sur l'écran à la pièce qui ne passe pas inaperçue.",
+    variants: sizes("Hauteur", [["S", "80 mm", { a: 80 }], ["M", "120 mm", { a: 120 }], ["L", "160 mm", { a: 160 }]]),
+    custom: { surcharge: 5, params: [
+      param("a", "Hauteur de la figurine", 60, 200, 120, 5, 0.15)
+    ] },
+    photos: [
+      { src: "assets/photos/carapuce/1.webp", alt: "Carapuce de face, doigt levé, carapace sur le dos et queue en spirale" },
+      { src: "assets/photos/carapuce/2.webp", alt: "Carapuce vu de dos : carapace à alvéoles et queue enroulée" },
+      { src: "assets/photos/carapuce/3.webp", alt: "Maillage 3D de la figurine, vue de trois quarts" }
+    ],
+    photosNote: "Photos : rendus de démonstration, coloris beige ; pièce livrée en noir mat"
   }
 ];
 
