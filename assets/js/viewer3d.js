@@ -328,6 +328,18 @@
       k.box(5, 60, 25, -30, -a / 2 - 35, 0),
       k.ext(arc(b / 2, b / 2 + 5, 30, 330), 25).translate(-30, -a / 2 - 65 - b / 2 - 3, 0))),
 
+    /* a = diamètre de la tringle, b = épaisseur de la poignée (ouverture du crochet). Axe de la tringle = Z.
+       Clip ouvert vers le bas (ouverture < diamètre : il se clipse), tige devant, crochet en J dessous. */
+    "crochet-sac": m((k, { a, b }) => {
+      const R = a / 2, t = 6, w = 24, L = R + 32, cx = R - b / 2;
+      return k.join(
+        k.ext(arc(R, R + t, -40, 225, 40), w),
+        k.box(t, L, w, R + t / 2, -L / 2, 0),
+        k.ext(arc(b / 2, b / 2 + t, 180, 360, 32), w).translate(cx, -L, 0),
+        k.box(t, 14, w, cx - b / 2 - t / 2, -L + 7, 0),
+        k.cyl(t / 2, w).rotateX(Math.PI / 2).translate(cx - b / 2 - t / 2, -L + 14, 0));
+    }),
+
     /* a = longueur, b = largeur, c = hauteur intérieures (à partir des STL) */
     "boite-rugged": rugged
   };

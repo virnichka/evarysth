@@ -56,3 +56,8 @@ pas un gabarit de forme.
 7. **Fin** : commit + push sur la branche de travail. Réponse courte : par produit, la
    stratégie choisie, tableau des paramètres (min/défaut/max), libertés de design prises,
    points à vérifier (prix, licence du modèle d'origine).
+
+## Photos commerciales
+`assets/photos/<id-produit>/1.webp, 2.webp…` (≤ 1600 px de large, ~200 Ko). Dans `data.js` :
+`photos: [{ src, alt, pos? }]` (pos = object-position du recadrage) + `photosNote` facultatif.
+La 1re photo sert de vignette au catalogue (2e au survol) ; sur la fiche, la 3D reste la vue 1.

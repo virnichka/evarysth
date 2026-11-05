@@ -297,6 +297,20 @@ MODULR.products = [
     desc: "Deux crochets se glissent sur l'étagère et portent une barre de penderie dessous. Vos cintres trouvent leur place.",
     variants: sizes("Épaisseur de l'étagère", [["16 mm", "standard", { a: 16, b: 20 }], ["19 mm", "armoire", { a: 19, b: 20 }], ["25 mm", "massive", { a: 25, b: 25 }]]),
     custom: { surcharge: 4, params: [param("a", "Épaisseur de l'étagère", 10, 40, 18), param("b", "Diamètre de la barre", 12, 32, 20)] }
+  },
+  {
+    id: "crochet-sac", universe: "meubles", shape: "hook", model: "crochet-sac", popular: true,
+    name: "Crochets sac à dos ×2", price: 14,
+    tagline: "Vos sacs à dos suspendus dans la penderie, pas au sol.",
+    desc: "Le crochet se clipse sur la tringle de votre penderie et porte un sac par sa poignée. Réglez le diamètre de la tringle et l'épaisseur de la poignée : il tient en place sans glisser.",
+    variants: sizes("Diamètre de la tringle", [["Ø 19", "fine", { a: 19, b: 20 }], ["Ø 25", "standard", { a: 25, b: 20 }], ["Ø 32", "épaisse", { a: 32, b: 25 }]]),
+    custom: { surcharge: 4, params: [param("a", "Diamètre de la tringle", 15, 40, 25), param("b", "Épaisseur de la poignée du sac", 10, 40, 20)] },
+    /* Photos commerciales (facultatif) : 1re = vignette du catalogue. note = taille photographiée */
+    photos: [
+      { src: "assets/photos/crochet-sac/1.webp", alt: "Deux sacs à dos suspendus à la tringle d'une penderie par les crochets" },
+      { src: "assets/photos/crochet-sac/2.webp", alt: "Gros plan du crochet clipsé sur la tringle, une poignée de sac accrochée", pos: "50% 45%" }
+    ],
+    photosNote: "Photos : modèle standard, coloris de démonstration"
   }
 ];
 
