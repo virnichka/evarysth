@@ -313,7 +313,7 @@ MODULR.products = [
     /* Photos commerciales (facultatif) : 1re = vignette du catalogue. note = taille photographiée */
     photos: [
       { src: "assets/photos/cintre-sac/1.webp", alt: "Deux sacs à dos suspendus à la tringle d'une penderie par les cintres" },
-      { src: "assets/photos/cintre-sac/2.webp", alt: "Gros plan du cintre posé sur la tringle, une poignée de sac accrochée", pos: "50% 45%" }
+      { src: "assets/photos/cintre-sac/2.webp", alt: "Gros plan du crochet posé sur la tringle, une sangle de sac accrochée", pos: "50% 45%" }
     ],
     photosNote: "Photos : modèle standard, coloris de démonstration"
   }
