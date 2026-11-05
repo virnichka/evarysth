@@ -347,6 +347,16 @@ MODULR.products = [
     custom: { surcharge: 5, params: [
       param("a", "Hauteur du buste", 80, 220, 150, 5, 0.2)
     ] }
+  },
+  {
+    id: "carapuce", universe: "deco", shape: "turtle", model: "carapuce",
+    name: "Carapuce", price: 19,
+    tagline: "La petite tortue la plus effrontée de l'étagère.",
+    desc: "Une figurine de Carapuce, carapace sur le dos et queue en spirale, qui adresse un geste bien senti à qui passe devant. Imprimée d'un seul bloc, debout sur ses pattes, elle se règle en hauteur : du clin d'œil posé sur l'écran à la pièce qui ne passe pas inaperçue.",
+    variants: sizes("Hauteur", [["S", "80 mm", { a: 80 }], ["M", "120 mm", { a: 120 }], ["L", "160 mm", { a: 160 }]]),
+    custom: { surcharge: 5, params: [
+      param("a", "Hauteur de la figurine", 60, 200, 120, 5, 0.15)
+    ] }
   }
 ];
 
