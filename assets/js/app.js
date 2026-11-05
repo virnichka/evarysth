@@ -245,8 +245,7 @@
         <div class="pdp__visual">
           <div class="stage" id="stage" data-u="${p.universe}">
             ${MODULR.shapeSVG(p.shape, "shape--xl")}
-            ${p.model ? `<div class="viewer3d" id="viewer3d" role="img" aria-label="Aperçu 3D de ${p.name} : faites glisser pour tourner la pièce"></div>
-            <span class="stage__hint mono" aria-hidden="true">↻ Glissez pour tourner</span>` : ""}
+            ${p.model ? `<div class="viewer3d" id="viewer3d" role="img" aria-label="Aperçu 3D de ${p.name} : faites glisser pour tourner la pièce"></div>` : ""}
             ${p.model && MODULR.viewer3d && MODULR.viewer3d.models[p.model] && MODULR.viewer3d.models[p.model].openable ? `
             <label class="stage__open mono"><span>Ouvrir</span><input type="range" id="open3d" min="0" max="100" value="0" style="--p:0%" aria-label="Ouvrir pour voir l'intérieur"></label>` : ""}
             <div class="dims" id="dims"></div>
