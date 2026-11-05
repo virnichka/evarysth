@@ -250,8 +250,10 @@
       mode: "standard",
       variant: 1,
       custom: Object.fromEntries(p.custom.params.map(x => [x.key, x.def])),
-      qty: 1
+      qty: 1,
+      color: 0
     };
+    const colors = p.colors || [];
     const LETTERS = ["A", "B", "C"];
     const photos = p.photos || [];
 
@@ -265,7 +267,7 @@
             ${p.model && MODULR.viewer3d && MODULR.viewer3d.models[p.model] && MODULR.viewer3d.models[p.model].openable ? `
             <label class="stage__open mono"><span>Ouvrir</span><input type="range" id="open3d" min="0" max="100" value="0" style="--p:0%" aria-label="Ouvrir pour voir l'intérieur"></label>` : ""}
             <div class="dims" id="dims"></div>
-            <span class="stage__mat mono">NYLON PA12 · NOIR MAT</span>
+            <span class="stage__mat mono" id="stage-mat">NYLON PA12 · NOIR MAT</span>
             ${photos.length ? `
             <div class="stage__photos" id="photos" tabindex="-1">
               ${photos.map((ph, i) => `<figure class="stage__photo"><img src="${ph.src}" alt="${ph.alt}" loading="${i ? "lazy" : "eager"}" decoding="async" style="object-position:${ph.pos || "50% 50%"}"></figure>`).join("")}
@@ -298,6 +300,13 @@
           <p class="lead">${p.tagline}</p>
           <div class="pdp__price"><span id="price"></span><small id="price-note"></small></div>
           <p class="desc">${p.desc}</p>
+${colors.length ? `
+          <div class="colors" role="radiogroup" aria-label="Coloris">
+            <span class="label">Coloris <span class="colors__name" id="color-name"></span></span>
+            <div class="colors__list">
+              ${colors.map((c, i) => `<button type="button" class="swatch" role="radio" data-color="${i}" style="--c:${c.hex}" aria-label="${c.label}" title="${c.label}"></button>`).join("")}
+            </div>
+          </div>` : ""}
 
           <div class="segmented" role="group" aria-label="Type de commande">
             <button type="button" data-mode="standard">Standard <small>3 tailles prêtes</small></button>
@@ -372,6 +381,10 @@
       $("#pane-standard").hidden = state.mode !== "standard";
       $("#pane-custom").hidden = state.mode !== "custom";
 
+      root.querySelectorAll("[data-color]").forEach(b => { const on = +b.dataset.color === state.color; b.classList.toggle("is-active", on); b.setAttribute("aria-checked", on); });
+      const col = colors[state.color];
+      if (col) { $("#color-name").textContent = col.label; $("#stage-mat").textContent = `NYLON PA12 · ${col.label.toUpperCase()}`; }
+
       const v = values();
       const unit = MODULR.priceFor(p, state.mode, v);
       $("#price").textContent = fmt(unit);
@@ -387,7 +400,7 @@
         ["Produit", p.name],
         ["Version", state.mode === "custom" ? "Sur-mesure" : `Standard — ${p.variants.options[state.variant].label}`],
         ...dimRows,
-        ["Matière", "Nylon PA12 noir mat"],
+        ["Matière", col ? `Nylon PA12 · ${col.label}` : "Nylon PA12 noir mat"],
         ["Quantité", `× ${state.qty}`]
       ];
       $("#summary").innerHTML = rows.map(r => `<li><span>${r[0]}</span><b>${r[1]}</b></li>`).join("") +
@@ -426,6 +439,8 @@
           $("#pane-custom").scrollIntoView({ behavior: "smooth", block: "start" });
       }
       const o = e.target.closest("[data-variant]"); if (o) { state.variant = +o.dataset.variant; update(); pulse(); }
+      const c = e.target.closest("[data-color]");
+      if (c) { state.color = +c.dataset.color; if (viewer) viewer.setColor(colors[state.color]); showView(0); update(); }
       const q = e.target.closest("[data-q]"); if (q) { state.qty = Math.max(1, Math.min(20, state.qty + +q.dataset.q)); update(); }
     };
 
@@ -446,8 +461,10 @@
       const details = state.mode === "custom"
         ? p.custom.params.map(prm => [prm.label, `${v[prm.key]} mm`])
         : [[p.variants.label, `${variantLabel} (${p.variants.options[state.variant].hint})`]];
+      const col = colors[state.color];
+      if (col) details.push(["Coloris", col.label]);
       MODULR.cart.add({
-        key: [p.id, state.mode, variantLabel, JSON.stringify(v)].join("|"),
+        key: [p.id, state.mode, variantLabel, JSON.stringify(v), col ? col.id : ""].join("|"),
         id: p.id, name: p.name, shape: p.shape, mode: state.mode,
         values: { ...v }, details,
         summary: details.map(d => `${d[0]} : ${d[1]}`).join(", "),
@@ -469,6 +486,7 @@
     disposeViewer();
     if (p.model && MODULR.viewer3d) {
       viewer = MODULR.viewer3d.mount($("#viewer3d"), p.model, p.custom.params, () => $("#stage").classList.add("is-3d"));
+      if (colors.length) viewer.setColor(colors[state.color]);
       const open3d = $("#open3d");
       if (open3d) open3d.addEventListener("input", () => {
         open3d.style.setProperty("--p", open3d.value + "%");

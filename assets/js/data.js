@@ -362,6 +362,11 @@ MODULR.products = [
     tagline: "Un buste de chat couronné de lauriers, drapé à l'antique.",
     desc: "Un buste sculpté façon empereur romain, imprimé d'un seul bloc sur son piédouche. Choisissez sa hauteur, du petit compagnon de bureau à la pièce qui trône sur une étagère : les proportions restent identiques.",
     variants: sizes("Hauteur", [["S", "100 mm", { a: 100 }], ["M", "150 mm", { a: 150 }], ["L", "200 mm", { a: 200 }]]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "marbre", label: "Blanc marbre", hex: "#e6e2d8", roughness: 0.5 },
+      { id: "bronze", label: "Bronze", hex: "#9a7240", roughness: 0.38, metalness: 0.55 }
+    ],
     custom: { surcharge: 5, params: [
       param("a", "Hauteur du buste", 80, 220, 150, 5, 0.2)
     ] },
@@ -371,7 +376,7 @@ MODULR.products = [
       { src: "assets/photos/chat-lord/3.webp", alt: "Gros plan sur le visage du chat et les feuilles de laurier" },
       { src: "assets/photos/chat-lord/4.webp", alt: "Le buste vu de dos, toge et piédouche" }
     ],
-    photosNote: "Photos : coloris gris de démonstration, livré en noir mat"
+    photosNote: "Photos : coloris gris de démonstration ; la vue 3D montre le coloris choisi"
   },
   {
     id: "carapuce", universe: "deco", shape: "turtle", model: "carapuce",
@@ -379,6 +384,11 @@ MODULR.products = [
     tagline: "La petite tortue la plus effrontée de l'étagère.",
     desc: "Une figurine de Carapuce, carapace sur le dos et queue en spirale, qui adresse un geste bien senti à qui passe devant. Imprimée d'un seul bloc, debout sur ses pattes, elle se règle en hauteur : du clin d'œil posé sur l'écran à la pièce qui ne passe pas inaperçue.",
     variants: sizes("Hauteur", [["S", "80 mm", { a: 80 }], ["M", "120 mm", { a: 120 }], ["L", "160 mm", { a: 160 }]]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "bleu", label: "Bleu lagon", hex: "#5fa8d3", roughness: 0.6 },
+      { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 }
+    ],
     custom: { surcharge: 5, params: [
       param("a", "Hauteur de la figurine", 60, 200, 120, 5, 0.15)
     ] },
@@ -387,7 +397,7 @@ MODULR.products = [
       { src: "assets/photos/carapuce/2.webp", alt: "Carapuce vu de dos : carapace à alvéoles et queue enroulée" },
       { src: "assets/photos/carapuce/3.webp", alt: "Maillage 3D de la figurine, vue de trois quarts" }
     ],
-    photosNote: "Photos : rendus de démonstration, coloris beige ; pièce livrée en noir mat"
+    photosNote: "Photos : rendus de démonstration, coloris beige ; la vue 3D montre le coloris choisi"
   }
 ];
 

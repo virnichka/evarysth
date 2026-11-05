@@ -535,13 +535,15 @@
   };
 
   function mount(container, modelId, params, onReady) {
-    let disposed = false, ready = false, pending = null, api = null, open = 0, queued = 0;
+    let disposed = false, ready = false, pending = null, api = null, open = 0, queued = 0, finish = null;
     /* Une reconstruction par image au plus : pendant un glissé de curseur, seule la dernière valeur compte */
     const flush = () => { queued = 0; if (api && pending) api.rebuild(pending); };
     const handle = {
       update(values) { pending = { ...values }; if (ready && !queued) queued = requestAnimationFrame(flush); },
       /* Ouverture (0 → 1) pour les modèles « openable » : affichage seulement, n'entre pas dans les cotes */
       setOpen(t) { open = t; if (ready && pending) api.rebuild(pending); },
+      /* Coloris : { hex, roughness?, metalness? } ; transition douce gérée par la boucle de rendu */
+      setColor(c) { finish = c; if (api) api.tint(); },
       dispose() { disposed = true; cancelAnimationFrame(queued); if (api) api.destroy(); api = null; }
     };
     const build = MODELS[modelId];
@@ -591,9 +593,19 @@
       controls.autoRotateSpeed = 1.4;
       controls.addEventListener("start", () => { controls.autoRotate = false; });
 
-      let dirty = true, raf = 0;
+      let dirty = true, raf = 0, target = null;
       const tick = () => {
         raf = requestAnimationFrame(tick);
+        if (target) {
+          const k = 0.16;
+          material.color.lerp(target.color, k);
+          material.roughness += (target.roughness - material.roughness) * k;
+          material.metalness += (target.metalness - material.metalness) * k;
+          if (material.color.equals(target.color) || Math.abs(material.color.r - target.color.r) + Math.abs(material.color.g - target.color.g) + Math.abs(material.color.b - target.color.b) < 0.002) {
+            material.color.copy(target.color); material.roughness = target.roughness; material.metalness = target.metalness; target = null;
+          }
+          dirty = true;
+        }
         if (controls.update() || dirty) { renderer.render(scene, camera); dirty = false; }
       };
 
@@ -607,6 +619,12 @@
       const ro = new ResizeObserver(resize); ro.observe(container);
 
       api = {
+        tint(instant) {
+          if (!finish) return;
+          target = { color: new THREE.Color(finish.hex), roughness: finish.roughness ?? 0.72, metalness: finish.metalness ?? 0.05 };
+          if (instant) { material.color.copy(target.color); material.roughness = target.roughness; material.metalness = target.metalness; target = null; }
+          dirty = true;
+        },
         rebuild(values) {
           const g = build(THREE, build.openable ? { ...values, open } : values);
           if (mesh.geometry) mesh.geometry.dispose();
@@ -630,6 +648,7 @@
 
       pending = pending || Object.fromEntries(params.map(p => [p.key, p.def]));
       api.rebuild(pending);
+      api.tint(true);
       ready = true;
       resize(); tick();
       if (onReady) onReady();
