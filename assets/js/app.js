@@ -39,7 +39,8 @@
   const card = p => `
     <article class="card">
       <a class="card__link" href="#p-${p.id}" aria-label="${p.name}"></a>
-      <div class="card__media" data-u="${p.universe}">${MODULR.shapeSVG(p.shape)}<span class="card__badge">Sur-mesure possible</span>
+      <div class="card__media${p.photos && p.photos.length ? " has-photo" : ""}" data-u="${p.universe}">${MODULR.shapeSVG(p.shape)}${(p.photos || []).slice(0, 2).map((ph, i) =>
+        `<img class="card__photo card__photo--${i + 1}" src="${ph.src}" alt="${i ? "" : ph.alt}" loading="lazy" decoding="async" style="object-position:${ph.pos || "50% 50%"}">`).join("")}<span class="card__badge">Sur-mesure possible</span>
         <button class="fav ${MODULR.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${MODULR.favs.has(p.id)}" aria-label="Ajouter ${p.name} aux favoris">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button></div>
       <div class="card__body">
@@ -205,6 +206,7 @@
       qty: 1
     };
     const LETTERS = ["A", "B", "C"];
+    const photos = p.photos || [];
 
     root.innerHTML = `
       <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <a href="#f-${u.id}">${u.name}</a> / <span>${p.name}</span></nav>
@@ -218,7 +220,19 @@
             <label class="stage__open mono"><span>Ouvrir</span><input type="range" id="open3d" min="0" max="100" value="0" style="--p:0%" aria-label="Ouvrir pour voir l'intérieur"></label>` : ""}
             <div class="dims" id="dims"></div>
             <span class="stage__mat mono">NYLON PA12 · NOIR MAT</span>
+            ${photos.length ? `
+            <div class="stage__photos" id="photos" tabindex="-1">
+              ${photos.map((ph, i) => `<figure class="stage__photo"><img src="${ph.src}" alt="${ph.alt}" loading="${i ? "lazy" : "eager"}" decoding="async" style="object-position:${ph.pos || "50% 50%"}"></figure>`).join("")}
+            </div>
+            <button class="stage__nav stage__nav--prev" data-go="-1" aria-label="Vue précédente">‹</button>
+            <button class="stage__nav stage__nav--next" data-go="1" aria-label="Vue suivante">›</button>` : ""}
           </div>
+          ${photos.length ? `
+          <div class="views" id="views" role="tablist" aria-label="Vues du produit">
+            <button class="views__btn is-on" role="tab" aria-selected="true" data-view="0" aria-label="${p.model ? "Aperçu 3D sur-mesure" : "Aperçu"}">${MODULR.shapeSVG(p.shape)}<span class="mono">${p.model ? "3D" : "Aperçu"}</span></button>
+            ${photos.map((ph, i) => `<button class="views__btn" role="tab" aria-selected="false" data-view="${i + 1}" aria-label="Photo ${i + 1} : ${ph.alt}"><img src="${ph.src}" alt="" loading="lazy" style="object-position:${ph.pos || "50% 50%"}"></button>`).join("")}
+            ${p.photosNote ? `<p class="views__note mono">${p.photosNote}</p>` : ""}
+          </div>` : ""}
           <ul class="perks">
             <li><b>Sans outil</b><span>Se pose à la main</span></li>
             <li><b>Indestructible</b><span>Nylon industriel</span></li>
@@ -334,6 +348,25 @@
         `<li class="summary__total"><span>Total</span><b>${fmt(unit * state.qty)}</b></li>`;
       state._unit = unit; state._dimRows = dimRows;
       if (viewer) viewer.update(v);
+      const key = JSON.stringify(v);
+      if (state._key && state._key !== key) showView(0); // une cote change : retour sur la 3D
+      state._key = key;
+    }
+
+    /* Galerie : vue 0 = 3D (ou icône), vues 1..n = photos (glisser au doigt, flèches ou vignettes) */
+    let view = 0;
+    const track = root.querySelector("#photos");
+    function markView(i) {
+      view = i;
+      root.querySelector("#stage").classList.toggle("is-photo", i > 0);
+      root.querySelectorAll("#views [data-view]").forEach(b => { const on = +b.dataset.view === i; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on); });
+      root.querySelectorAll(".stage__nav").forEach(b => { b.hidden = (b.dataset.go < 0 && i === 0) || (b.dataset.go > 0 && i === photos.length); });
+    }
+    function showView(i) {
+      if (!track || i === view) return;
+      const first = view === 0;
+      markView(i);
+      if (i > 0) track.scrollTo({ left: (i - 1) * track.clientWidth, behavior: first ? "instant" : "smooth" });
     }
 
     function pulse() { const d = $("#dims"); d.classList.remove("pulse"); void d.offsetWidth; d.classList.add("pulse"); }
@@ -375,6 +408,17 @@
         unitPrice: state._unit, qty: state.qty
       });
     });
+
+    if (track) {
+      root.querySelector("#views").addEventListener("click", e => { const b = e.target.closest("[data-view]"); if (b) showView(+b.dataset.view); });
+      root.querySelectorAll(".stage__nav").forEach(b => b.addEventListener("click", () => showView(Math.max(0, Math.min(photos.length, view + +b.dataset.go)))));
+      let t;
+      track.addEventListener("scroll", () => {
+        clearTimeout(t);
+        t = setTimeout(() => { if (view > 0) markView(Math.round(track.scrollLeft / track.clientWidth) + 1); }, 80);
+      }, { passive: true });
+      markView(0);
+    }
 
     disposeViewer();
     if (p.model && MODULR.viewer3d) {
