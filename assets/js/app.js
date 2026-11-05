@@ -520,6 +520,18 @@
     const header = $(".site-header");
     if (header && window.ResizeObserver) new ResizeObserver(() =>
       document.documentElement.style.setProperty("--header-h", header.offsetHeight + "px")).observe(header);
+    /* Accueil : bascule Standard / Sur-mesure du visuel */
+    const heroModes = {
+      standard: ["Taille M", "40–50 mm", "3 tailles prêtes · prix affiché"],
+      custom: ["Votre rambarde", "47 mm", "Imprimé à vos cotes · de +2 à +10 €"]
+    };
+    document.addEventListener("click", e => {
+      const b = e.target.closest("[data-hero-mode]");
+      if (!b) return;
+      const [label, val, note] = heroModes[b.dataset.heroMode];
+      document.querySelectorAll("[data-hero-mode]").forEach(x => { const on = x === b; x.classList.toggle("is-on", on); x.setAttribute("aria-pressed", on); });
+      $("#hero-dim-label").textContent = label; $("#hero-dim-val").textContent = val; $("#hero-mode-note").textContent = note;
+    });
     renderHome(); renderCatalogue(); route();
     window.addEventListener("hashchange", route);
   });
