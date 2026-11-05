@@ -29,6 +29,9 @@
       <path d="M26 92V66a8 8 0 0 1 8-8h52a8 8 0 0 1 8 8v26z"/><path d="M54 58v20h14V58"/><path d="M18 96h84" class="ghost"/>`,
     case: `<path d="M20 34h80a4 4 0 0 1 4 4v12H16V38a4 4 0 0 1 4-4z"/><path d="M16 50h88v36a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6z"/>
       <rect x="32" y="42" width="10" height="18" rx="2"/><rect x="78" y="42" width="10" height="18" rx="2"/><path d="M16 74h88" class="ghost"/>`,
+    cup: `<rect x="18" y="10" width="84" height="100" rx="3" class="ghost"/><path d="M34 22v8M86 22v8M34 70v8M86 70v8" class="ghost"/>
+      <path d="M36 40h48v14"/><path d="M36 40v14"/><ellipse cx="60" cy="54" rx="24" ry="8"/>
+      <path d="M36 54v32c0 4.4 10.7 8 24 8s24-3.6 24-8V54"/><path d="M50 61.4c0 14 20 14 20 0" />`,
     handle: `<path d="M16 76h22V50a8 8 0 0 1 8-8h28a8 8 0 0 1 8 8v26h22"/><path d="M38 76h44" class="ghost"/>
       <circle cx="38" cy="86" r="3"/><circle cx="82" cy="86" r="3"/>`
   };

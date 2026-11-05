@@ -316,6 +316,23 @@ MODULR.products = [
       { src: "assets/photos/cintre-sac/2.webp", alt: "Gros plan du crochet posé sur la tringle, une sangle de sac accrochée", pos: "50% 45%" }
     ],
     photosNote: "Photos : modèle standard, coloris de démonstration"
+  },
+  {
+    id: "support-aerosol-skadis", universe: "meubles", shape: "cup", model: "support-aerosol-skadis",
+    name: "Support de bombe pour SKADIS", price: 12,
+    tagline: "La bombe aérosol rangée debout sur le panneau perforé, toujours à portée de main.",
+    desc: "Un gobelet qui s'accroche au panneau IKEA SKADIS sans outil : deux crochets passent dans les trous du haut, deux ergots calent la pièce plus bas. Côtés en creux et encoche à l'avant pour saisir la bombe d'une main, fond ajouré qui la retient par son rebord. Réglez le diamètre de votre bombe et la hauteur du support.",
+    variants: sizes("Diamètre de la bombe", [["Ø 45", "petit format", { a: 45, b: 60 }], ["Ø 54", "standard", { a: 54, b: 60 }], ["Ø 65", "bombe de peinture", { a: 65, b: 70 }]]),
+    custom: { surcharge: 3, params: [
+      param("a", "Diamètre de la bombe", 40, 80, 54),
+      param("b", "Hauteur du support", 60, 110, 60, 5, 0.05)
+    ] },
+    photos: [
+      { src: "assets/photos/support-aerosol-skadis/1.webp", alt: "Bombe aérosol rangée dans le support, accroché à un panneau perforé d'atelier", pos: "50% 60%" },
+      { src: "assets/photos/support-aerosol-skadis/2.webp", alt: "Le support vu de trois quarts : gobelet, encoche avant et crochets à l'arrière" },
+      { src: "assets/photos/support-aerosol-skadis/3.webp", alt: "Le support vu de profil : côté en creux et crochets SKADIS" }
+    ],
+    photosNote: "Photos : prototype Ø 54 imprimé en gris, coloris de démonstration ; bombe non fournie"
   }
 ];
 
