@@ -1,7 +1,8 @@
 # Modulr Studio — consignes pour Claude
 
 Site vanilla HTML/CSS/JS sans build (voir README.md). Catalogue : `assets/js/data.js`.
-Viewer 3D : `assets/js/viewer3d.js`. Icônes line-art : objet `SHAPES` dans `assets/js/app.js`.
+Viewer 3D : moteur + briques communes dans `assets/js/viewer3d.js` ; un fichier par modèle dans
+`assets/js/modeles/<modèle>.js` (chargé à la demande, `MODULR.viewer3d.define`) : n'ouvre que celui utile. Icônes line-art : objet `SHAPES` dans `assets/js/app.js`.
 
 ## Économie de tokens (toujours)
 - Ne lis jamais un fichier en entier : `grep -n` puis `sed -n a,bp` sur le passage utile.
@@ -12,8 +13,8 @@ Viewer 3D : `assets/js/viewer3d.js`. Icônes line-art : objet `SHAPES` dans `ass
 ## Ajouter un produit 3D à partir de fichiers STL
 Les objets peuvent être de toute forme (pièce mécanique, support, objet organique,
 assemblage de plusieurs pièces…) : adapte la méthode à l'objet, ne suppose rien.
-Exemple déjà en place : `boite-rugged` (bloc `const rugged = (() => {...})()` dans
-`viewer3d.js` + son entrée dans `MODELS`, entrée `"boite-rugged"` dans `data.js`).
+Exemple déjà en place : `boite-rugged` (fichier
+`assets/js/modeles/boite-rugged.js`, entrée `"boite-rugged"` dans `data.js`).
 C'est un exemple de mécanique (STL chargé par `prepare()`, puis reconstruit en synchrone),
 pas un gabarit de forme.
 
@@ -34,7 +35,7 @@ pas un gabarit de forme.
      prismatiques. Min ≈ nominal − largeur de la bande + 2 mm ;
    - **mise à l'échelle** (uniforme ou par axe) : pour les formes organiques ou sans
      détail fonctionnel critique ;
-   - **reconstruction paramétrique** (comme les autres `MODELS`, avec `kit`) : quand le
+   - **reconstruction paramétrique** (comme les autres modèles, avec `m`/`kit`) : quand le
      STL est simple à redessiner ou que les autres méthodes déformeraient des détails ;
    - **combinaison** : ex. corps reconstruit + détail repris du STL et translaté.
    1 à 3 paramètres, exprimés comme l'utilisateur les mesure, en mm, avec des bornes
@@ -44,7 +45,7 @@ pas un gabarit de forme.
    ajuster les proportions, réorganiser les pièces, ou reconstruire l'objet entièrement,
    pour coller au style Modulr (pièce noire mate, lignes nettes, montage sans outil).
    Garde la fonction de l'objet intacte. Liste les libertés prises dans la réponse finale.
-5. **Intégration** : STL dans `assets/models/<id-produit>/`, modèle dans `MODELS`,
+5. **Intégration** : STL dans `assets/models/<id-produit>/`, modèle dans `assets/js/modeles/<modèle>.js`,
    produit dans `data.js` (même format : 3 tailles standard + `custom.params`, univers
    le plus logique), icône dans `SHAPES` si aucune existante ne convient. Textes en
    français, ton du site, sans promesse invérifiable (étanche, alimentaire…).
