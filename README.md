@@ -1,10 +1,13 @@
 # Modulr Studio
 
+> **Changement de nom en cours.** « Modulr Studio » est l'ancien nom du projet : le nouveau nom n'est pas encore repris partout dans le site ni dans le code.
+> Le site est désormais en ligne sur **[www.evarysth.fr](https://www.evarysth.fr)**.
+
 ## 1. Vue d'ensemble
 Modulr Studio est une boutique en ligne de petites pièces d'intérieur imprimées en 3D (supports, clips, crochets…), présentées en 4 univers : Balcon, Bureau, Meubles, Déco.
 Chaque pièce s'achète en taille standard ou **sur-mesure** : on règle ses cotes en mm avec des curseurs, et le modèle 3D (Three.js), le prix et le résumé se mettent à jour en direct avant l'ajout au panier.
 
-Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), publié automatiquement sur GitHub Pages à chaque mise à jour de `main`.
+Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), publié automatiquement sur GitHub Pages (adresse : www.evarysth.fr) à chaque mise à jour de `main`.
 
 ## 2. Fichiers principaux
 
@@ -24,7 +27,21 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages. |
 | `CLAUDE.md` | Méthode pour ajouter un produit 3D à partir de fichiers STL. |
 
-## 3. Comment ça fonctionne
+## 3. Où sont rangées les données ?
+Il n'y a **pas de base de données** : tout le contenu est écrit directement dans les fichiers du site.
+
+| Quoi | Où |
+|---|---|
+| Produits (nom, description, prix, tailles, curseurs sur-mesure), univers et leurs textes | `assets/js/data.js` |
+| Textes fixes de la page : accueil, étapes, FAQ, pied de page | `index.html` |
+| Textes de la fiche produit (boutons, libellés, livraison…) | `assets/js/app.js` |
+| Photos | `assets/photos/<produit>/` |
+| Formes 3D | `assets/js/viewer3d.js` (plans des pièces) et `assets/models/` (fichiers STL) |
+| Panier, favoris, code promo, thème choisi par le visiteur | Dans **le navigateur du visiteur** (`localStorage`) : rien n'est envoyé ni conservé sur un serveur, et chaque visiteur ne voit que les siens. |
+
+Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publier sur `main`.
+
+## 4. Comment ça fonctionne
 
 1. **Chargement** — `index.html` charge dans l'ordre : `data.js` (le catalogue) → `ui.js` → `viewer3d.js` → `app.js` → `cart.js`.
 2. **Navigation** — tout se passe sur une seule page. La fin de l'adresse décide de ce qu'on voit :
@@ -35,7 +52,7 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 5. **Ajouter au panier** — le bouton `#add` transmet le produit et ses cotes à `cart.js`, qui met à jour le panier et le garde en mémoire (`localStorage`).
 6. **Sans 3D possible** (vieux navigateur, pas de réseau) — l'illustration dessinée reste affichée à la place.
 
-## 4. Repères dans le code (IDs HTML)
+## 5. Repères dans le code (IDs HTML)
 
 **Vues** (dans `index.html`) : `#home-view` (accueil), `#catalogue-view` / `#catalogue-root`, `#family-view` / `#families-root`, `#popular-root` (hacks les plus demandés), `#product-root` (fiche produit), `#toasts` (notifications).
 
