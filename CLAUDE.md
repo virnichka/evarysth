@@ -49,13 +49,16 @@ pas un gabarit de forme.
    produit dans `data.js` (même format : 3 tailles standard + `custom.params`, univers
    le plus logique), icône dans `SHAPES` si aucune existante ne convient. Textes en
    français, ton du site, sans promesse invérifiable (étanche, alimentaire…).
+   **Coloris : toujours 2 ou 3** dans `colors: [{ id, label, hex, roughness?, metalness? }]`,
+   jamais un seul ni plus de 3 : le noir mat Modulr + 1 ou 2 teintes qui conviennent à l'objet
+   (ex. couleur des photos, teinte naturelle du sujet). Le 1er coloris est celui affiché par défaut.
 6. **Vérification** : serveur local (`python3 -m http.server`) + Playwright
    (Chromium déjà installé, lancer avec `--use-gl=angle --use-angle=swiftshader`).
    Au plus 2 captures par produit, en deviceScaleFactor 1 : valeurs par défaut et
    valeurs extrêmes. Console sans erreur. Une capture de plus seulement si la forme
    ou l'assemblage paraît faux.
 7. **Fin** : commit + push sur la branche de travail. Réponse courte : par produit, la
-   stratégie choisie, tableau des paramètres (min/défaut/max), libertés de design prises,
+   stratégie choisie, tableau des paramètres (min/défaut/max), coloris retenus, libertés de design prises,
    points à vérifier (prix, licence du modèle d'origine).
 
 ## Photos commerciales

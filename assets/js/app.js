@@ -43,6 +43,10 @@
       <circle cx="58" cy="34" r="18"/><path d="M51 32v4M65 32v4"/><path d="M52 43c4 3 8 3 12 0"/>
       <path d="M44 50c-8 8-10 22-6 34h40c4-12 2-26-6-34"/><path d="M47 64h26M48 76h24" class="ghost"/>
       <path d="M44 84v12h10v-12M66 84v12h10v-12"/><path d="M38 80c-14 0-20 8-14 16 5 6 14 2 12-4"/>`,
+    car: `<path d="M10 82h100" class="ghost"/>
+      <path d="M16 78v-10c0-6 4-9 10-10l16-3 14-11c4-3 8-4 13-4h12c8 0 14 4 18 10l6 9c4 1 7 4 7 9v10"/>
+      <path d="M48 56h44M64 44v12" class="ghost"/><path d="M88 34l4-8h14M98 26v14" />
+      <circle cx="36" cy="80" r="10"/><circle cx="90" cy="80" r="10"/><path d="M30 74l12 12M42 74 30 86M84 74l12 12M96 74 84 86" class="ghost"/>`,
     headstand: `<path d="M26 104h68a4 4 0 0 0 4-4v-2H22v2a4 4 0 0 0 4 4z"/>
       <path d="M24 26Q60 10 96 26v6Q60 16 24 32z"/><path d="M26 32c16 12 26 20 26 32v34M94 32c-16 12-26 20-26 32v34"/>
       <path d="M44 38c4 4 8 4 12 0s8-4 12 0 8 4 12 0M54 56c2 3 4 3 6 0s4-3 6 0M54 72c2 3 4 3 6 0s4-3 6 0M54 86c2 3 4 3 6 0s4-3 6 0" class="ghost"/>`,

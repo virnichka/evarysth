@@ -624,6 +624,28 @@ MODULR.products = [
       { src: "assets/photos/carapuce/3.webp", alt: "Maillage 3D de la figurine, vue de trois quarts" }
     ],
     photosNote: "Photos : rendus de démonstration, coloris beige ; la vue 3D montre le coloris choisi"
+  },
+  {
+    id: "voiture-voronoi", universe: "deco", shape: "car", model: "voiture-voronoi",
+    name: "Voiture Voronoï", price: 24,
+    tagline: "Une sportive à aileron, toute en dentelle de plastique.",
+    desc: "Une voiture de sport ajourée de part en part : carrosserie en motif Voronoï, jantes à rayons, aileron arrière sur ses deux mâts. Imprimée d'un seul bloc, elle laisse passer la lumière et se pose sur un bureau ou une étagère. Choisissez sa longueur, de la miniature à la pièce qui attire l'œil.",
+    variants: sizes("Longueur", [["S", "100 mm", { a: 100 }], ["M", "140 mm", { a: 140 }], ["L", "200 mm", { a: 200 }]]),
+    colors: [
+      { id: "blanc", label: "Blanc", hex: "#ecebe6", roughness: 0.6 },
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "rouge", label: "Rouge course", hex: "#b8322c", roughness: 0.5 }
+    ],
+    custom: { surcharge: 5, params: [
+      param("a", "Longueur de la voiture", 100, 240, 140, 5, 0.15)
+    ] },
+    photos: [
+      { src: "assets/photos/voiture-voronoi/1.webp", alt: "La voiture ajourée vue de trois quarts avant, aileron arrière sur ses mâts" },
+      { src: "assets/photos/voiture-voronoi/2.webp", alt: "La voiture posée sur un bureau en bois, près d'un stylo plume et d'un bonsaï", pos: "40% 55%" },
+      { src: "assets/photos/voiture-voronoi/3.webp", alt: "Gros plan sur la roue avant et le motif ajouré de la carrosserie" },
+      { src: "assets/photos/voiture-voronoi/4.webp", alt: "Gros plan sur l'aileron arrière et ses deux mâts" }
+    ],
+    photosNote: "Photos : rendus de démonstration, coloris blanc ; la vue 3D montre le coloris choisi"
   }
 ];
 
