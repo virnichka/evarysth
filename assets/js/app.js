@@ -61,7 +61,7 @@
   const cardPhotos = p => {
     const ph = p.photos || [];
     if (!ph.length) return "";
-    return `<div class="card__photos" data-href="#p-${p.id}">${ph.map((x, i) =>
+    return `<div class="card__photos" data-href="produits/${p.id}/">${ph.map((x, i) =>
       `<img class="card__photo" src="${x.src}" alt="${i ? "" : x.alt}" loading="lazy" decoding="async" draggable="false" style="object-position:${x.pos || "50% 50%"}">`).join("")}</div>${ph.length > 1 ? `
       <button class="card__step card__step--prev" data-step="-1" aria-label="Photo précédente" hidden>‹</button><button class="card__step card__step--next" data-step="1" aria-label="Photo suivante">›</button>
       <div class="card__dots" aria-hidden="true">${ph.map((_, i) => `<i${i ? "" : ' class="is-on"'}></i>`).join("")}</div>` : ""}`;
@@ -86,12 +86,12 @@
       return;
     }
     const t = e.target.closest(".card__photos");
-    if (t) location.hash = t.dataset.href; /* simple toucher = ouvrir la fiche ; un glissé ne déclenche pas de clic */
+    if (t) location.href = t.dataset.href; /* simple toucher = ouvrir la fiche ; un glissé ne déclenche pas de clic */
   });
 
   const card = p => `
     <article class="card">
-      <a class="card__link" href="#p-${p.id}" aria-label="${p.name}"></a>
+      <a class="card__link" href="produits/${p.id}/" aria-label="${p.name}"></a>
       <div class="card__media${p.photos && p.photos.length ? " has-photo" : ""}" data-u="${p.universe}">${EVARYSTH.shapeSVG(p.shape)}${cardPhotos(p)}<span class="card__badge">Sur-mesure possible</span>
         <button class="fav ${EVARYSTH.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${EVARYSTH.favs.has(p.id)}" aria-label="Ajouter ${p.name} aux favoris">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button></div>
@@ -514,19 +514,20 @@ ${colors.length ? `
     return `entre le ${f(6)} et le ${f(9)}`;
   }
 
-  /* Routage par ancre : #catalogue, #f-<famille>, #p-<produit>, sinon accueil */
+  /* Routage par ancre sur l'accueil : #catalogue, #f-<famille>, #favoris, sinon accueil.
+     Chaque fiche produit est une vraie page : produits/<id>/ (générée par tools/generer-pages.mjs). */
   const HOME_TITLE = document.title;
-  const VIEWS = ["home-view", "catalogue-view", "family-view", "product-root"];
+  const VIEWS = ["home-view", "catalogue-view", "family-view"];
   function show(id) { VIEWS.forEach(v => { $("#" + v).hidden = v !== id; }); }
 
   function route() {
     const h = decodeURIComponent(location.hash.slice(1));
     const prod = h.startsWith("p-") && EVARYSTH.getProduct(h.slice(2));
+    if (prod) { location.replace(`produits/${prod.id}/`); return; } /* anciens liens #p-<id> */
     const fam = h.startsWith("f-") && EVARYSTH.getUniverse(h.slice(2));
     let top = true, nav = "";
     disposeViewer();
-    if (prod) { show("product-root"); renderProduct(prod.id); nav = "f-" + prod.universe; }
-    else if (fam) { show("family-view"); renderFamily(fam.id); nav = h; }
+    if (fam) { show("family-view"); renderFamily(fam.id); nav = h; }
     else if (h === "favoris") { show("family-view"); renderFavorites(); nav = ""; }
     else if (h === "catalogue") { show("catalogue-view"); document.title = "Catalogue — Evarysth"; nav = h; }
     else {
@@ -563,6 +564,17 @@ ${colors.length ? `
       document.querySelectorAll("[data-hero-mode]").forEach(x => { const on = x === b; x.classList.toggle("is-on", on); x.setAttribute("aria-pressed", on); });
       $("#hero-dim-label").textContent = label; $("#hero-dim-val").textContent = val; $("#hero-mode-note").textContent = note;
     });
+    /* Page fiche produit : <body data-product-id="…"> */
+    const pid = document.body.dataset.productId;
+    if (pid) {
+      const p = EVARYSTH.getProduct(pid);
+      if (!p) return;
+      renderProduct(p.id); EVARYSTH.syncFavs();
+      document.querySelectorAll("[data-nav]").forEach(a => a.classList.toggle("is-current", a.dataset.nav === "f-" + p.universe));
+      window.evarysthTrack();
+      return;
+    }
+    if (!$("#home-view")) return; /* autre page générée (404) */
     renderHome(); renderCatalogue(); route();
     window.addEventListener("hashchange", route);
   });

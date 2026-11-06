@@ -5,7 +5,7 @@
   <title>Evarysth</title>
   <script>
     var id = new URLSearchParams(location.search).get("id");
-    location.replace("index.html" + (id ? "#p-" + id : ""));
+    location.replace(id ? "produits/" + encodeURIComponent(id) + "/" : "./");
   </script>
 </head>
 <body><a href="index.html">Evarysth</a></body>
