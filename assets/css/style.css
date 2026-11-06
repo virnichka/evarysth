@@ -596,3 +596,9 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
   html { scroll-behavior: auto; }
   * { animation: none !important; transition: none !important; }
 }
+
+/* Contenu statique des pages produit générées (lisible sans JavaScript, remplacé par la fiche) */
+.pdp-static { max-width: 720px; padding: 24px 0 48px; }
+.pdp-static h1 { margin: 0 0 12px; }
+.pdp-static p { margin: 0 0 12px; }
+.pdp-static img { max-width: 100%; height: auto; border-radius: 12px; }

@@ -12,18 +12,21 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 
 | Fichier | Rôle, en clair |
 |---|---|
-| `index.html` | **La seule vraie page.** Contient le squelette de toutes les vues (accueil, catalogue, univers, fiche produit) et charge les scripts. |
-| `produit.html` | Ancienne adresse : redirige simplement vers `index.html#p-<produit>`. |
+| `index.html` | **L'accueil et le gabarit.** Squelette de l'accueil, du catalogue et des univers (navigation par `#…`) ; sert aussi de modèle aux pages produit. |
+| `produits/<id>/index.html` | **Une vraie page par produit** (adresse `www.evarysth.fr/produits/<id>/`), **générée** : titre, description, aperçu de partage, données Google. Ne pas modifier à la main. |
+| `sitemap.xml`, `robots.txt`, `404.html` | Plan du site pour les moteurs de recherche (généré), consignes aux robots, page « introuvable » (générée). |
+| `assets/og/<id>.jpg` | Images d'aperçu quand on partage un lien (WhatsApp, réseaux…), 1200 × 630. |
+| `produit.html` | Ancienne adresse : redirige vers `produits/<produit>/` (les anciens liens `#p-<produit>` aussi). |
 | `assets/css/style.css` | Toute l'apparence : couleurs, polices, mise en page, thème clair/sombre, version mobile. |
 | `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max), photos. C'est le fichier à modifier pour ajouter ou changer un produit. |
-| `assets/js/app.js` | **Le chef d'orchestre.** Lit l'adresse (`#…`), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
+| `assets/js/app.js` | **Le chef d'orchestre.** Lit l'adresse (`#…` sur l'accueil, `data-product-id` sur une page produit), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
 | `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js seulement quand une fiche en a besoin, affiche et fait tourner la pièce. |
 | `assets/js/modeles/` | **Un fichier par pièce 3D** : le « plan » qui transforme des cotes en mm en pièce 3D. Seul le fichier de la fiche ouverte est chargé. |
 | `assets/js/cart.js` | Le panier latéral : ajout, quantités, code promo de démo `BIENVENUE10`, total ; mémorisé dans le navigateur. |
 | `assets/js/ui.js` | Le confort : thème clair/sombre, recherche (touche `/`), favoris, notifications, fenêtres modales. |
 | `assets/models/<produit>/` | Fichiers STL d'origine des produits qui partent d'un modèle existant. |
 | `assets/photos/<produit>/` | Photos commerciales (`1.webp` = vignette du catalogue). |
-| `tools/` | Outils d'atelier (Python) pour analyser les STL ; non utilisés par le site. |
+| `tools/` | Outils d'atelier : analyse des STL (Python), `generer-pages.mjs` (pages produit, sitemap), `captures-og.cjs` (images de partage). |
 | `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages. |
 | `CLAUDE.md` | Méthode pour ajouter un produit 3D à partir de fichiers STL. |
 

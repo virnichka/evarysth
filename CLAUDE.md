@@ -1,6 +1,9 @@
 # Evarysth — consignes pour Claude
 
 Site vanilla HTML/CSS/JS sans build (voir README.md). Catalogue : `assets/js/data.js`.
+Pages produit `produits/<id>/index.html` **générées** depuis `index.html` + `data.js` : après toute
+modification de l'un des deux, `node tools/generer-pages.mjs` (la publication échoue sinon). Liens vers
+une fiche : `produits/<id>/` (relatif, jamais `#p-<id>`) ; ces pages ont `<base href="../../">`.
 Viewer 3D : moteur + briques communes dans `assets/js/viewer3d.js` ; un fichier par modèle dans
 `assets/js/modeles/<modèle>.js` (chargé à la demande, `EVARYSTH.viewer3d.define`) : n'ouvre que celui utile. Icônes line-art : objet `SHAPES` dans `assets/js/app.js`.
 
@@ -47,7 +50,8 @@ pas un gabarit de forme.
    Garde la fonction de l'objet intacte. Liste les libertés prises dans la réponse finale.
 5. **Intégration** : STL dans `assets/models/<id-produit>/`, modèle dans `assets/js/modeles/<modèle>.js`,
    produit dans `data.js` (même format : 3 tailles standard + `custom.params`, univers
-   le plus logique), icône dans `SHAPES` si aucune existante ne convient. Textes en
+   le plus logique), icône dans `SHAPES` si aucune existante ne convient. Puis
+   `node tools/captures-og.cjs <id>` (image de partage) et `node tools/generer-pages.mjs`. Textes en
    français, ton du site, sans promesse invérifiable (étanche, alimentaire…).
    **Coloris : toujours 2 ou 3** dans `colors: [{ id, label, hex, roughness?, metalness? }]`,
    jamais un seul ni plus de 3 : le noir mat Evarysth + 1 ou 2 teintes qui conviennent à l'objet
@@ -65,6 +69,7 @@ pas un gabarit de forme.
 `assets/photos/<id-produit>/1.webp, 2.webp…` (≤ 1600 px de large, ~200 Ko). Dans `data.js` :
 `photos: [{ src, alt, pos? }]` (pos = object-position du recadrage) + `photosNote` facultatif.
 La 1re photo sert de vignette au catalogue (2e au survol) ; sur la fiche, la 3D reste la vue 1.
+Après ajout/changement de photo : `node tools/captures-og.cjs <id>` puis `node tools/generer-pages.mjs`.
 
 ## Mise en ligne (autorisée par le propriétaire, sans redemander)
 Chaque push sur `main` republie le site (GitHub Pages, `.github/workflows/pages.yml`).

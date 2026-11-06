@@ -109,7 +109,7 @@
       <li class="line">
         <div class="line__thumb">${EVARYSTH.shapeSVG(i.shape)}</div>
         <div class="line__body">
-          <div class="line__top"><a href="#p-${i.id}" data-cart-close>${esc(i.name)}</a><span>${fmt(i.unitPrice * i.qty)}</span></div>
+          <div class="line__top"><a href="produits/${i.id}/" data-cart-close>${esc(i.name)}</a><span>${fmt(i.unitPrice * i.qty)}</span></div>
           <span class="tag ${i.mode === "custom" ? "tag--accent" : ""}">${i.mode === "custom" ? "Sur-mesure" : "Standard"}</span>
           <ul class="line__opts">${i.details.map(d => `<li><span>${esc(d[0])}</span><span>${esc(d[1])}</span></li>`).join("")}</ul>
           <div class="line__actions">

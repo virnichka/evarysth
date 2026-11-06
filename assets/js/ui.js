@@ -124,7 +124,7 @@
       const hits = !q ? EVARYSTH.products.slice(0, 5) : EVARYSTH.products.filter(p =>
         norm([p.name, p.tagline, p.desc, EVARYSTH.getUniverse(p.universe).name].join(" ")).includes(q));
       list.innerHTML = (!q ? '<li class="search__label mono">Suggestions</li>' : "") + (hits.length ? hits.map(p => `
-        <li><a href="#p-${p.id}" data-modal-close>
+        <li><a href="produits/${p.id}/" data-modal-close>
           <span class="search__thumb">${EVARYSTH.shapeSVG(p.shape)}</span>
           <span><b>${esc(p.name)}</b><small>${esc(EVARYSTH.getUniverse(p.universe).name)}</small></span>
           <span class="mono">dès ${EVARYSTH.fmt(p.price)}</span></a></li>`).join("")
