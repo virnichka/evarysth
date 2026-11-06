@@ -112,7 +112,7 @@
     /* Carrousel des univers : une grande carte par famille, à balayer */
     $("#families-root").innerHTML = EVARYSTH.universes.map((u, i) => {
       const list = inFamily(u);
-      return `<a class="u-card" data-u="${u.id}" href="#f-${u.id}" aria-label="${u.name} : ${nHacks(list.length)}" data-slide="${i}">
+      return `<a class="u-card" data-u="${u.id}" href="univers/${u.id}/" aria-label="${u.name} : ${nHacks(list.length)}" data-slide="${i}">
         <div class="u-card__top"><span class="u-card__code mono">${u.code}</span><span class="u-card__count">${nHacks(list.length)}</span></div>
         <div class="u-card__art" aria-hidden="true">${list.slice(0, 3).map(p => `<span>${EVARYSTH.shapeSVG(p.shape)}</span>`).join("")}</div>
         <div class="u-card__text">
@@ -128,7 +128,7 @@
     setupCarousel($("#univers"));
 
     $("#popular-root").innerHTML = EVARYSTH.products.filter(p => p.popular).map(card).join("") +
-      `<a class="card card--more" href="#catalogue"><span>Tout le catalogue</span><span class="arrow" aria-hidden="true">→</span><small>${nHacks(EVARYSTH.products.length)}</small></a>`;
+      `<a class="card card--more" href="catalogue/"><span>Tout le catalogue</span><span class="arrow" aria-hidden="true">→</span><small>${nHacks(EVARYSTH.products.length)}</small></a>`;
   }
 
   /* Carrousel : glisser au doigt (scroll-snap), flèches, points, clavier */
@@ -180,25 +180,25 @@
           <span class="row-block__code mono" data-u="${u.id}">${u.code}</span>
           <div class="row-block__title">${heading(u)}<p>${u.pitch}</p></div>
           <div class="row-block__tools">
-            <a class="link-arrow mono" href="#f-${u.id}">Voir tout (${list.length}) →</a>
+            <a class="link-arrow mono" href="univers/${u.id}/">Voir tout (${list.length}) →</a>
             <button class="icon-btn" data-scroll="-1" aria-label="Précédent">←</button>
             <button class="icon-btn" data-scroll="1" aria-label="Suivant">→</button>
           </div>
         </header>
         <div class="rail" tabindex="0" aria-label="${u.name}">
           ${list.map(card).join("")}
-          <a class="card card--more" href="#f-${u.id}"><span>Voir les ${list.length}</span><span class="arrow" aria-hidden="true">→</span><small>${u.name}</small></a>
+          <a class="card card--more" href="univers/${u.id}/"><span>Voir les ${list.length}</span><span class="arrow" aria-hidden="true">→</span><small>${u.name}</small></a>
         </div>
       </section>`;
     }).join("");
   }
 
   /* ---------- Page famille ---------- */
+  let currentFam = null;
   function renderFamily(id) {
-    const u = EVARYSTH.getUniverse(id), list = inFamily(u);
-    document.title = `${u.name} — Evarysth`;
+    const u = currentFam = EVARYSTH.getUniverse(id), list = inFamily(u);
     $("#family-view").innerHTML = `
-      <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <span>${u.name}</span></nav>
+      <nav class="crumbs" aria-label="Fil d'Ariane"><a href="catalogue/">Catalogue</a> / <span>${u.name}</span></nav>
       <header class="page-head page-head--u" data-u="${u.id}">
         <span class="mono eyebrow">Univers ${u.code} · ${nHacks(list.length)}</span>
         <h1>${u.name} <em>${u.sub}</em></h1>
@@ -216,7 +216,7 @@
       <section class="related">
         <h2 class="mono">AUTRES UNIVERS</h2>
         <div class="chips">${EVARYSTH.universes.filter(x => x.id !== id).map(x =>
-          `<a class="chip" href="#f-${x.id}"><span class="mono code">${x.code}</span>${x.name} <em>${x.sub}</em><span class="arrow">→</span></a>`).join("")}</div>
+          `<a class="chip" href="univers/${x.id}/"><span class="mono code">${x.code}</span>${x.name} <em>${x.sub}</em><span class="arrow">→</span></a>`).join("")}</div>
       </section>`;
   }
 
@@ -226,7 +226,7 @@
   };
   document.addEventListener("change", e => {
     if (e.target.id !== "sort") return;
-    const fam = EVARYSTH.getUniverse(location.hash.slice(3));
+    const fam = currentFam;
     $("#family-grid").innerHTML = SORTS[e.target.value](inFamily(fam)).map(card).join("");
   });
 
@@ -235,11 +235,11 @@
     document.title = "Mes favoris — Evarysth";
     const list = EVARYSTH.favs.all().map(EVARYSTH.getProduct).filter(Boolean);
     $("#family-view").innerHTML = `
-      <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <span>Favoris</span></nav>
+      <nav class="crumbs" aria-label="Fil d'Ariane"><a href="catalogue/">Catalogue</a> / <span>Favoris</span></nav>
       <header class="page-head"><span class="mono eyebrow">Ma sélection</span><h1>Mes favoris</h1>
         <p>${list.length ? "Vos hacks préférés, gardés de côté sur cet appareil." : "Touchez le cœur d'un produit pour le retrouver ici."}</p></header>
       ${list.length ? `<div class="grid">${list.map(card).join("")}</div>` :
-        `<div class="empty-state"><a class="btn btn--primary" href="#catalogue">Parcourir le catalogue</a></div>`}`;
+        `<div class="empty-state"><a class="btn btn--primary" href="catalogue/">Parcourir le catalogue</a></div>`}`;
   }
   document.addEventListener("evarysth:favs", () => { if (location.hash === "#favoris") { renderFavorites(); EVARYSTH.syncFavs(); } });
 
@@ -251,7 +251,6 @@
     const root = $("#product-root");
     const p = EVARYSTH.getProduct(id);
     const u = EVARYSTH.getUniverse(p.universe);
-    document.title = `${p.name} — Evarysth`;
 
     const state = {
       mode: "standard",
@@ -265,7 +264,7 @@
     const photos = p.photos || [];
 
     root.innerHTML = `
-      <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <a href="#f-${u.id}">${u.name}</a> / <span>${p.name}</span></nav>
+      <nav class="crumbs" aria-label="Fil d'Ariane"><a href="catalogue/">Catalogue</a> / <a href="univers/${u.id}/">${u.name}</a> / <span>${p.name}</span></nav>
       <div class="pdp${p.model ? " pdp--3d" : ""}">
         <div class="pdp__visual">
           <div class="stage" id="stage" data-u="${p.universe}">
@@ -514,22 +513,23 @@ ${colors.length ? `
     return `entre le ${f(6)} et le ${f(9)}`;
   }
 
-  /* Routage par ancre sur l'accueil : #catalogue, #f-<famille>, #favoris, sinon accueil.
-     Chaque fiche produit est une vraie page : produits/<id>/ (générée par tools/generer-pages.mjs). */
+  /* Routage par ancre sur l'accueil : #favoris, sinon accueil (et ses sections #faq, #etapes…).
+     Pages générées par tools/generer-pages.mjs : catalogue/, univers/<id>/, produits/<id>/.
+     Les anciennes ancres #catalogue, #f-<id>, #p-<id> redirigent vers ces pages. */
   const HOME_TITLE = document.title;
-  const VIEWS = ["home-view", "catalogue-view", "family-view"];
+  const VIEWS = ["home-view", "family-view"];
   function show(id) { VIEWS.forEach(v => { $("#" + v).hidden = v !== id; }); }
 
   function route() {
     const h = decodeURIComponent(location.hash.slice(1));
     const prod = h.startsWith("p-") && EVARYSTH.getProduct(h.slice(2));
-    if (prod) { location.replace(`produits/${prod.id}/`); return; } /* anciens liens #p-<id> */
+    if (prod) { location.replace(`produits/${prod.id}/`); return; } /* anciens liens */
     const fam = h.startsWith("f-") && EVARYSTH.getUniverse(h.slice(2));
+    if (fam) { location.replace(`univers/${fam.id}/`); return; }
+    if (h === "catalogue") { location.replace("catalogue/"); return; }
     let top = true, nav = "";
     disposeViewer();
-    if (fam) { show("family-view"); renderFamily(fam.id); nav = h; }
-    else if (h === "favoris") { show("family-view"); renderFavorites(); nav = ""; }
-    else if (h === "catalogue") { show("catalogue-view"); document.title = "Catalogue — Evarysth"; nav = h; }
+    if (h === "favoris") { show("family-view"); renderFavorites(); nav = ""; }
     else {
       show("home-view"); document.title = HOME_TITLE;
       const target = h && document.getElementById(h);
@@ -574,8 +574,13 @@ ${colors.length ? `
       window.evarysthTrack();
       return;
     }
+    const markNav = id => document.querySelectorAll("[data-nav]").forEach(a => a.classList.toggle("is-current", a.dataset.nav === id));
+    /* Page univers : <body data-universe-id="…"> ; page catalogue : <body data-page="catalogue"> */
+    const uid = document.body.dataset.universeId;
+    if (uid && EVARYSTH.getUniverse(uid)) { renderFamily(uid); EVARYSTH.syncFavs(); markNav("f-" + uid); window.evarysthTrack(); return; }
+    if (document.body.dataset.page === "catalogue") { renderCatalogue(); EVARYSTH.syncFavs(); markNav("catalogue"); window.evarysthTrack(); return; }
     if (!$("#home-view")) return; /* autre page générée (404) */
-    renderHome(); renderCatalogue(); route();
+    renderHome(); route();
     window.addEventListener("hashchange", route);
   });
 })();

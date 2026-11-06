@@ -113,7 +113,7 @@
           <button class="icon-btn" data-modal-close aria-label="Fermer">✕</button>
         </div>
         <div class="search__chips" id="q-chips">
-          ${EVARYSTH.universes.map(u => `<a class="chip" href="#f-${u.id}" data-modal-close>${esc(u.name)}</a>`).join("")}
+          ${EVARYSTH.universes.map(u => `<a class="chip" href="univers/${u.id}/" data-modal-close>${esc(u.name)}</a>`).join("")}
         </div>
         <ul class="search__list" id="q-list"></ul>
       </div>`, "modal--top");

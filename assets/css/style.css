@@ -602,3 +602,5 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .pdp-static h1 { margin: 0 0 12px; }
 .pdp-static p { margin: 0 0 12px; }
 .pdp-static img { max-width: 100%; height: auto; border-radius: 12px; }
+.list-static { list-style: none; padding: 0; margin: 12px 0 32px; display: grid; gap: 8px; }
+.list-static span { color: var(--ink-2, inherit); white-space: nowrap; }

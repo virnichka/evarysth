@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://evarysth.fr/</loc></url>
+  <url><loc>https://evarysth.fr/catalogue/</loc></url>
+  <url><loc>https://evarysth.fr/univers/balcon/</loc></url>
+  <url><loc>https://evarysth.fr/univers/bureau/</loc></url>
+  <url><loc>https://evarysth.fr/univers/meubles/</loc></url>
+  <url><loc>https://evarysth.fr/univers/deco/</loc></url>
   <url><loc>https://evarysth.fr/produits/jardiniere-clip/</loc></url>
   <url><loc>https://evarysth.fr/produits/crochet-balcon/</loc></url>
   <url><loc>https://evarysth.fr/produits/clip-brise-vue/</loc></url>

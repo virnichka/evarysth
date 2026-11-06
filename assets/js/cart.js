@@ -122,7 +122,7 @@
           </div>
         </div>
       </li>`).join("")
-      : `<li class="empty"><p>Votre panier est vide.</p><a class="btn" href="#catalogue" data-cart-close>Voir le catalogue</a></li>`;
+      : `<li class="empty"><p>Votre panier est vide.</p><a class="btn" href="catalogue/" data-cart-close>Voir le catalogue</a></li>`;
   }
 
   EVARYSTH.cart = { add, open, close };
