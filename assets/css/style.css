@@ -312,6 +312,7 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 /* Curseur d'ouverture (modèles ouvrables) : affichage seulement */
 .stage__open { position: absolute; top: 18px; right: 18px; z-index: 1; display: flex; align-items: center; gap: 10px; font-size: 11px; padding: 8px 14px; border-radius: 999px; background: var(--bg-2); color: var(--soft); opacity: 0; pointer-events: none; transition: opacity .4s; }
 .stage.is-3d .stage__open { opacity: 1; pointer-events: auto; }
+.stage__open[hidden] { display: none; }
 .stage__open input[type=range] { width: 120px; height: 4px; }
 .stage__open input[type=range]::-webkit-slider-thumb { width: 18px; height: 18px; border-width: 4px; }
 .stage__open input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-width: 4px; }

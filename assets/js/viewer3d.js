@@ -4,7 +4,9 @@
            v.update({ a, b, c });  v.dispose();
    Unités de la scène : 1 unité = 1 mm.
    Un modèle peut aussi partir de fichiers STL (assets/models/) : il expose alors prepare(THREE),
-   appelé une fois avant le premier rendu, puis se reconstruit de façon synchrone comme les autres. */
+   appelé une fois avant le premier rendu, puis se reconstruit de façon synchrone comme les autres.
+   Chaque modèle vit dans son propre fichier assets/js/modeles/<modèle>.js, chargé seulement quand
+   une fiche l'affiche. Ce fichier-ci ne contient que le moteur et les briques communes. */
 (function () {
   let libs = null;
   const load = () => libs || (libs = Promise.all([
@@ -61,72 +63,6 @@
     .then(({ STLLoader }) => new Promise((ok, ko) => new STLLoader().load(url, ok, undefined, ko)))
     .catch(err => { delete stlCache[url]; throw err; }));
 
-  /* Boîte Rugged : boîte + couvercle + 2 loquets, assemblés fermés à partir des STL d'impression.
-     Repère d'assemblage : Z vers le haut, origine au centre du fond, cotes intérieures 150 × 100 × 50 mm.
-     Redimensionnement « par zones » : on n'étire que des bandes où la pièce n'a que des parois droites
-     (milieu des grands côtés, milieu de la hauteur). Charnières, loquets, congés et épaisseurs de paroi
-     gardent leurs vraies dimensions, ils se déplacent simplement avec les bords. */
-  const rugged = (() => {
-    const DIR = "assets/models/boite-rugged/";
-    const NOM = { a: 150, b: 100, c: 50 };  // cotes intérieures des fichiers d'origine
-    const BAND = { x: 22, y: 23, z0: 4.4, z1: 22.4 };  // zones sans détail : |x| < 22, |y| < 23, 4,4 < z < 22,4
-    /* Axes de rotation (repère d'assemblage, cotes d'origine) : charnière côté -X, œil des loquets côté +X */
-    const HINGE = { x: -57.86, z: 40.5 }, LATCH_PIN = { x: 56.76, z: 48.6 };
-    let base = null, lidAt = 0, latchAt = 0;  // positions à plat ; indices de début du couvercle et des loquets
-    /* Rotation autour d'un axe parallèle à Y passant par (cx, cz), sur out[from..to[ */
-    const swing = (out, from, to, cx, cz, ang) => {
-      const c = Math.cos(ang), s = Math.sin(ang);
-      for (let i = from; i < to; i += 3) {
-        const x = out[i] - cx, z = out[i + 2] - cz;
-        out[i] = cx + x * c - z * s;
-        out[i + 2] = cz + x * s + z * c;
-      }
-    };
-    /* v.open (0 → 1, facultatif) : affichage seulement. 0–30 % : les loquets basculent vers l'extérieur,
-       30–100 % : le couvercle (avec ses loquets) pivote jusqu'à 105° sur sa charnière. */
-    const model = (T, v) => {
-      const dx = (v.b - NOM.b) / 2, dy = (v.a - NOM.a) / 2, dz = v.c - NOM.c;
-      const sx = (BAND.x + dx) / BAND.x, sy = (BAND.y + dy) / BAND.y, sz = (BAND.z1 - BAND.z0 + dz) / (BAND.z1 - BAND.z0);
-      const out = new Float32Array(base.length);
-      for (let i = 0; i < base.length; i += 3) {
-        const x = base[i], y = base[i + 1], z = base[i + 2];
-        out[i] = x > BAND.x ? x + dx : x < -BAND.x ? x - dx : x * sx;
-        out[i + 1] = y > BAND.y ? y + dy : y < -BAND.y ? y - dy : y * sy;
-        out[i + 2] = z > BAND.z1 ? z + dz : z > BAND.z0 ? BAND.z0 + (z - BAND.z0) * sz : z;
-      }
-      /* Centre de la boîte fermée : la boîte reste immobile pendant l'ouverture */
-      const cz = (out.reduce((m, val, i) => i % 3 === 2 && val > m ? val : m, 0)) / 2;
-      const open = Math.min(1, Math.max(0, v.open || 0));
-      const ease = t => t * t * (3 - 2 * t);
-      if (open > 0) {
-        swing(out, latchAt, out.length, LATCH_PIN.x + dx, LATCH_PIN.z + dz, -ease(Math.min(1, open / 0.3)) * Math.PI * 0.6);
-        swing(out, lidAt, out.length, HINGE.x - dx, HINGE.z + dz, ease(Math.max(0, (open - 0.3) / 0.7)) * Math.PI * 105 / 180);
-      }
-      const g = new T.BufferGeometry();
-      g.setAttribute("position", new T.BufferAttribute(out, 3));
-      g.translate(0, 0, -cz).computeVertexNormals();
-      return g.rotateX(-Math.PI / 2);  // Z vers le haut -> Y vers le haut (convention du viewer)
-    };
-    model.openable = true;
-    model.prepare = T => base ? Promise.resolve() : Promise.all(["boite", "couvercle", "loquet"].map(n => fetchSTL(DIR + n + ".stl")))
-      .then(([box, lid, latch]) => {
-        const M = (...e) => new T.Matrix4().set(...e, 0, 0, 0, 1);
-        const parts = [
-          box.clone().applyMatrix4(M(1, 0, 0, -125, 0, 1, 0, -126.9, 0, 0, 1, 0)),
-          /* Couvercle retourné (demi-tour autour de X) : son axe de charnière (z 14,5) vient sur celui de la boîte (z 40,5) */
-          lid.clone().applyMatrix4(M(1, 0, 0, -125, 0, -1, 0, 113.9, 0, 0, -1, 55)),
-          /* Loquet : œil sur l'axe du couvercle (z 48,6), crochet sur l'axe de la boîte (z 32,4) */
-          ...[-43, 43].map(yc => latch.clone().applyMatrix4(M(-1, 0, 0, 209.31, 0, 0, 1, yc - 11.6, 0, 1, 0, -11.32)))
-        ];
-        const arrs = parts.map(g => g.attributes.position.array);
-        lidAt = arrs[0].length; latchAt = lidAt + arrs[1].length;
-        base = new Float32Array(arrs.reduce((n, a) => n + a.length, 0));
-        arrs.reduce((o, a) => (base.set(a, o), o + a.length), 0);
-        parts.forEach(g => g.dispose());
-      });
-    return model;
-  })();
-
   /* Figurines sculptées (maillages d'origine allégés à 80 000 triangles).
      Repère des STL : Z vers le haut, centré en X/Y, socle en z = 0, face vers +Y.
      Formes organiques sans détail fonctionnel : mise à l'échelle uniforme, a = hauteur totale. */
@@ -146,94 +82,6 @@
       });
     return model;
   };
-  /* Chat Lord : buste, hauteur nominale 172,9 mm */
-  const chat = sculpt("assets/models/chat-lord/chat.stl", 172.9);
-  /* Carapuce : figurine (Bambu MakerLab « Image to 3D »), hauteur nominale 61,0 mm */
-  const carapuce = sculpt("assets/models/carapuce/carapuce.stl", 61.0);
-
-  /* Support de casque gyroïde. Reconstruit d'après le STL « gyroid headphone holder » (210 000 triangles,
-     trop lourd et non paramétrable) : socle plein, colonne puis tête évasée en treillis gyroïde, appui
-     bombé plein sous l'arceau. Le treillis est recalculé (champ implicite + « surface nets ») à cellule
-     fixe : quand on agrandit, il gagne des cellules au lieu d'épaissir. Montants pleins aux 4 arêtes.
-     a = hauteur totale, b = largeur de l'appui. Repère : y vers le haut, sol en y = 0. */
-  const gyroStand = (T, { a, b }) => {
-    const k = kit(T);
-    const BT = 8, S = 8, CT = 6, B = b + 8;           // socle, flèche et épaisseur de l'appui, largeur de l'appui
-    const cw = 44, cd = 32, hd = 44, HH = 0.6 * b;     // colonne (x, z), profondeur de la tête, hauteur de la tête
-    const yT = a - S - CT, yH = yT - HH;               // dessous de l'appui (au bord), début de l'évasement
-    const arcY = x => S * (1 - (2 * x / B) ** 2);      // bombé de l'appui
-    const P = 20, kk = 2 * Math.PI / P, wall = 1.3;    // période du gyroïde, demi-épaisseur de paroi
-    /* Silhouette pleine (distance approchée) */
-    const shape = y => { const u = Math.min(1, Math.max(0, (y - yH) / (0.6 * HH))), e = u * u * (3 - 2 * u);  // évasement puis partie droite
-      return [cw / 2 + (B / 2 - 2 - cw / 2) * e, cd / 2 + (hd / 2 - cd / 2) * e]; };
-    const field = (ax, y, az, w, d, top, g) => {
-      const R = Math.max(ax - w, az - d, BT - 1 - y, y - top);
-      if (R > 3) return R;
-      const post = Math.max(R, w - 4 - ax, d - 4 - az);
-      return Math.min(post, Math.max(R, Math.abs(g) / kk - wall));
-    };
-    /* Grille */
-    const h = 1.6, x0 = -B / 2 - 3, y0 = BT - 4, z0 = -hd / 2 - 3;
-    const nx = Math.ceil((B + 6) / h) + 1, ny = Math.ceil((a - y0 + 2) / h) + 1, nz = Math.ceil((hd + 6) / h) + 1;
-    const X = i => x0 + i * h, Y = j => y0 + j * h, Z = l => z0 + l * h;
-    const trig = (n, f) => { const s = new Float32Array(n), c = new Float32Array(n);
-      for (let i = 0; i < n; i++) { s[i] = Math.sin(kk * f(i)); c[i] = Math.cos(kk * f(i)); } return [s, c]; };
-    const [sx, cx] = trig(nx, X), [sy, cy] = trig(ny, Y), [sz, cz] = trig(nz, Z);
-    const V = new Float32Array(nx * ny * nz), at = (i, j, l) => (j * nz + l) * nx + i;
-    const top = Float32Array.from({ length: nx }, (_, i) => yT + arcY(X(i)) + 1);
-    for (let j = 0; j < ny; j++) {
-      const y = Y(j), [w, d] = shape(y);
-      for (let l = 0; l < nz; l++) { const az = Math.abs(Z(l));
-        for (let i = 0; i < nx; i++)
-          V[at(i, j, l)] = field(Math.abs(X(i)), y, az, w, d, top[i], sx[i] * cy[j] + sy[j] * cz[l] + sz[l] * cx[i]); }
-    }
-    /* Surface nets : un sommet par cellule traversée, une face par arête traversée */
-    const cell = new Int32Array((nx - 1) * (ny - 1) * (nz - 1)).fill(-1), ci = (i, j, l) => (j * (nz - 1) + l) * (nx - 1) + i;
-    const pos = [], idx = [];
-    const E = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
-    const cv = new Float32Array(8);
-    for (let j = 0; j < ny - 1; j++) for (let l = 0; l < nz - 1; l++) for (let i = 0; i < nx - 1; i++) {
-      let m = 0;
-      for (let c = 0; c < 8; c++) { cv[c] = V[at(i + (c & 1), j + (c >> 2 & 1), l + (c >> 1 & 1))]; if (cv[c] < 0) m |= 1 << c; }
-      if (m === 0 || m === 255) continue;
-      let px = 0, py = 0, pz = 0, n = 0;
-      for (const [p, q] of E) {
-        if ((cv[p] < 0) === (cv[q] < 0)) continue;
-        const t = cv[p] / (cv[p] - cv[q]);
-        px += (p & 1) + ((q & 1) - (p & 1)) * t; py += (p >> 2 & 1) + ((q >> 2 & 1) - (p >> 2 & 1)) * t;
-        pz += (p >> 1 & 1) + ((q >> 1 & 1) - (p >> 1 & 1)) * t; n++;
-      }
-      cell[ci(i, j, l)] = pos.length / 3;
-      pos.push(X(i + px / n), Y(j + py / n), Z(l + pz / n));
-    }
-    const face = (inside, c0, c1, c2, c3) => {
-      const q = [cell[c0], cell[c1], cell[c2], cell[c3]];
-      if (inside) idx.push(q[0], q[1], q[2], q[0], q[2], q[3]); else idx.push(q[0], q[2], q[1], q[0], q[3], q[2]);
-    };
-    for (let j = 1; j < ny - 1; j++) for (let l = 1; l < nz - 1; l++) for (let i = 1; i < nx - 1; i++) {
-      const v = V[at(i, j, l)] < 0;
-      if (v !== (V[at(i + 1, j, l)] < 0)) face(v, ci(i, j - 1, l - 1), ci(i, j, l - 1), ci(i, j, l), ci(i, j - 1, l));
-      if (v !== (V[at(i, j + 1, l)] < 0)) face(v, ci(i - 1, j, l - 1), ci(i - 1, j, l), ci(i, j, l), ci(i, j, l - 1));
-      if (v !== (V[at(i, j, l + 1)] < 0)) face(v, ci(i - 1, j - 1, l), ci(i, j - 1, l), ci(i, j, l), ci(i - 1, j, l));
-    }
-    const lattice = new T.BufferGeometry();
-    lattice.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
-    lattice.setIndex(idx);
-    lattice.computeVertexNormals();
-    /* Pièces pleines, arêtes adoucies : socle arrondi et appui bombé */
-    const round = (w, d, r) => { const s = new T.Shape(), x = w / 2, y = d / 2;
-      s.moveTo(-x + r, -y); s.lineTo(x - r, -y); s.quadraticCurveTo(x, -y, x, -y + r); s.lineTo(x, y - r);
-      s.quadraticCurveTo(x, y, x - r, y); s.lineTo(-x + r, y); s.quadraticCurveTo(-x, y, -x, y - r);
-      s.lineTo(-x, -y + r); s.quadraticCurveTo(-x, -y, -x + r, -y); return s; };
-    const soft = (s, depth, bv) => new T.ExtrudeGeometry(s, { depth: depth - 2 * bv, bevelEnabled: true,
-      bevelThickness: bv, bevelSize: bv, bevelSegments: 3, curveSegments: 10 }).translate(0, 0, -depth / 2 + bv);
-    const base = soft(round(Math.max(b + 10, 0.42 * a), 110, 16), BT, 1.5).rotateX(Math.PI / 2).translate(0, BT / 2, 0);
-    const cap = new T.Shape(), N = 24, Bc = B - 3;
-    for (let i = 0; i <= N; i++) { const x = -Bc / 2 + Bc * i / N; i ? cap.lineTo(x, yT + arcY(x)) : cap.moveTo(x, yT + arcY(x)); }
-    for (let i = N; i >= 0; i--) { const x = -Bc / 2 + Bc * i / N; cap.lineTo(x, yT + arcY(x) + CT - 3); }
-    return k.join(lattice, base, soft(cap, hd + 4, 1.5));
-  };
-  gyroStand.smooth = true;  // treillis organique : pas d'arêtes à souligner
 
   /* Compositions récurrentes */
   const tray = ({ box }, w, d, h, nx, nz) => [
@@ -252,282 +100,21 @@
   /* Pince latérale sur un plateau d'épaisseur a (ouverture vers +x, corps en x < 0) */
   const sideClamp = (k, a, L, t, w) => k.ext(uPts(a, L, t), w).rotateZ(Math.PI / 2);
 
-  /* Support d'aérosol SKADIS. Repère : y vers le haut (0 = dessous), dos contre le panneau en z = 0,
-     gobelet vers +z. Reconstruit d'après le STL « bottle holder 54 » : dos plein, gobelet à paroi de 3 mm,
-     côtés en creux, encoche en U à l'avant, fond ajouré qui retient la bombe par son rebord.
-     Accroche SKADIS : 2 crochets en haut et 2 ergots 40 mm plus bas (pas des trous du panneau). */
-  const aerosol = (T, { a, b }) => {
-    const k = kit(T);
-    const ri = a / 2 + 0.75, t = 3, ro = ri + t, cz = 5 + ri, H = b, ft = 4, rn = 0.25 * a;
-    const hs = 0.45 * H, hh = 0.65 * H, hf = ft + 6;  // creux des côtés, cornes avant, fond de l'encoche
-    const ss = (e0, e1, x) => { const u = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return u * u * (3 - 2 * u); };
-    /* Hauteur du bord selon l'angle θ (0 = avant, ±90° = jonction avec le dos) */
-    const top = th => {
-      const zf = Math.cos(th), x = ri * Math.sin(th);
-      let h = zf < 0.35 ? H + (hs - H) * ss(0, 0.35, zf) : hs + (hh - hs) * ss(0.35, 0.8, zf);
-      if (Math.abs(x) < rn) h = Math.min(h, hf + rn - Math.sqrt(rn * rn - x * x));
-      return h;
-    };
-    /* Paroi avant (-90° → 90°) : normales radiales exactes, faces orientées vers l'extérieur */
-    const pos = [], nor = [];
-    const tri = (p, q, r, np, nq, nr, out) => {
-      const u = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], w = [r[0] - p[0], r[1] - p[1], r[2] - p[2]];
-      const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
-      if (n[0] * out[0] + n[1] * out[1] + n[2] * out[2] < 0) { [q, r] = [r, q]; [nq, nr] = [nr, nq]; }
-      const fl = Math.hypot(...n) || 1, nf = n.map(c => c / fl * Math.sign(n[0] * out[0] + n[1] * out[1] + n[2] * out[2] || 1));
-      pos.push(...p, ...q, ...r); nor.push(...(np || nf), ...(nq || nf), ...(nr || nf));
-    };
-    const quad = (p, q, r, s, out, n1, n2) => { tri(p, q, r, n1, n2, n2, out); tri(p, r, s, n1, n2, n1, out); };
-    const N = 180, P = (r, th, y) => [r * Math.sin(th), y, cz + r * Math.cos(th)];
-    for (let i = 0; i < N; i++) {
-      const A = rad(-90 + 180 * i / N), B = rad(-90 + 180 * (i + 1) / N), M = (A + B) / 2;
-      const hA = top(A), hB = top(B);
-      const rA = [Math.sin(A), 0, Math.cos(A)], rB = [Math.sin(B), 0, Math.cos(B)], rM = [Math.sin(M), 0, Math.cos(M)];
-      const neg = v => v.map(c => -c);
-      quad(P(ri, A, 0), P(ri, B, 0), P(ri, B, hB), P(ri, A, hA), neg(rM), neg(rA), neg(rB));
-      quad(P(ro, A, 0), P(ro, B, 0), P(ro, B, hB), P(ro, A, hA), rM, rA, rB);
-      quad(P(ri, A, hA), P(ri, B, hB), P(ro, B, hB), P(ro, A, hA), [0, 1, 0]);
-      quad(P(ri, A, 0), P(ri, B, 0), P(ro, B, 0), P(ro, A, 0), [0, -1, 0]);
-    }
-    const wall = new T.BufferGeometry();
-    wall.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
-    wall.setAttribute("normal", new T.Float32BufferAttribute(nor, 3));
-    /* Dos plein : rectangle jusqu'au centre du gobelet, creusé de la demi-paroi arrière */
-    const back = [[ro, -cz], [ro, 0], [-ro, 0], [-ro, -cz],
-      ...Array.from({ length: 49 }, (_, i) => { const th = rad(-90 - 180 * i / 48); return [ri * Math.sin(th), -(cz + ri * Math.cos(th))]; })];
-    const yT = H - 14;
-    return k.join(
-      wall,
-      k.ext(back, H).rotateX(-Math.PI / 2).translate(0, H / 2, 0),
-      k.cyl(ri, ft, ri - 9).translate(0, ft / 2, cz),
-      ...[-20, 20].flatMap(x => [
-        k.box(4.6, 8, 6, x, yT, -3),          // tige qui traverse le panneau (5 mm)
-        k.box(4.6, 14, 3, x, yT + 3, -7.5),   // crochet qui remonte derrière le panneau
-        k.box(4.6, 10, 4, x, yT - 40, -2)     // ergot anti-rotation, 40 mm plus bas
-      ]));
-  };
-
   /* Modèles paramétriques : valeurs en mm -> BufferGeometry centrée */
-  const MODELS = {
-    /* Équerre en L : a = 1re branche, b = 2e branche, c = largeur de la pièce. Paroi fixe. */
-    equerre(THREE, v) {
-      const t = 5; // épaisseur de paroi (mm)
-      const a = Math.max(v.a, t * 2), b = Math.max(v.b, t * 2), w = v.c;
-      const r = Math.min(4, a - t, b - t); // petit congé dans l'angle intérieur, comme une vraie pièce
-      const s = new THREE.Shape();
-      s.moveTo(0, 0);
-      s.lineTo(a, 0);
-      s.lineTo(a, t);
-      s.lineTo(t + r, t);
-      s.quadraticCurveTo(t, t, t, t + r);
-      s.lineTo(t, b);
-      s.lineTo(0, b);
-      s.closePath();
-      const bevel = 0.8;
-      const g = new THREE.ExtrudeGeometry(s, {
-        depth: w - bevel * 2, curveSegments: 8,
-        bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2
-      });
-      g.center();
-      return g;
-    },
-    /* a = épaisseur de rambarde (ouverture de la pince) */
-    "jardiniere-clip": m((k, { a }) => k.join(
-      k.ext(uPts(a, 40, 6), 40),
-      k.box(6, 126, 40, a / 2 + 3, -17, 0),
-      k.box(76, 6, 40, a / 2 + 38, -77, 0),
-      k.box(6, 24, 40, a / 2 + 73, -65, 0))),
-    "crochet-balcon": m((k, { a }) => overHook(k, a, 60, 15, 20)),
-    /* a = diamètre du barreau */
-    "clip-brise-vue": m((k, { a }) => k.join(
-      k.ext(arc(a / 2, a / 2 + 3, 40, 320), 14),
-      k.box(22, 3, 14, -a / 2 - 12, 0, 0))),
-    /* a = rambarde, b = mât */
-    "pince-parasol": m((k, { a, b }) => k.join(
-      k.ext(uPts(a, 40, 6), 50),
-      k.cyl(b / 2 + 5, 50, b / 2).translate(a / 2 + b / 2 + 9, 23, 0))),
-    /* a = rambarde, b = largeur de la tablette */
-    "tablette-rambarde": m((k, { a, b }) => k.join(
-      k.ext(uPts(a, 40, 6), 60),
-      k.box(140, 8, b, 0, 50, 0))),
-    "clips-guirlande": m((k, { a }) => k.join(
-      k.ext(arc(a / 2, a / 2 + 3, 40, 320), 10),
-      k.ext(arc(2.5, 5, 120, 420), 10).translate(0, a / 2 + 7, 0))),
-    /* a = hauteur sous le pot */
-    "pieds-pot": m((k, { a }) => k.join(k.ext([[0, 0], [50, 0], [50, a], [20, a], [20, a + 10], [0, a + 10]], 35))),
-    /* a = diamètre du tuteur, petit anneau fixe pour la tige */
-    "clips-tuteur": m((k, { a }) => k.join(
-      k.ext(arc(a / 2, a / 2 + 2.5, 40, 320), 12),
-      k.ext(arc(5, 7.5, -140, 140), 12).translate(-a / 2 - 9, 0, 0))),
-    "support-tuyau": m((k, { a }) => k.join(
-      k.ext(uPts(a, 40, 6), 50),
-      k.box(6, 86, 50, a / 2 + 3, 3, 0),
-      k.ext(arc(55, 63, 180, 360), 50).translate(a / 2 + 59, -40, 0))),
-    /* Enrouleur mural, d'après le G-code « garden hose holder » : tout tient dans un secteur
-       de 64° autour de l'axe de la selle (R 120). a = largeur d'enroulement, b = Ø du tuyau ou de la corde.
-       Repère : y vers le haut, mur en z = 0, axe de la selle en (0, -R). */
-    "enrouleur-mural": m((k, { a, b }) => {
-      const R = 120, A = 32, tp = 9, tl = 9, L = Math.max(20, 2.4 * b), cy = -R, Z = tp + a;
-      const at = (r, d) => [r * Math.cos(rad(d)), cy + r * Math.sin(rad(d))];
-      const band = (ri, ro, d0, d1) => k.ext(arc(ri, ro, 90 + d0, 90 + d1, 24), 1);
-      const piece = (g, z0, z1) => g.scale(1, 1, z1 - z0).translate(0, cy, (z0 + z1) / 2);
-      /* fenêtre en arc à bouts ronds (plaque murale) */
-      const slot = (rm, rc, d0, d1) => {
-        const c = d => at(rm, d), p = [];
-        for (let i = 0; i <= 12; i++) p.push(at(rm + rc, d0 + (d1 - d0) * i / 12));
-        for (let i = 0; i <= 10; i++) { const o = c(d1), t = rad(d1 + 180 * i / 10); p.push([o[0] + rc * Math.cos(t), o[1] + rc * Math.sin(t)]); }
-        for (let i = 12; i >= 0; i--) p.push(at(rm - rc, d0 + (d1 - d0) * i / 12));
-        for (let i = 0; i <= 10; i++) { const o = c(d0), t = rad(180 + d0 + 180 * i / 10); p.push([o[0] + rc * Math.cos(t), o[1] + rc * Math.sin(t)]); }
-        return p;
-      };
-      const sector = (ri, ro, ch) => [...Array.from({ length: 33 }, (_, i) => at(ro, 90 - A + ch + (2 * A - 2 * ch) * i / 32)),
-        at(ro - 3 * ch, 90 + A), ...Array.from({ length: 33 }, (_, i) => at(ri, 90 + A - 2 * A * i / 32)), at(ro - 3 * ch, 90 - A)];
-      /* plaque murale : bande r 117→199, deux fenêtres, deux trous de vis Ø5 en haut */
-      const plate = k.ext(sector(R - 3, R + 79, 3), tp, [slot(R + 45, 14, 69, 79), slot(R + 45, 14, 101, 111),
-        circ(2.6, ...at(R + 70, 90 - 14), 20), circ(2.6, ...at(R + 70, 90 + 14), 20)]).translate(0, 0, tp / 2);
-      /* selle : dessus cylindrique R 120, dessous qui s'épaissit vers l'avant (10 → 45 mm), percée de lumières */
-      const ri = z => R - 10 - 35 * z / Z;
-      const n = Math.max(1, Math.round((a - 12) / 26)), p = (a - 12) / n, cuts = [];
-      for (let i = 0; i < n; i++) { const c = tp + 6 + p * (i + 0.5); cuts.push([c - 7, c + 7]); }
-      const saddle = [], solid = (z0, z1) => {
-        const m = Math.max(1, Math.ceil((z1 - z0) / 10));
-        for (let j = 0; j < m; j++) { const u = z0 + (z1 - z0) * j / m, w = z0 + (z1 - z0) * (j + 1) / m;
-          saddle.push(piece(band(ri((u + w) / 2), R, -A, A), u, w)); }
-      };
-      let z = 0;
-      cuts.forEach(([c0, c1]) => {
-        solid(z, c0);
-        [[-A, -25], [-17, -11], [-3, 3], [11, 17], [25, A]].forEach(([d0, d1]) => saddle.push(piece(band(ri((c0 + c1) / 2), R, d0, d1), c0, c1)));
-        z = c1;
-      });
-      solid(z, Z + 1);
-      /* joue avant : bande r 55 → R + L, coins chanfreinés, un trou Ø12 en haut */
-      const lip = k.ext(sector(R - 65, R + L, 3), tl, [circ(6, ...at(R + L * 0.55, 90), 24)]).translate(0, 0, Z + tl / 2);
-      return k.join(plate, ...saddle, lip);
-    }),
-    /* a = épaisseur du plateau de table */
-    "pinces-nappe": m((k, { a }) => k.join(sideClamp(k, a, 25, 4, 20), k.box(4, a + 16, 20, -31, 0, 0))),
-
-    /* a = épaisseur du plateau, b = longueur */
-    "goulotte-cable": m((k, { a, b }) => k.join(
-      sideClamp(k, a, 30, 4, b),
-      k.ext(uPts(60, 50, 4), b).rotateZ(Math.PI).translate(20, -a / 2 - 4, 0))),
-    "support-casque": m((k, { a }) => k.join(
-      sideClamp(k, a, 40, 5, 25),
-      k.box(5, 40, 25, -20, -a / 2 - 25, 0),
-      k.ext(arc(25, 30, 180, 360), 25).translate(7.5, -a / 2 - 45, 0))),
-    /* a = largeur, b = épaisseur du chargeur */
-    "dock-chargeur": m((k, { a, b }) => k.join(
-      k.ext(rect(a + 8, b + 8), 70, [rect(a, b)]),
-      k.box(a + 30, 3, 70, 0, b / 2 + 5.5, 0))),
-    /* a = diamètre du trou */
-    "passe-cable": m((k, { a }) => k.join(
-      k.cyl(a / 2 + 8, 3, a / 2 - 3),
-      k.cyl(a / 2, 18, a / 2 - 3).translate(0, -10.5, 0),
-      k.ext(circ(a / 2 - 3.5), 2, [rect(a * 0.35, 8, a * 0.2, 0)]).rotateX(Math.PI / 2).translate(0, 0.5, 0))),
-    /* a = épaisseur de l'ordinateur (largeur de la fente) */
-    "support-portable": m((k, { a }) => k.join(
-      k.box(a + 60, 12, 90, 0, 6, 0),
-      k.box(15, 60, 90, -a / 2 - 7.5, 42, 0),
-      k.box(15, 60, 90, a / 2 + 7.5, 42, 0))),
-    /* a = épaisseur du téléphone (fente entre la butée et le dossier) */
-    "support-telephone": m((k, { a }) => k.join(
-      k.box(a + 66, 6, 70, (a + 66) / 2, 3, 0),
-      k.box(6, 20, 70, 3, 10, 0),
-      k.box(6, 100, 70).rotateZ(-0.4).translate(a - 10.5, 52, 0))),
-    /* a = plateau, b = diamètre du câble */
-    "clips-cables": m((k, { a, b }) => k.join(
-      sideClamp(k, a, 20, 4, 12),
-      k.ext(arc(b / 2, b / 2 + 2.5, 120, 420), 12).translate(-12, a / 2 + b / 2 + 5, 0))),
-    "support-manette": m((k, { a }) => k.join(
-      sideClamp(k, a, 40, 5, 30),
-      k.box(5, 30, 30, -20, -a / 2 - 20, 0),
-      k.ext(uPts(40, 20, 5), 30).rotateZ(Math.PI).translate(-20, -a / 2 - 12.5, 0))),
-    /* a = largeur de la tour : deux étriers en U avec ailes de fixation */
-    "support-uc": m((k, { a }) => {
-      const H = 150, t = 6, f = 30, o = a / 2;
-      const p = [[-o - t - f, H], [-o - t, H], [-o - t, 0], [o + t, 0], [o + t, H], [o + t + f, H], [o + t + f, H + t],
-        [o, H + t], [o, t], [-o, t], [-o, H + t], [-o - t - f, H + t]];
-      return k.join(k.ext(p, 40).translate(0, 0, -80), k.ext(p, 40).translate(0, 0, 80));
-    }),
-    /* a = longueur */
-    "organiseur-bureau": m((k, { a }) => k.join(...tray(k, a, 80, 40, Math.max(2, Math.round(a / 80)), 1))),
-
-    /* a = diamètre du pied, b = hauteur ajoutée */
-    "rehausseur": m((k, { a, b }) => k.join(
-      k.cyl(a / 2 + 18, b - 12).translate(0, (b - 12) / 2, 0),
-      k.cyl(a / 2 + 18, 12, a / 2).translate(0, b - 6, 0))),
-    /* a = largeur, b = profondeur du tiroir */
-    "organiseur-tiroir": m((k, { a, b }) => k.join(...tray(k, a, b, 50, Math.max(2, Math.round(a / 120)), Math.max(2, Math.round(b / 140))))),
-    "crochet-porte": m((k, { a }) => overHook(k, a, 110, 12, 25, 4)),
-    /* a = diamètre de la tige */
-    "taquets-etagere": m((k, { a }) => k.join(
-      k.cyl(a / 2, 10).rotateZ(Math.PI / 2).translate(-5, 0, 0),
-      k.box(3, 22, 14, 1.5, 0, 0),
-      k.box(20, 4, 14, 10, 9, 0))),
-    /* a = entraxe des vis */
-    "poignee-meuble": m((k, { a }) => k.join(
-      k.cyl(6, a + 30).rotateZ(Math.PI / 2).translate(0, 28, 0),
-      k.cyl(5, 28).translate(-a / 2, 14, 0),
-      k.cyl(5, 28).translate(a / 2, 14, 0))),
-    /* a = épaisseur de la cale (cale en fer à cheval) */
-    "cales-meuble": m((k, { a }) => k.join(k.ext(uPts(12, 35, 14), a).rotateX(Math.PI / 2))),
-    /* a = épaisseur de l'étagère, b = hauteur du séparateur */
-    "separateurs-etagere": m((k, { a, b }) => k.join(
-      sideClamp(k, a, 40, 4, 30),
-      k.box(150, b, 4, 31, a / 2 + 4 + b / 2, 0))),
-    /* a = cadre, b = tringle */
-    "support-tringle": m((k, { a, b }) => k.join(
-      k.ext(uPts(a, 30, 5), 30),
-      k.box(55, 8, 30, a / 2 + 32.5, 31, 0),
-      k.ext(arc(b / 2, b / 2 + 5, 120, 420), 30).translate(a / 2 + 58 + b / 2, 31, 0))),
-    /* a = diamètre du pied */
-    "embouts-pieds": m((k, { a }) => k.join(
-      k.cyl(a / 2 + 5, 4).translate(0, 2, 0),
-      k.cyl(a / 2 + 3, 16, a / 2).translate(0, 12, 0))),
-    /* a = étagère, b = barre */
-    "penderie-etagere": m((k, { a, b }) => k.join(
-      sideClamp(k, a, 50, 5, 25),
-      k.box(5, 60, 25, -30, -a / 2 - 35, 0),
-      k.ext(arc(b / 2, b / 2 + 5, 30, 330), 25).translate(-30, -a / 2 - 65 - b / 2 - 3, 0))),
-
-    /* a = diamètre de la tringle. Profil repris du STL (cintre à sac) : crochet sur la tringle,
-       voile de 10 mm sur une face, barre courbe de 50 mm où se pose la bretelle. */
-    "cintre-sac": m((k, { a }) => {
-      const t = 7, ri = a / 2 + 0.5, ro = ri + t, c = 13, W = 50;
-      const half = [[0, -25], [4.5, -25.3], [6.9, -25.7], [10.3, -26.5], [12.6, -27.2], [15.9, -28.6], [18, -29.7],
-        [17.9, -30.5], [17.6, -31.3], [16.9, -32.6], [16.3, -33.3], [15.2, -34.1], [14.3, -34.5], [12.9, -34.8],
-        [12, -34.8], [10.9, -34.6], [8.8, -33.9], [6.7, -33.3], [3.6, -32.7], [1.4, -32.5], [0, -32.5]];
-      const bar = [...half.slice(0, -1).map(([x, y]) => [-x, y]).reverse(), ...half.slice(1, -1).map(([x, y]) => [x, y])].reverse();
-      const curve = [[-11, 0], [-10.8, -2.8], [-10.2, -5.8], [-9.2, -8.8], [-7.7, -11.8], [-5.5, -14.8], [-2.4, -17.8],
-        [2.7, -20.8], [7.7, -22.2], [13.2, -23.8], [16.2, -25.2], [18, -27]];
-      const web = [[-ro, c], [-ri, c],
-        ...curve.map(([x, y], i) => [x + (11 - ri) * (1 - i / (curve.length - 1)), y]),
-        [18, -29.7], [-ro, -29.7]];
-      return k.join(
-        k.ext(arc(ri, ro, 0, 180).map(([x, y]) => [x, y + c]), W),
-        k.box(t, c - 3.5, W, -ri - t / 2, (c + 3.5) / 2, 0),
-        k.box(t, 8.5, W, ri + t / 2, c - 4.25, 0),
-        k.ext(circ(t / 2, ri + t / 2, c - 8.5, 24), W),
-        k.ext(web, 10).translate(0, 0, -(W - 10) / 2),
-        k.ext(bar, W));
-    }),
-
-    /* a = longueur, b = largeur, c = hauteur intérieures (à partir des STL) */
-    "boite-rugged": rugged,
-
-    /* a = diamètre de la bombe, b = hauteur du support */
-    "support-aerosol-skadis": aerosol,
-
-    /* a = hauteur du buste (à partir du STL, mise à l'échelle uniforme) */
-    "chat-lord": chat,
-
-    /* a = hauteur de la figurine (à partir du STL, mise à l'échelle uniforme) */
-    "carapuce": carapuce,
-
-    /* a = hauteur totale, b = largeur de l'appui (reconstruction paramétrique, treillis gyroïde) */
-    "support-casque-gyroide": gyroStand
-  };
+  const MODELS = {};
+  /* Briques mises à disposition des fichiers de modèles */
+  const LIB = { m, kit, rad, circ, rect, arc, uPts, fetchSTL, sculpt, tray, overHook, sideClamp };
+  /* Appelé par chaque fichier assets/js/modeles/<id>.js : factory(LIB) -> fonction (THREE, valeurs) -> géométrie */
+  const define = (id, factory) => { MODELS[id] = factory(LIB); };
+  const modelCache = {};
+  const loadModel = id => modelCache[id] || (modelCache[id] = new Promise((ok, ko) => {
+    if (MODELS[id]) return ok(MODELS[id]);
+    const s = document.createElement("script");
+    s.src = `assets/js/modeles/${encodeURIComponent(id)}.js`;
+    s.onload = () => MODELS[id] ? ok(MODELS[id]) : ko(new Error(`Modèle 3D « ${id} » non défini`));
+    s.onerror = () => { s.remove(); ko(new Error(`Modèle 3D « ${id} » introuvable`)); };
+    document.head.appendChild(s);
+  }).catch(err => { delete modelCache[id]; throw err; }));
 
   const webglOK = () => {
     try { const c = document.createElement("canvas"); return !!(window.WebGLRenderingContext && (c.getContext("webgl2") || c.getContext("webgl"))); }
@@ -546,10 +133,9 @@
       setColor(c) { finish = c; if (api) api.tint(); },
       dispose() { disposed = true; cancelAnimationFrame(queued); if (api) api.destroy(); api = null; }
     };
-    const build = MODELS[modelId];
-    if (!container || !build || !webglOK()) return handle;
+    if (!container || !modelId || !webglOK()) return handle;
 
-    load().then(async ({ THREE, OrbitControls }) => {
+    Promise.all([load(), loadModel(modelId)]).then(async ([{ THREE, OrbitControls }, build]) => {
       if (build.prepare) await build.prepare(THREE);
       if (disposed) return;
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -651,12 +237,12 @@
       api.tint(true);
       ready = true;
       resize(); tick();
-      if (onReady) onReady();
+      if (onReady) onReady(build);
     }).catch(err => { console.warn("Viewer 3D indisponible, illustration conservée.", err); });
 
     return handle;
   }
 
   window.MODULR = window.MODULR || {};
-  MODULR.viewer3d = { mount, models: MODELS };
+  MODULR.viewer3d = { mount, define, models: MODELS };
 })();

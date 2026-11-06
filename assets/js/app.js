@@ -264,8 +264,8 @@
           <div class="stage" id="stage" data-u="${p.universe}">
             ${MODULR.shapeSVG(p.shape, "shape--xl")}
             ${p.model ? `<div class="viewer3d" id="viewer3d" role="img" aria-label="Aperçu 3D de ${p.name} : faites glisser pour tourner la pièce"></div>` : ""}
-            ${p.model && MODULR.viewer3d && MODULR.viewer3d.models[p.model] && MODULR.viewer3d.models[p.model].openable ? `
-            <label class="stage__open mono"><span>Ouvrir</span><input type="range" id="open3d" min="0" max="100" value="0" style="--p:0%" aria-label="Ouvrir pour voir l'intérieur"></label>` : ""}
+            ${p.model ? `
+            <label class="stage__open mono" hidden><span>Ouvrir</span><input type="range" id="open3d" min="0" max="100" value="0" style="--p:0%" aria-label="Ouvrir pour voir l'intérieur"></label>` : ""}
             <div class="dims" id="dims"></div>
             <span class="stage__mat mono" id="stage-mat">NYLON PA12 · NOIR MAT</span>
             ${photos.length ? `
@@ -485,7 +485,11 @@ ${colors.length ? `
 
     disposeViewer();
     if (p.model && MODULR.viewer3d) {
-      viewer = MODULR.viewer3d.mount($("#viewer3d"), p.model, p.custom.params, () => $("#stage").classList.add("is-3d"));
+      viewer = MODULR.viewer3d.mount($("#viewer3d"), p.model, p.custom.params, build => {
+        $("#stage").classList.add("is-3d");
+        const lab = $("#open3d") && $("#open3d").closest(".stage__open");
+        if (lab) lab.hidden = !build.openable;   // curseur « Ouvrir » seulement pour les modèles articulés
+      });
       if (colors.length) viewer.setColor(colors[state.color]);
       const open3d = $("#open3d");
       if (open3d) open3d.addEventListener("input", () => {
