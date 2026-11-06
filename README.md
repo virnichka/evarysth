@@ -1,30 +1,53 @@
 # Modulr Studio
 
-Prototype front-end e-commerce — hacks d'intérieur sur-mesure imprimés en 3D.
+## 1. Vue d'ensemble
+Modulr Studio est une boutique en ligne de petites pièces d'intérieur imprimées en 3D (supports, clips, crochets…), présentées en 4 univers : Balcon, Bureau, Meubles, Déco.
+Chaque pièce s'achète en taille standard ou **sur-mesure** : on règle ses cotes en mm avec des curseurs, et le modèle 3D (Three.js), le prix et le résumé se mettent à jour en direct avant l'ajout au panier.
 
-- `index.html` — accueil : héros, carrousel des univers à balayer, hacks les plus demandés
-- `index.html#catalogue` — catalogue : une rangée défilante par famille
-- `index.html#f-<famille>` — page dédiée d'une famille
-- `index.html#p-<id>` — page produit : Standard / Sur-mesure (curseurs en mm), résumé dynamique
-- `index.html#p-equerre-l` — produit avec viewer 3D interactif (Three.js) : la pièce tourne au doigt et se redessine en direct quand on bouge les curseurs
-- Panier latéral persistant (`localStorage`)
+Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), publié automatiquement sur GitHub Pages à chaque mise à jour de `main`.
 
-HTML/CSS/JS vanilla, aucun build. Ouvrir `index.html` ou activer GitHub Pages (branche, dossier racine).
-Catalogue éditable dans `assets/js/data.js` : 31 hacks répartis en 3 univers (Balcon, Bureau, Meubles).
+## 2. Fichiers principaux
 
-Design « atelier clair » : fond papier, pièces noires, accent orange, une teinte douce par univers. Polices Bricolage Grotesque (titres), Inter (texte), JetBrains Mono (cotes).
+| Fichier | Rôle, en clair |
+|---|---|
+| `index.html` | **La seule vraie page.** Contient le squelette de toutes les vues (accueil, catalogue, univers, fiche produit) et charge les scripts. |
+| `produit.html` | Ancienne adresse : redirige simplement vers `index.html#p-<produit>`. |
+| `assets/css/style.css` | Toute l'apparence : couleurs, polices, mise en page, thème clair/sombre, version mobile. |
+| `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max), photos. C'est le fichier à modifier pour ajouter ou changer un produit. |
+| `assets/js/app.js` | **Le chef d'orchestre.** Lit l'adresse (`#…`), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
+| `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js seulement quand une fiche en a besoin, et contient un « plan » par produit (`MODELS`) qui transforme des cotes en mm en pièce 3D. |
+| `assets/js/cart.js` | Le panier latéral : ajout, quantités, code promo de démo `BIENVENUE10`, total ; mémorisé dans le navigateur. |
+| `assets/js/ui.js` | Le confort : thème clair/sombre, recherche (touche `/`), favoris, notifications, fenêtres modales. |
+| `assets/models/<produit>/` | Fichiers STL d'origine des produits qui partent d'un modèle existant. |
+| `assets/photos/<produit>/` | Photos commerciales (`1.webp` = vignette du catalogue). |
+| `tools/` | Outils d'atelier (Python) pour analyser les STL ; non utilisés par le site. |
+| `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages. |
+| `CLAUDE.md` | Méthode pour ajouter un produit 3D à partir de fichiers STL. |
 
-Publication automatique sur GitHub Pages à chaque push sur `main` (`.github/workflows/pages.yml`).
+## 3. Comment ça fonctionne
 
-## Fonctions de confort
-Actives : thème clair/sombre, recherche (touche `/`), favoris (`#favoris`), tri par prix/nom, guide de mesure, date de livraison estimée, partage, code promo de démo `BIENVENUE10`, FAQ.
-Pas encore actives (affichent « pas encore disponible ») : compte client, chat atelier, échantillon de matière, emballage cadeau, avis clients, inscription newsletter, suivi de commande, réseaux sociaux.
+1. **Chargement** — `index.html` charge dans l'ordre : `data.js` (le catalogue) → `ui.js` → `viewer3d.js` → `app.js` → `cart.js`.
+2. **Navigation** — tout se passe sur une seule page. La fin de l'adresse décide de ce qu'on voit :
+   `#catalogue`, `#f-<univers>`, `#p-<produit>`, `#favoris`. Quand elle change, `app.js` (fonction `route`) masque la vue courante et dessine la nouvelle.
+3. **Fiche produit** — `app.js` lit le produit dans `data.js`, crée les boutons de taille et un curseur par cote sur-mesure, puis, si le produit a un champ `model`, demande à `viewer3d.js` d'afficher la pièce 3D dans `#viewer3d`.
+4. **Bouger un curseur** →
+   la nouvelle valeur est enregistrée → `update()` recalcule le prix (`MODULR.priceFor`), les cotes affichées et le résumé → le viewer 3D reçoit les nouvelles cotes et **redessine la pièce** à partir de son plan dans `MODELS`.
+5. **Ajouter au panier** — le bouton `#add` transmet le produit et ses cotes à `cart.js`, qui met à jour le panier et le garde en mémoire (`localStorage`).
+6. **Sans 3D possible** (vieux navigateur, pas de réseau) — l'illustration dessinée reste affichée à la place.
 
-## Viewer 3D
-`assets/js/viewer3d.js` charge Three.js à la demande (importmap dans `index.html`, version fixée sur jsDelivr) uniquement sur les fiches qui ont un champ `model`. Pour rendre un autre produit en 3D : ajouter une fonction dans `MODELS` (valeurs en mm → géométrie) et `model: "<nom>"` sur le produit dans `data.js`. Sans WebGL ou sans réseau, l'illustration SVG reste affichée.
+## 4. Repères dans le code (IDs HTML)
 
-## Ajouter un objet 3D à partir de fichiers STL
-La méthode complète est dans `CLAUDE.md` (lu automatiquement par Claude Code à chaque session).
-Il suffit d'ouvrir une session sur ce dépôt, de joindre les STL et de décrire chaque objet
-(nom, univers, prix, paramètres voulus) ; tout type de forme est accepté. L'analyse des STL se fait avec `tools/analyse-stl.py`
-(`python3 -I tools/analyse-stl.py fichier.stl`, nécessite numpy). Exemple en place : `index.html#p-boite-rugged`.
+**Vues** (dans `index.html`) : `#home-view` (accueil), `#catalogue-view` / `#catalogue-root`, `#family-view` / `#families-root`, `#popular-root` (hacks les plus demandés), `#product-root` (fiche produit), `#toasts` (notifications).
+
+**Fiche produit** (créée par `app.js`) :
+- `#stage` : zone visuelle ; `#viewer3d` : rendu 3D ; `#photos` / `#views` : photos et vignettes ; `#open3d` : curseur d'ouverture (pièces articulées)
+- `#pane-standard` / `#pane-custom` : panneaux « Standard » et « Sur-mesure » (curseurs)
+- `#dims` : cotes affichées ; `#summary` : résumé de la commande
+- `#price`, `#price-note`, `#qty`, `#add`, `#add-price` : prix, quantité, bouton d'ajout
+- `#color-name`, `#stage-mat` : couleur et matière choisies
+
+**Panier** (créé par `cart.js`) : `#cart`, `#cart-list`, `#cart-total`, `#promo-input`, `#cart-checkout`.
+
+**Recherche / modales** (créées par `ui.js`) : `#q` (champ de recherche), `#q-list` (résultats), `#modal`.
+
+**Dans le JavaScript** : tout est rangé sous l'objet global `MODULR` — `MODULR.products` (catalogue), `MODULR.viewer3d` (3D), `MODULR.priceFor` (prix).
