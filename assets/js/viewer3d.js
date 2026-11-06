@@ -1,6 +1,6 @@
-/* Modulr Studio — viewer 3D paramétrique.
+/* Evarysth — viewer 3D paramétrique.
    Three.js n'est chargé (via l'importmap d'index.html) qu'à l'ouverture d'une fiche produit qui a un modèle 3D.
-   Usage : const v = MODULR.viewer3d.mount(conteneur, "equerre", p.custom.params, onReady);
+   Usage : const v = EVARYSTH.viewer3d.mount(conteneur, "equerre", p.custom.params, onReady);
            v.update({ a, b, c });  v.dispose();
    Unités de la scène : 1 unité = 1 mm.
    Un modèle peut aussi partir de fichiers STL (assets/models/) : il expose alors prepare(THREE),
@@ -243,6 +243,6 @@
     return handle;
   }
 
-  window.MODULR = window.MODULR || {};
-  MODULR.viewer3d = { mount, define, models: MODELS };
+  window.EVARYSTH = window.EVARYSTH || {};
+  EVARYSTH.viewer3d = { mount, define, models: MODELS };
 })();

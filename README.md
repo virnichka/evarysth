@@ -1,10 +1,9 @@
-# Modulr Studio
+# Evarysth
 
-> **Changement de nom en cours.** « Modulr Studio » est l'ancien nom du projet : le nouveau nom n'est pas encore repris partout dans le site ni dans le code.
 > Le site est désormais en ligne sur **[www.evarysth.fr](https://www.evarysth.fr)**.
 
 ## 1. Vue d'ensemble
-Modulr Studio est une boutique en ligne de petites pièces d'intérieur imprimées en 3D (supports, clips, crochets…), présentées en 4 univers : Balcon, Bureau, Meubles, Déco.
+Evarysth est une boutique en ligne de petites pièces d'intérieur imprimées en 3D (supports, clips, crochets…), présentées en 4 univers : Balcon, Bureau, Meubles, Déco.
 Chaque pièce s'achète en taille standard ou **sur-mesure** : on règle ses cotes en mm avec des curseurs, et le modèle 3D (Three.js), le prix et le résumé se mettent à jour en direct avant l'ajout au panier.
 
 Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), publié automatiquement sur GitHub Pages (adresse : www.evarysth.fr) à chaque mise à jour de `main`.
@@ -49,7 +48,7 @@ Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publi
    `#catalogue`, `#f-<univers>`, `#p-<produit>`, `#favoris`. Quand elle change, `app.js` (fonction `route`) masque la vue courante et dessine la nouvelle.
 3. **Fiche produit** — `app.js` lit le produit dans `data.js`, crée les boutons de taille et un curseur par cote sur-mesure, puis, si le produit a un champ `model`, demande à `viewer3d.js` d'afficher la pièce 3D dans `#viewer3d` (le moteur va alors chercher le plan de cette seule pièce).
 4. **Bouger un curseur** →
-   la nouvelle valeur est enregistrée → `update()` recalcule le prix (`MODULR.priceFor`), les cotes affichées et le résumé → le viewer 3D reçoit les nouvelles cotes et **redessine la pièce** à partir de son plan (`assets/js/modeles/<pièce>.js`).
+   la nouvelle valeur est enregistrée → `update()` recalcule le prix (`EVARYSTH.priceFor`), les cotes affichées et le résumé → le viewer 3D reçoit les nouvelles cotes et **redessine la pièce** à partir de son plan (`assets/js/modeles/<pièce>.js`).
 5. **Ajouter au panier** — le bouton `#add` transmet le produit et ses cotes à `cart.js`, qui met à jour le panier et le garde en mémoire (`localStorage`).
 6. **Sans 3D possible** (vieux navigateur, pas de réseau) — l'illustration dessinée reste affichée à la place.
 
@@ -68,4 +67,4 @@ Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publi
 
 **Recherche / modales** (créées par `ui.js`) : `#q` (champ de recherche), `#q-list` (résultats), `#modal`.
 
-**Dans le JavaScript** : tout est rangé sous l'objet global `MODULR` — `MODULR.products` (catalogue), `MODULR.viewer3d` (3D), `MODULR.priceFor` (prix).
+**Dans le JavaScript** : tout est rangé sous l'objet global `EVARYSTH` — `EVARYSTH.products` (catalogue), `EVARYSTH.viewer3d` (3D), `EVARYSTH.priceFor` (prix).

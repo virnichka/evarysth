@@ -1,6 +1,6 @@
-/* Modèle 3D « support-aerosol-skadis » — chargé à la demande par viewer3d.js (voir MODULR.viewer3d.define). */
+/* Modèle 3D « support-aerosol-skadis » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
 /* a = diamètre de la bombe, b = hauteur du support */
-MODULR.viewer3d.define("support-aerosol-skadis", ({ kit, rad }) => {
+EVARYSTH.viewer3d.define("support-aerosol-skadis", ({ kit, rad }) => {
   /* Support d'aérosol SKADIS. Repère : y vers le haut (0 = dessous), dos contre le panneau en z = 0,
      gobelet vers +z. Reconstruit d'après le STL « bottle holder 54 » : dos plein, gobelet à paroi de 3 mm,
      côtés en creux, encoche en U à l'avant, fond ajouré qui retient la bombe par son rebord.

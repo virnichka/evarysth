@@ -1,8 +1,8 @@
-/* Modèle 3D « distributeur-cotons » — chargé à la demande par viewer3d.js (voir MODULR.viewer3d.define).
+/* Modèle 3D « distributeur-cotons » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define).
    Reconstruction paramétrique d'après le STL d'origine (assets/models/distributeur-cotons/) :
    tube à disques avec fente frontale en U + pot à cotons-tiges accolé, raccord arrondi.
    a = diamètre des disques de coton, b = hauteur du distributeur, c = hauteur du pot. */
-MODULR.viewer3d.define("distributeur-cotons", ({ m, rad }) => {
+EVARYSTH.viewer3d.define("distributeur-cotons", ({ m, rad }) => {
   const T = 3, FLOOR = 3, RC = 26, RF = 8;           // paroi, fond, rayon ext. du pot, congé du raccord
   const pt = (cx, cy, r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   /* Arc de a0 à a1 (radians), n segments par tour, extrémités incluses */

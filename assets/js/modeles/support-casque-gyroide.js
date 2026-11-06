@@ -1,6 +1,6 @@
-/* Modèle 3D « support-casque-gyroide » — chargé à la demande par viewer3d.js (voir MODULR.viewer3d.define). */
+/* Modèle 3D « support-casque-gyroide » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
 /* a = hauteur totale, b = largeur de l'appui (reconstruction paramétrique, treillis gyroïde) */
-MODULR.viewer3d.define("support-casque-gyroide", ({ kit }) => {
+EVARYSTH.viewer3d.define("support-casque-gyroide", ({ kit }) => {
   /* Support de casque gyroïde. Reconstruit d'après le STL « gyroid headphone holder » (210 000 triangles,
      trop lourd et non paramétrable) : socle plein, colonne puis tête évasée en treillis gyroïde, appui
      bombé plein sous l'arceau. Le treillis est recalculé (champ implicite + « surface nets ») à cellule

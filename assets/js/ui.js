@@ -1,4 +1,4 @@
-/* Modulr Studio — confort d'usage : thème, recherche, favoris, notifications, modales */
+/* Evarysth — confort d'usage : thème, recherche, favoris, notifications, modales */
 (function () {
   const $ = (s, r = document) => r.querySelector(s);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -7,10 +7,10 @@
     get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* indisponible */ } }
   };
-  MODULR.store = store;
+  EVARYSTH.store = store;
 
   /* ---------- Notifications ---------- */
-  MODULR.toast = (msg, soon) => {
+  EVARYSTH.toast = (msg, soon) => {
     const t = document.createElement("div");
     t.className = "toast" + (soon ? " toast--soon" : "");
     t.innerHTML = (soon ? '<span class="mono">Bientôt</span>' : "") + `<span>${msg}</span>`;
@@ -22,11 +22,11 @@
   document.addEventListener("click", e => {
     const el = e.target.closest("[data-soon]"); if (!el) return;
     e.preventDefault();
-    MODULR.toast(`${el.dataset.soon || "Cette fonction"} — pas encore disponible dans ce prototype.`, true);
+    EVARYSTH.toast(`${el.dataset.soon || "Cette fonction"} — pas encore disponible dans ce prototype.`, true);
   });
 
   /* ---------- Modale ---------- */
-  MODULR.modal = (html, cls = "") => {
+  EVARYSTH.modal = (html, cls = "") => {
     closeModal();
     document.body.insertAdjacentHTML("beforeend", `
       <div class="modal-wrap" id="modal"><div class="modal-bg" data-modal-close></div>
@@ -35,7 +35,7 @@
     const f = $("#modal input, #modal button"); if (f) f.focus();
   };
   function closeModal() { const m = $("#modal"); if (m) m.remove(); document.body.classList.remove("modal-open"); }
-  MODULR.closeModal = closeModal;
+  EVARYSTH.closeModal = closeModal;
   document.addEventListener("click", e => { if (e.target.closest("[data-modal-close]")) closeModal(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 
@@ -44,19 +44,19 @@
     if (!e.target.closest("[data-theme-toggle]")) return;
     const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
-    store.set("modulr.theme", next);
+    store.set("evarysth.theme", next);
   });
 
   /* ---------- Favoris ---------- */
-  const FKEY = "modulr.favs.v1";
+  const FKEY = "evarysth.favs.v1";
   let favs = store.get(FKEY, []);
-  MODULR.favs = {
+  EVARYSTH.favs = {
     has: id => favs.includes(id),
     all: () => favs.slice(),
     toggle(id) {
       favs = favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id];
       store.set(FKEY, favs); sync();
-      document.dispatchEvent(new CustomEvent("modulr:favs"));
+      document.dispatchEvent(new CustomEvent("evarysth:favs"));
       return favs.includes(id);
     }
   };
@@ -67,13 +67,13 @@
     });
     document.querySelectorAll("[data-fav-count]").forEach(el => { el.textContent = favs.length; el.hidden = !favs.length; });
   }
-  MODULR.syncFavs = sync;
+  EVARYSTH.syncFavs = sync;
   document.addEventListener("click", e => {
     const b = e.target.closest("[data-fav]"); if (!b) return;
     e.preventDefault(); e.stopPropagation();
-    const p = MODULR.getProduct(b.dataset.fav);
-    const on = MODULR.favs.toggle(b.dataset.fav);
-    MODULR.toast(on ? `${p.name} ajouté aux favoris` : `${p.name} retiré des favoris`);
+    const p = EVARYSTH.getProduct(b.dataset.fav);
+    const on = EVARYSTH.favs.toggle(b.dataset.fav);
+    EVARYSTH.toast(on ? `${p.name} ajouté aux favoris` : `${p.name} retiré des favoris`);
   });
   document.addEventListener("DOMContentLoaded", sync);
 
@@ -83,15 +83,15 @@
     const url = location.href;
     try {
       if (navigator.share) await navigator.share({ title: document.title, url });
-      else { await navigator.clipboard.writeText(url); MODULR.toast("Lien copié dans le presse-papiers"); }
-    } catch { MODULR.toast("Copiez le lien dans la barre d'adresse pour le partager"); }
+      else { await navigator.clipboard.writeText(url); EVARYSTH.toast("Lien copié dans le presse-papiers"); }
+    } catch { EVARYSTH.toast("Copiez le lien dans la barre d'adresse pour le partager"); }
   });
 
   /* ---------- Guide de mesure ---------- */
   document.addEventListener("click", e => {
     const b = e.target.closest("[data-measure]"); if (!b) return;
-    const p = MODULR.getProduct(b.dataset.measure);
-    MODULR.modal(`
+    const p = EVARYSTH.getProduct(b.dataset.measure);
+    EVARYSTH.modal(`
       <button class="icon-btn modal__x" data-modal-close aria-label="Fermer">✕</button>
       <span class="mono eyebrow">Guide de mesure</span>
       <h2>Mesurer pour « ${esc(p.name)} »</h2>
@@ -105,7 +105,7 @@
 
   /* ---------- Recherche ---------- */
   function openSearch() {
-    MODULR.modal(`
+    EVARYSTH.modal(`
       <div class="search">
         <div class="search__bar">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -113,7 +113,7 @@
           <button class="icon-btn" data-modal-close aria-label="Fermer">✕</button>
         </div>
         <div class="search__chips" id="q-chips">
-          ${MODULR.universes.map(u => `<a class="chip" href="#f-${u.id}" data-modal-close>${esc(u.name)}</a>`).join("")}
+          ${EVARYSTH.universes.map(u => `<a class="chip" href="#f-${u.id}" data-modal-close>${esc(u.name)}</a>`).join("")}
         </div>
         <ul class="search__list" id="q-list"></ul>
       </div>`, "modal--top");
@@ -121,13 +121,13 @@
     const render = () => {
       const q = norm(input.value.trim());
       $("#q-chips").hidden = !!q;
-      const hits = !q ? MODULR.products.slice(0, 5) : MODULR.products.filter(p =>
-        norm([p.name, p.tagline, p.desc, MODULR.getUniverse(p.universe).name].join(" ")).includes(q));
+      const hits = !q ? EVARYSTH.products.slice(0, 5) : EVARYSTH.products.filter(p =>
+        norm([p.name, p.tagline, p.desc, EVARYSTH.getUniverse(p.universe).name].join(" ")).includes(q));
       list.innerHTML = (!q ? '<li class="search__label mono">Suggestions</li>' : "") + (hits.length ? hits.map(p => `
         <li><a href="#p-${p.id}" data-modal-close>
-          <span class="search__thumb">${MODULR.shapeSVG(p.shape)}</span>
-          <span><b>${esc(p.name)}</b><small>${esc(MODULR.getUniverse(p.universe).name)}</small></span>
-          <span class="mono">dès ${MODULR.fmt(p.price)}</span></a></li>`).join("")
+          <span class="search__thumb">${EVARYSTH.shapeSVG(p.shape)}</span>
+          <span><b>${esc(p.name)}</b><small>${esc(EVARYSTH.getUniverse(p.universe).name)}</small></span>
+          <span class="mono">dès ${EVARYSTH.fmt(p.price)}</span></a></li>`).join("")
         : `<li class="search__empty">Aucun résultat pour « ${esc(input.value)} ». Essayez « câble », « balcon » ou « tiroir ».</li>`);
     };
     input.addEventListener("input", render); render();
@@ -142,8 +142,8 @@
     if (e.target.id !== "newsletter") return;
     e.preventDefault();
     const v = $("#nl-email").value.trim();
-    if (!/^\S+@\S+\.\S+$/.test(v)) { MODULR.toast("Entrez une adresse e-mail valide"); return; }
-    MODULR.toast("Merci ! L'inscription sera activée au lancement du site.", true);
+    if (!/^\S+@\S+\.\S+$/.test(v)) { EVARYSTH.toast("Entrez une adresse e-mail valide"); return; }
+    EVARYSTH.toast("Merci ! L'inscription sera activée au lancement du site.", true);
     e.target.reset();
   });
 })();

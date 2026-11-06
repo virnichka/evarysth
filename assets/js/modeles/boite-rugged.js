@@ -1,6 +1,6 @@
-/* Modèle 3D « boite-rugged » — chargé à la demande par viewer3d.js (voir MODULR.viewer3d.define). */
+/* Modèle 3D « boite-rugged » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
 /* a = longueur, b = largeur, c = hauteur intérieures (à partir des STL) */
-MODULR.viewer3d.define("boite-rugged", ({ fetchSTL }) => {
+EVARYSTH.viewer3d.define("boite-rugged", ({ fetchSTL }) => {
   /* Boîte Rugged : boîte + couvercle + 2 loquets, assemblés fermés à partir des STL d'impression.
      Repère d'assemblage : Z vers le haut, origine au centre du fond, cotes intérieures 150 × 100 × 50 mm.
      Redimensionnement « par zones » : on n'étire que des bandes où la pièce n'a que des parois droites

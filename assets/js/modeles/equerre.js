@@ -1,6 +1,6 @@
-/* Modèle 3D « equerre » — chargé à la demande par viewer3d.js (voir MODULR.viewer3d.define). */
+/* Modèle 3D « equerre » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
 /* Équerre en L : a = 1re branche, b = 2e branche, c = largeur de la pièce. Paroi fixe. */
-MODULR.viewer3d.define("equerre", () => {
+EVARYSTH.viewer3d.define("equerre", () => {
   return function (THREE, v) {
     const t = 5; // épaisseur de paroi (mm)
     const a = Math.max(v.a, t * 2), b = Math.max(v.b, t * 2), w = v.c;

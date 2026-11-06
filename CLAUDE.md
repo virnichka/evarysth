@@ -1,8 +1,8 @@
-# Modulr Studio — consignes pour Claude
+# Evarysth — consignes pour Claude
 
 Site vanilla HTML/CSS/JS sans build (voir README.md). Catalogue : `assets/js/data.js`.
 Viewer 3D : moteur + briques communes dans `assets/js/viewer3d.js` ; un fichier par modèle dans
-`assets/js/modeles/<modèle>.js` (chargé à la demande, `MODULR.viewer3d.define`) : n'ouvre que celui utile. Icônes line-art : objet `SHAPES` dans `assets/js/app.js`.
+`assets/js/modeles/<modèle>.js` (chargé à la demande, `EVARYSTH.viewer3d.define`) : n'ouvre que celui utile. Icônes line-art : objet `SHAPES` dans `assets/js/app.js`.
 
 ## Économie de tokens (toujours)
 - Ne lis jamais un fichier en entier : `grep -n` puis `sed -n a,bp` sur le passage utile.
@@ -43,14 +43,14 @@ pas un gabarit de forme.
 4. **Liberté de design** : le STL fourni est une base, pas une contrainte. Tu peux :
    simplifier ou retirer des détails inutiles, ajouter des congés/chanfreins, renforcer,
    ajuster les proportions, réorganiser les pièces, ou reconstruire l'objet entièrement,
-   pour coller au style Modulr (pièce noire mate, lignes nettes, montage sans outil).
+   pour coller au style Evarysth (pièce noire mate, lignes nettes, montage sans outil).
    Garde la fonction de l'objet intacte. Liste les libertés prises dans la réponse finale.
 5. **Intégration** : STL dans `assets/models/<id-produit>/`, modèle dans `assets/js/modeles/<modèle>.js`,
    produit dans `data.js` (même format : 3 tailles standard + `custom.params`, univers
    le plus logique), icône dans `SHAPES` si aucune existante ne convient. Textes en
    français, ton du site, sans promesse invérifiable (étanche, alimentaire…).
    **Coloris : toujours 2 ou 3** dans `colors: [{ id, label, hex, roughness?, metalness? }]`,
-   jamais un seul ni plus de 3 : le noir mat Modulr + 1 ou 2 teintes qui conviennent à l'objet
+   jamais un seul ni plus de 3 : le noir mat Evarysth + 1 ou 2 teintes qui conviennent à l'objet
    (ex. couleur des photos, teinte naturelle du sujet). Le 1er coloris est celui affiché par défaut.
 6. **Vérification** : serveur local (`python3 -m http.server`) + Playwright
    (Chromium déjà installé, lancer avec `--use-gl=angle --use-angle=swiftshader`).

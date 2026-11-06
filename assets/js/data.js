@@ -1,8 +1,8 @@
-/* Modulr Studio — catalogue (données de démo)
+/* Evarysth — catalogue (données de démo)
    Chaque produit : une version standard (3 tailles) et une version sur-mesure (cotes en mm). */
-window.MODULR = window.MODULR || {};
+window.EVARYSTH = window.EVARYSTH || {};
 
-MODULR.universes = [
+EVARYSTH.universes = [
   { id: "balcon", code: "01", name: "Balcon & Extérieur", short: "Balcon", sub: "sans percer",
     pitch: "Tout se clipse sur votre garde-corps. Zéro trou, zéro souci avec le propriétaire." },
   { id: "bureau", code: "02", name: "Bureau & Tech", short: "Bureau", sub: "invisible",
@@ -19,7 +19,7 @@ const param = (key, label, min, max, def, step = 1, pricePerUnit) =>
   ({ key, label, min, max, step, def, ...(pricePerUnit ? { pricePerUnit } : {}) });
 
 /* shape : illustration utilisée (voir app.js) · popular : mis en avant sur l'accueil */
-MODULR.products = [
+EVARYSTH.products = [
   /* ---------- 01 · Balcon & Extérieur ---------- */
   {
     id: "jardiniere-clip", universe: "balcon", shape: "clamp", model: "jardiniere-clip", popular: true,
@@ -649,11 +649,11 @@ MODULR.products = [
   }
 ];
 
-MODULR.getProduct = id => MODULR.products.find(p => p.id === id);
-MODULR.getUniverse = id => MODULR.universes.find(u => u.id === id);
+EVARYSTH.getProduct = id => EVARYSTH.products.find(p => p.id === id);
+EVARYSTH.getUniverse = id => EVARYSTH.universes.find(u => u.id === id);
 
 /* Prix d'une configuration */
-MODULR.priceFor = (p, mode, values) => {
+EVARYSTH.priceFor = (p, mode, values) => {
   if (mode !== "custom") return p.price;
   let total = p.price + p.custom.surcharge;
   p.custom.params.forEach(prm => {
@@ -662,4 +662,4 @@ MODULR.priceFor = (p, mode, values) => {
   return Math.round(total * 100) / 100;
 };
 
-MODULR.fmt = n => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+EVARYSTH.fmt = n => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });

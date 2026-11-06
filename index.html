@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#F4F1EA">
-  <title>Modulr Studio — Hacks d'intérieur sur-mesure</title>
-  <meta name="description" content="Modulr Studio — accessoires malins sur-mesure, imprimés en Nylon PA12 noir. Sans percer, sans jargon.">
+  <title>Evarysth — Hacks d'intérieur sur-mesure</title>
+  <meta name="description" content="Evarysth — accessoires malins sur-mesure, imprimés en Nylon PA12 noir. Sans percer, sans jargon.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <script>try { document.documentElement.dataset.theme = localStorage.getItem("modulr.theme") || "light"; } catch (e) { document.documentElement.dataset.theme = "light"; }</script>
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("evarysth.theme") || "light"; } catch (e) { document.documentElement.dataset.theme = "light"; }</script>
   <link rel="stylesheet" href="assets/css/style.css">
   <!-- Three.js (modules ES), chargé à la demande par assets/js/viewer3d.js sur les fiches produit 3D -->
   <script>
@@ -21,11 +21,11 @@
       var s = document.createElement("script");
       s.defer = true; s.src = "https://cloud.umami.is/script.js";
       s.dataset.websiteId = id; s.dataset.autoTrack = "false";
-      s.onload = function () { window.modulrTrack(); };
+      s.onload = function () { window.evarysthTrack(); };
       document.head.appendChild(s);
     })();
-    /* modulrTrack() = page vue (adresse avec #vue) ; modulrTrack(nom, données) = événement */
-    window.modulrTrack = function (name, data) {
+    /* evarysthTrack() = page vue (adresse avec #vue) ; evarysthTrack(nom, données) = événement */
+    window.evarysthTrack = function (name, data) {
       try {
         if (!window.umami) return;
         if (name) umami.track(name, data);
@@ -42,7 +42,7 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="logo" href="#" aria-label="Modulr Studio, accueil"><svg class="logo__mark" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="15" height="15" rx="4" class="logo__a"/><rect x="11" y="11" width="15" height="15" rx="4" class="logo__b"/></svg>modulr</a>
+    <a class="logo" href="#" aria-label="Evarysth, accueil"><svg class="logo__mark" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="15" height="15" rx="4" class="logo__a"/><rect x="11" y="11" width="15" height="15" rx="4" class="logo__b"/></svg>evarysth</a>
     <nav class="nav" aria-label="Navigation principale">
       <a href="#catalogue" data-nav="catalogue">Catalogue</a>
       <a href="#f-balcon" data-nav="f-balcon">Balcon</a>
@@ -160,7 +160,7 @@
   </section>
   <footer class="site-footer">
     <div class="site-footer__brand">
-      <div class="logo logo--footer">modulr</div>
+      <div class="logo logo--footer">evarysth</div>
       <p>Hacks d'intérieur fabriqués à la demande en Nylon PA12. Sans percer, sans jargon.</p>
       <form class="newsletter" id="newsletter" novalidate>
         <label class="mono" for="nl-email">Nouveautés &amp; nouveaux hacks</label>
@@ -173,7 +173,7 @@
       <a href="#faq">Questions fréquentes</a><a href="#" data-soon="Suivi de commande">Suivre ma commande</a><a href="#" data-soon="Livraison &amp; retours">Livraison &amp; retours</a><a href="#" data-soon="Contact">Nous contacter</a></nav>
     <nav class="site-footer__col"><b class="mono">Suivre</b>
       <a href="#" data-soon="Instagram">Instagram</a><a href="#" data-soon="Pinterest">Pinterest</a><a href="#" data-soon="Page Pro">Espace pro</a></nav>
-    <p class="fine site-footer__legal">© 2026 Modulr Studio — Prototype · <a href="#" data-soon="Mentions légales">Mentions légales</a> · <a href="#" data-soon="CGV">CGV</a></p>
+    <p class="fine site-footer__legal">© 2026 Evarysth — Prototype · <a href="#" data-soon="Mentions légales">Mentions légales</a> · <a href="#" data-soon="CGV">CGV</a></p>
   </footer>
   <div class="toasts" id="toasts" aria-live="polite"></div>
   <script src="assets/js/data.js"></script>
