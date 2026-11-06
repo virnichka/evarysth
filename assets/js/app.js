@@ -32,6 +32,9 @@
     cup: `<rect x="18" y="10" width="84" height="100" rx="3" class="ghost"/><path d="M34 22v8M86 22v8M34 70v8M86 70v8" class="ghost"/>
       <path d="M36 40h48v14"/><path d="M36 40v14"/><ellipse cx="60" cy="54" rx="24" ry="8"/>
       <path d="M36 54v32c0 4.4 10.7 8 24 8s24-3.6 24-8V54"/><path d="M50 61.4c0 14 20 14 20 0" />`,
+    dispenser: `<ellipse cx="62" cy="102" rx="40" ry="5" class="ghost"/>
+      <path d="M28 20v74a6 6 0 0 0 6 6h58a6 6 0 0 0 6-6V68H68V20"/><ellipse cx="48" cy="20" rx="20" ry="5"/>
+      <path d="M40 30v52a8 8 0 0 0 16 0V30"/><path d="M68 68h30"/><path d="M74 68v-8M80 68v-12M86 68v-9M92 68v-7"/>`,
     cat: `<ellipse cx="60" cy="98" rx="30" ry="6" class="ghost"/>
       <path d="M42 40 44 18l12 12h8l12-12 2 22"/><path d="M42 40c-4 6-4 16 2 22M78 40c4 6 4 16-2 22"/>
       <path d="M44 62c-8 8-10 22-6 34h44c4-12 2-26-6-34"/><path d="M50 46h4M66 46h4"/><path d="M56 54l4 3 4-3"/>

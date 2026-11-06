@@ -276,6 +276,25 @@ MODULR.products = [
     custom: { surcharge: 3, params: [param("a", "Diamètre des trous", 3, 12, 5)] }
   },
   {
+    id: "distributeur-cotons", universe: "meubles", shape: "dispenser", model: "distributeur-cotons",
+    name: "Distributeur cotons & cotons-tiges", price: 18,
+    tagline: "Les disques à portée de main, les cotons-tiges juste à côté.",
+    desc: "Un tube où s'empilent les disques de coton, avec une fente frontale arrondie pour attraper le dernier du bas, et un pot accolé pour les cotons-tiges. Réglez le diamètre de vos disques : le tube garde 2,5 mm de jeu pour qu'ils glissent sans flotter. Choisissez ensuite la hauteur de la pile et celle du pot.",
+    variants: sizes("Taille de la pile", [["Compact", "environ 50 disques", { a: 58, b: 110, c: 45 }], ["Standard", "environ 80 disques", { a: 58, b: 150, c: 50 }], ["Grand", "environ 110 disques", { a: 60, b: 190, c: 55 }]]),
+    custom: { surcharge: 4, params: [
+      param("a", "Diamètre de vos disques de coton", 45, 75, 58, 1, 0.1),
+      param("b", "Hauteur du distributeur", 100, 200, 150, 5, 0.05),
+      param("c", "Hauteur du pot à cotons-tiges", 35, 70, 50, 5, 0.05)
+    ] },
+    photos: [
+      { src: "assets/photos/distributeur-cotons/1.webp", alt: "Distributeur posé au bord d'un lavabo, pile de disques visible par la fente et cotons-tiges dans le pot" },
+      { src: "assets/photos/distributeur-cotons/2.webp", alt: "Distributeur de trois quarts sur fond clair, tube plein de disques et pot de cotons-tiges" },
+      { src: "assets/photos/distributeur-cotons/3.webp", alt: "Gros plan sur le haut du tube et la pile de disques de coton" },
+      { src: "assets/photos/distributeur-cotons/4.webp", alt: "Gros plan sur la fente vide et le pot accolé" }
+    ],
+    photosNote: "Photos : rendus de démonstration, coloris crème ; disques et cotons-tiges non fournis"
+  },
+  {
     id: "poignee-meuble", universe: "meubles", shape: "handle", model: "poignee-meuble",
     name: "Poignée de meuble", price: 8,
     tagline: "Remplacez une poignée cassée sans refaire de trous.",
