@@ -1,6 +1,6 @@
 # Modulr Studio
 
-Prototype front-end e-commerce — hacks d'intérieur sur-mesure imprimés en Nylon PA12 noir.
+Prototype front-end e-commerce — hacks d'intérieur sur-mesure imprimés en 3D.
 
 - `index.html` — accueil : héros, carrousel des univers à balayer, hacks les plus demandés
 - `index.html#catalogue` — catalogue : une rangée défilante par famille
