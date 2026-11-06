@@ -12,7 +12,7 @@ import path from "node:path";
 import vm from "node:vm";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const SITE = "https://www.evarysth.fr";
+const SITE = "https://evarysth.fr";
 const CHECK = process.argv.includes("--check");
 const read = f => fs.readFileSync(path.join(ROOT, f), "utf8");
 
