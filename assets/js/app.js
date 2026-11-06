@@ -473,6 +473,7 @@ ${colors.length ? `
         summary: details.map(d => `${d[0]} : ${d[1]}`).join(", "),
         unitPrice: state._unit, qty: state.qty
       });
+      window.modulrTrack("Ajout panier", { produit: p.id, type: state.mode, prix: state._unit * state.qty });
     });
 
     if (track) {
@@ -532,6 +533,7 @@ ${colors.length ? `
     if (top) window.scrollTo({ top: 0, behavior: "instant" });
     MODULR.syncFavs();
     document.querySelectorAll("[data-nav]").forEach(a => a.classList.toggle("is-current", a.dataset.nav === nav));
+    window.modulrTrack();
   }
 
   document.addEventListener("click", e => {
