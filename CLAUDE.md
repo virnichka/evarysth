@@ -1,9 +1,10 @@
 # Evarysth — consignes pour Claude
 
 Site vanilla HTML/CSS/JS sans build (voir README.md). Catalogue : `assets/js/data.js`.
-Pages produit `produits/<id>/index.html` **générées** depuis `index.html` + `data.js` : après toute
-modification de l'un des deux, `node tools/generer-pages.mjs` (la publication échoue sinon). Liens vers
-une fiche : `produits/<id>/` (relatif, jamais `#p-<id>`) ; ces pages ont `<base href="../../">`.
+Pages `produits/<id>/`, `univers/<id>/` et `catalogue/` **générées** depuis `index.html` + `data.js` : après toute
+modification de l'un des deux, `node tools/generer-pages.mjs` (la publication échoue sinon). Liens
+relatifs à la racine : `produits/<id>/`, `univers/<id>/`, `catalogue/` (jamais `#p-`, `#f-`, `#catalogue`) ;
+ces pages ont un `<base href>` vers la racine.
 Viewer 3D : moteur + briques communes dans `assets/js/viewer3d.js` ; un fichier par modèle dans
 `assets/js/modeles/<modèle>.js` (chargé à la demande, `EVARYSTH.viewer3d.define`) : n'ouvre que celui utile. Icônes line-art : objet `SHAPES` dans `assets/js/app.js`.
 
