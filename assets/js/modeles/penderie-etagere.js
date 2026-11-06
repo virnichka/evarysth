@@ -1,6 +1,6 @@
-/* Modèle 3D « penderie-etagere » — chargé à la demande par viewer3d.js (voir MODULR.viewer3d.define). */
+/* Modèle 3D « penderie-etagere » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
 /* a = étagère, b = barre */
-MODULR.viewer3d.define("penderie-etagere", ({ m, arc, sideClamp }) => {
+EVARYSTH.viewer3d.define("penderie-etagere", ({ m, arc, sideClamp }) => {
   return m((k, { a, b }) => k.join(
     sideClamp(k, a, 50, 5, 25),
     k.box(5, 60, 25, -30, -a / 2 - 35, 0),

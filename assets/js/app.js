@@ -1,7 +1,7 @@
-/* Modulr Studio — rendu catalogue & page produit */
+/* Evarysth — rendu catalogue & page produit */
 (function () {
   const $ = (s, r = document) => r.querySelector(s);
-  const fmt = MODULR.fmt;
+  const fmt = EVARYSTH.fmt;
 
   /* Illustrations line-art (aucune image externe) */
   const SHAPES = {
@@ -53,7 +53,7 @@
     handle: `<path d="M16 76h22V50a8 8 0 0 1 8-8h28a8 8 0 0 1 8 8v26h22"/><path d="M38 76h44" class="ghost"/>
       <circle cx="38" cy="86" r="3"/><circle cx="82" cy="86" r="3"/>`
   };
-  MODULR.shapeSVG = (shape, cls = "") =>
+  EVARYSTH.shapeSVG = (shape, cls = "") =>
     `<svg class="shape ${cls}" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2.4"
       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SHAPES[shape] || SHAPES.tray}</svg>`;
 
@@ -92,11 +92,11 @@
   const card = p => `
     <article class="card">
       <a class="card__link" href="#p-${p.id}" aria-label="${p.name}"></a>
-      <div class="card__media${p.photos && p.photos.length ? " has-photo" : ""}" data-u="${p.universe}">${MODULR.shapeSVG(p.shape)}${cardPhotos(p)}<span class="card__badge">Sur-mesure possible</span>
-        <button class="fav ${MODULR.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${MODULR.favs.has(p.id)}" aria-label="Ajouter ${p.name} aux favoris">
+      <div class="card__media${p.photos && p.photos.length ? " has-photo" : ""}" data-u="${p.universe}">${EVARYSTH.shapeSVG(p.shape)}${cardPhotos(p)}<span class="card__badge">Sur-mesure possible</span>
+        <button class="fav ${EVARYSTH.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${EVARYSTH.favs.has(p.id)}" aria-label="Ajouter ${p.name} aux favoris">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button></div>
       <div class="card__body">
-        <span class="card__u">${MODULR.getUniverse(p.universe).short}</span>
+        <span class="card__u">${EVARYSTH.getUniverse(p.universe).short}</span>
         <h3>${p.name}</h3>
         <p>${p.tagline}</p>
         <div class="card__foot"><span class="price"><small>dès</small> ${fmt(p.price)}</span><span class="arrow" aria-hidden="true">→</span></div>
@@ -105,16 +105,16 @@
 
   /* ---------- Accueil ---------- */
   const nHacks = n => n + (n > 1 ? " hacks" : " hack");
-  const inFamily = u => MODULR.products.filter(p => p.universe === u.id);
+  const inFamily = u => EVARYSTH.products.filter(p => p.universe === u.id);
   const heading = u => `<h2>${u.name} <em>${u.sub}</em></h2>`;
 
   function renderHome() {
     /* Carrousel des univers : une grande carte par famille, à balayer */
-    $("#families-root").innerHTML = MODULR.universes.map((u, i) => {
+    $("#families-root").innerHTML = EVARYSTH.universes.map((u, i) => {
       const list = inFamily(u);
       return `<a class="u-card" data-u="${u.id}" href="#f-${u.id}" aria-label="${u.name} : ${nHacks(list.length)}" data-slide="${i}">
         <div class="u-card__top"><span class="u-card__code mono">${u.code}</span><span class="u-card__count">${nHacks(list.length)}</span></div>
-        <div class="u-card__art" aria-hidden="true">${list.slice(0, 3).map(p => `<span>${MODULR.shapeSVG(p.shape)}</span>`).join("")}</div>
+        <div class="u-card__art" aria-hidden="true">${list.slice(0, 3).map(p => `<span>${EVARYSTH.shapeSVG(p.shape)}</span>`).join("")}</div>
         <div class="u-card__text">
           <h3>${u.name}</h3>
           <p>${u.pitch}</p>
@@ -123,12 +123,12 @@
         <span class="u-card__cta">Explorer <span class="arrow" aria-hidden="true">→</span></span>
       </a>`;
     }).join("");
-    $("#families-dots").innerHTML = MODULR.universes.map((u, i) =>
+    $("#families-dots").innerHTML = EVARYSTH.universes.map((u, i) =>
       `<button type="button" class="dots__btn" data-goto="${i}" aria-label="Voir ${u.name}"></button>`).join("");
     setupCarousel($("#univers"));
 
-    $("#popular-root").innerHTML = MODULR.products.filter(p => p.popular).map(card).join("") +
-      `<a class="card card--more" href="#catalogue"><span>Tout le catalogue</span><span class="arrow" aria-hidden="true">→</span><small>${nHacks(MODULR.products.length)}</small></a>`;
+    $("#popular-root").innerHTML = EVARYSTH.products.filter(p => p.popular).map(card).join("") +
+      `<a class="card card--more" href="#catalogue"><span>Tout le catalogue</span><span class="arrow" aria-hidden="true">→</span><small>${nHacks(EVARYSTH.products.length)}</small></a>`;
   }
 
   /* Carrousel : glisser au doigt (scroll-snap), flèches, points, clavier */
@@ -172,8 +172,8 @@
 
   /* ---------- Page catalogue : une rangée défilante par famille ---------- */
   function renderCatalogue() {
-    $("#catalogue-count").textContent = `Catalogue · ${nHacks(MODULR.products.length)}`;
-    $("#catalogue-root").innerHTML = MODULR.universes.map(u => {
+    $("#catalogue-count").textContent = `Catalogue · ${nHacks(EVARYSTH.products.length)}`;
+    $("#catalogue-root").innerHTML = EVARYSTH.universes.map(u => {
       const list = inFamily(u);
       return `<section class="row-block">
         <header class="row-block__head">
@@ -195,8 +195,8 @@
 
   /* ---------- Page famille ---------- */
   function renderFamily(id) {
-    const u = MODULR.getUniverse(id), list = inFamily(u);
-    document.title = `${u.name} — Modulr Studio`;
+    const u = EVARYSTH.getUniverse(id), list = inFamily(u);
+    document.title = `${u.name} — Evarysth`;
     $("#family-view").innerHTML = `
       <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <span>${u.name}</span></nav>
       <header class="page-head page-head--u" data-u="${u.id}">
@@ -215,7 +215,7 @@
       <div class="grid" id="family-grid">${list.map(card).join("")}</div>
       <section class="related">
         <h2 class="mono">AUTRES UNIVERS</h2>
-        <div class="chips">${MODULR.universes.filter(x => x.id !== id).map(x =>
+        <div class="chips">${EVARYSTH.universes.filter(x => x.id !== id).map(x =>
           `<a class="chip" href="#f-${x.id}"><span class="mono code">${x.code}</span>${x.name} <em>${x.sub}</em><span class="arrow">→</span></a>`).join("")}</div>
       </section>`;
   }
@@ -226,14 +226,14 @@
   };
   document.addEventListener("change", e => {
     if (e.target.id !== "sort") return;
-    const fam = MODULR.getUniverse(location.hash.slice(3));
+    const fam = EVARYSTH.getUniverse(location.hash.slice(3));
     $("#family-grid").innerHTML = SORTS[e.target.value](inFamily(fam)).map(card).join("");
   });
 
   /* ---------- Favoris ---------- */
   function renderFavorites() {
-    document.title = "Mes favoris — Modulr Studio";
-    const list = MODULR.favs.all().map(MODULR.getProduct).filter(Boolean);
+    document.title = "Mes favoris — Evarysth";
+    const list = EVARYSTH.favs.all().map(EVARYSTH.getProduct).filter(Boolean);
     $("#family-view").innerHTML = `
       <nav class="crumbs" aria-label="Fil d'Ariane"><a href="#catalogue">Catalogue</a> / <span>Favoris</span></nav>
       <header class="page-head"><span class="mono eyebrow">Ma sélection</span><h1>Mes favoris</h1>
@@ -241,7 +241,7 @@
       ${list.length ? `<div class="grid">${list.map(card).join("")}</div>` :
         `<div class="empty-state"><a class="btn btn--primary" href="#catalogue">Parcourir le catalogue</a></div>`}`;
   }
-  document.addEventListener("modulr:favs", () => { if (location.hash === "#favoris") { renderFavorites(); MODULR.syncFavs(); } });
+  document.addEventListener("evarysth:favs", () => { if (location.hash === "#favoris") { renderFavorites(); EVARYSTH.syncFavs(); } });
 
   /* ---------- Page produit ---------- */
   let viewer = null; // viewer 3D de la fiche affichée (libéré à chaque changement de page)
@@ -249,9 +249,9 @@
 
   function renderProduct(id) {
     const root = $("#product-root");
-    const p = MODULR.getProduct(id);
-    const u = MODULR.getUniverse(p.universe);
-    document.title = `${p.name} — Modulr Studio`;
+    const p = EVARYSTH.getProduct(id);
+    const u = EVARYSTH.getUniverse(p.universe);
+    document.title = `${p.name} — Evarysth`;
 
     const state = {
       mode: "standard",
@@ -269,7 +269,7 @@
       <div class="pdp${p.model ? " pdp--3d" : ""}">
         <div class="pdp__visual">
           <div class="stage" id="stage" data-u="${p.universe}">
-            ${MODULR.shapeSVG(p.shape, "shape--xl")}
+            ${EVARYSTH.shapeSVG(p.shape, "shape--xl")}
             ${p.model ? `<div class="viewer3d" id="viewer3d" role="img" aria-label="Aperçu 3D de ${p.name} : faites glisser pour tourner la pièce"></div>` : ""}
             ${p.model ? `
             <label class="stage__open mono" hidden><span>Ouvrir</span><input type="range" id="open3d" min="0" max="100" value="0" style="--p:0%" aria-label="Ouvrir pour voir l'intérieur"></label>` : ""}
@@ -284,7 +284,7 @@
           </div>
           ${photos.length ? `
           <div class="views" id="views" role="tablist" aria-label="Vues du produit">
-            <button class="views__btn is-on" role="tab" aria-selected="true" data-view="0" aria-label="${p.model ? "Aperçu 3D sur-mesure" : "Aperçu"}">${MODULR.shapeSVG(p.shape)}<span class="mono">${p.model ? "3D" : "Aperçu"}</span></button>
+            <button class="views__btn is-on" role="tab" aria-selected="true" data-view="0" aria-label="${p.model ? "Aperçu 3D sur-mesure" : "Aperçu"}">${EVARYSTH.shapeSVG(p.shape)}<span class="mono">${p.model ? "3D" : "Aperçu"}</span></button>
             ${photos.map((ph, i) => `<button class="views__btn" role="tab" aria-selected="false" data-view="${i + 1}" aria-label="Photo ${i + 1} : ${ph.alt}"><img src="${ph.src}" alt="" loading="lazy" style="object-position:${ph.pos || "50% 50%"}"></button>`).join("")}
             ${p.photosNote ? `<p class="views__note mono">${p.photosNote}</p>` : ""}
           </div>` : ""}
@@ -299,7 +299,7 @@
           <div class="pdp__top">
             <span class="pill" data-u="${u.id}">${u.name}</span>
             <div class="pdp__actions">
-              <button class="icon-btn fav ${MODULR.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${MODULR.favs.has(p.id)}" aria-label="Ajouter aux favoris"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
+              <button class="icon-btn fav ${EVARYSTH.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${EVARYSTH.favs.has(p.id)}" aria-label="Ajouter aux favoris"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
               <button class="icon-btn" data-share aria-label="Partager"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg></button>
             </div>
           </div>
@@ -377,7 +377,7 @@ ${colors.length ? `
             <button class="icon-btn" data-scroll="1" aria-label="Suivant">→</button>
           </div>
         </header>
-        <div class="rail" tabindex="0" aria-label="Autres hacks ${u.name}">${MODULR.products.filter(x => x.universe === p.universe && x.id !== p.id).map(card).join("")}</div>
+        <div class="rail" tabindex="0" aria-label="Autres hacks ${u.name}">${EVARYSTH.products.filter(x => x.universe === p.universe && x.id !== p.id).map(card).join("")}</div>
       </section>`;
 
     const values = () => state.mode === "custom" ? state.custom : p.variants.options[state.variant].values;
@@ -393,7 +393,7 @@ ${colors.length ? `
       if (col) { $("#color-name").textContent = col.label; $("#stage-mat").textContent = `NYLON PA12 · ${col.label.toUpperCase()}`; }
 
       const v = values();
-      const unit = MODULR.priceFor(p, state.mode, v);
+      const unit = EVARYSTH.priceFor(p, state.mode, v);
       $("#price").textContent = fmt(unit);
       $("#price-note").textContent = state.mode === "custom" ? "Sur-mesure, fabriqué pour vous" : "Taille standard";
       $("#add-price").textContent = fmt(unit * state.qty);
@@ -470,14 +470,14 @@ ${colors.length ? `
         : [[p.variants.label, `${variantLabel} (${p.variants.options[state.variant].hint})`]];
       const col = colors[state.color];
       if (col) details.push(["Coloris", col.label]);
-      MODULR.cart.add({
+      EVARYSTH.cart.add({
         key: [p.id, state.mode, variantLabel, JSON.stringify(v), col ? col.id : ""].join("|"),
         id: p.id, name: p.name, shape: p.shape, mode: state.mode,
         values: { ...v }, details,
         summary: details.map(d => `${d[0]} : ${d[1]}`).join(", "),
         unitPrice: state._unit, qty: state.qty
       });
-      window.modulrTrack("Ajout panier", { produit: p.id, type: state.mode, prix: state._unit * state.qty });
+      window.evarysthTrack("Ajout panier", { produit: p.id, type: state.mode, prix: state._unit * state.qty });
     });
 
     if (track) {
@@ -492,8 +492,8 @@ ${colors.length ? `
     }
 
     disposeViewer();
-    if (p.model && MODULR.viewer3d) {
-      viewer = MODULR.viewer3d.mount($("#viewer3d"), p.model, p.custom.params, build => {
+    if (p.model && EVARYSTH.viewer3d) {
+      viewer = EVARYSTH.viewer3d.mount($("#viewer3d"), p.model, p.custom.params, build => {
         $("#stage").classList.add("is-3d");
         const lab = $("#open3d") && $("#open3d").closest(".stage__open");
         if (lab) lab.hidden = !build.openable;   // curseur « Ouvrir » seulement pour les modèles articulés
@@ -521,23 +521,23 @@ ${colors.length ? `
 
   function route() {
     const h = decodeURIComponent(location.hash.slice(1));
-    const prod = h.startsWith("p-") && MODULR.getProduct(h.slice(2));
-    const fam = h.startsWith("f-") && MODULR.getUniverse(h.slice(2));
+    const prod = h.startsWith("p-") && EVARYSTH.getProduct(h.slice(2));
+    const fam = h.startsWith("f-") && EVARYSTH.getUniverse(h.slice(2));
     let top = true, nav = "";
     disposeViewer();
     if (prod) { show("product-root"); renderProduct(prod.id); nav = "f-" + prod.universe; }
     else if (fam) { show("family-view"); renderFamily(fam.id); nav = h; }
     else if (h === "favoris") { show("family-view"); renderFavorites(); nav = ""; }
-    else if (h === "catalogue") { show("catalogue-view"); document.title = "Catalogue — Modulr Studio"; nav = h; }
+    else if (h === "catalogue") { show("catalogue-view"); document.title = "Catalogue — Evarysth"; nav = h; }
     else {
       show("home-view"); document.title = HOME_TITLE;
       const target = h && document.getElementById(h);
       if (target) { target.scrollIntoView(); top = false; }
     }
     if (top) window.scrollTo({ top: 0, behavior: "instant" });
-    MODULR.syncFavs();
+    EVARYSTH.syncFavs();
     document.querySelectorAll("[data-nav]").forEach(a => a.classList.toggle("is-current", a.dataset.nav === nav));
-    window.modulrTrack();
+    window.evarysthTrack();
   }
 
   document.addEventListener("click", e => {

@@ -1,6 +1,6 @@
-/* Modèle 3D « voiture-voronoi » — chargé à la demande par viewer3d.js (voir MODULR.viewer3d.define). */
+/* Modèle 3D « voiture-voronoi » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
 /* a = longueur de la voiture (à partir du STL, mise à l'échelle uniforme) */
-MODULR.viewer3d.define("voiture-voronoi", ({ sculpt }) => {
+EVARYSTH.viewer3d.define("voiture-voronoi", ({ sculpt }) => {
   /* Voiture de sport ajourée (motif Voronoï), STL allégé à 80 000 triangles,
      dimensions nominales 139,4 × 67,0 × 42,2 mm (longueur × largeur × hauteur). */
   const L0 = 139.4, H0 = 42.2;

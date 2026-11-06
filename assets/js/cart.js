@@ -1,6 +1,6 @@
-/* Modulr Studio — panier latéral (localStorage) */
+/* Evarysth — panier latéral (localStorage) */
 (function () {
-  const KEY = "modulr.cart.v1";
+  const KEY = "evarysth.cart.v1";
   const SHIPPING = 4.9;
   const $ = s => document.querySelector(s);
 
@@ -8,7 +8,7 @@
   const save = items => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch { /* stockage indisponible */ } };
   let items = load();
   const PROMOS = { BIENVENUE10: 0.10 };           /* code de démonstration : -10 % */
-  let promo = (MODULR.store && MODULR.store.get("modulr.promo", "")) || "";
+  let promo = (EVARYSTH.store && EVARYSTH.store.get("evarysth.promo", "")) || "";
 
   function mount() {
     document.body.insertAdjacentHTML("beforeend", `
@@ -47,11 +47,11 @@
       e.preventDefault();
       const code = $("#promo-input").value.trim().toUpperCase();
       if (!code) return;
-      if (PROMOS[code]) { promo = code; MODULR.store.set("modulr.promo", code); $("#promo-input").value = ""; render(); MODULR.toast(`Code ${code} appliqué`); }
+      if (PROMOS[code]) { promo = code; EVARYSTH.store.set("evarysth.promo", code); $("#promo-input").value = ""; render(); EVARYSTH.toast(`Code ${code} appliqué`); }
       else { const m = $("#promo-msg"); m.hidden = false; m.className = "promo__msg is-err"; m.textContent = "Code non reconnu. (Essayez BIENVENUE10 pour tester.)"; }
     });
     document.addEventListener("click", e => {
-      if (e.target.closest("[data-promo-remove]")) { promo = ""; MODULR.store.set("modulr.promo", ""); render(); }
+      if (e.target.closest("[data-promo-remove]")) { promo = ""; EVARYSTH.store.set("evarysth.promo", ""); render(); }
     });
     $("#cart-checkout").addEventListener("click", () => {
       if (!items.length) return;
@@ -86,7 +86,7 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   function render() {
-    const fmt = MODULR.fmt;
+    const fmt = EVARYSTH.fmt;
     const count = items.reduce((s, i) => s + i.qty, 0);
     const sub = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
     const rate = PROMOS[promo] || 0;
@@ -107,7 +107,7 @@
     $("#cart-checkout").disabled = !items.length;
     $("#cart-list").innerHTML = items.length ? items.map(i => `
       <li class="line">
-        <div class="line__thumb">${MODULR.shapeSVG(i.shape)}</div>
+        <div class="line__thumb">${EVARYSTH.shapeSVG(i.shape)}</div>
         <div class="line__body">
           <div class="line__top"><a href="#p-${i.id}" data-cart-close>${esc(i.name)}</a><span>${fmt(i.unitPrice * i.qty)}</span></div>
           <span class="tag ${i.mode === "custom" ? "tag--accent" : ""}">${i.mode === "custom" ? "Sur-mesure" : "Standard"}</span>
@@ -125,6 +125,6 @@
       : `<li class="empty"><p>Votre panier est vide.</p><a class="btn" href="#catalogue" data-cart-close>Voir le catalogue</a></li>`;
   }
 
-  MODULR.cart = { add, open, close };
+  EVARYSTH.cart = { add, open, close };
   document.addEventListener("DOMContentLoaded", mount);
 })();

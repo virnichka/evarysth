@@ -1,8 +1,8 @@
-/* Modèle 3D « enrouleur-mural » — chargé à la demande par viewer3d.js (voir MODULR.viewer3d.define). */
+/* Modèle 3D « enrouleur-mural » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
 /* Enrouleur mural, d'après le G-code « garden hose holder » : tout tient dans un secteur
    de 64° autour de l'axe de la selle (R 120). a = largeur d'enroulement, b = Ø du tuyau ou de la corde.
    Repère : y vers le haut, mur en z = 0, axe de la selle en (0, -R). */
-MODULR.viewer3d.define("enrouleur-mural", ({ m, rad, circ, arc }) => {
+EVARYSTH.viewer3d.define("enrouleur-mural", ({ m, rad, circ, arc }) => {
   return m((k, { a, b }) => {
     const R = 120, A = 32, tp = 9, tl = 9, L = Math.max(20, 2.4 * b), cy = -R, Z = tp + a;
     const at = (r, d) => [r * Math.cos(rad(d)), cy + r * Math.sin(rad(d))];

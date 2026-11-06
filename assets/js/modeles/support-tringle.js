@@ -1,6 +1,6 @@
-/* Modèle 3D « support-tringle » — chargé à la demande par viewer3d.js (voir MODULR.viewer3d.define). */
+/* Modèle 3D « support-tringle » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
 /* a = cadre, b = tringle */
-MODULR.viewer3d.define("support-tringle", ({ m, arc, uPts }) => {
+EVARYSTH.viewer3d.define("support-tringle", ({ m, arc, uPts }) => {
   return m((k, { a, b }) => k.join(
     k.ext(uPts(a, 30, 5), 30),
     k.box(55, 8, 30, a / 2 + 32.5, 31, 0),

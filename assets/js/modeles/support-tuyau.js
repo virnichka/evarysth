@@ -1,5 +1,5 @@
-/* Modèle 3D « support-tuyau » — chargé à la demande par viewer3d.js (voir MODULR.viewer3d.define). */
-MODULR.viewer3d.define("support-tuyau", ({ m, arc, uPts }) => {
+/* Modèle 3D « support-tuyau » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
+EVARYSTH.viewer3d.define("support-tuyau", ({ m, arc, uPts }) => {
   return m((k, { a }) => k.join(
     k.ext(uPts(a, 40, 6), 50),
     k.box(6, 86, 50, a / 2 + 3, 3, 0),
