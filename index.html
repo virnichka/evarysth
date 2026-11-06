@@ -12,6 +12,27 @@
   <script>try { document.documentElement.dataset.theme = localStorage.getItem("modulr.theme") || "light"; } catch (e) { document.documentElement.dataset.theme = "light"; }</script>
   <link rel="stylesheet" href="assets/css/style.css">
   <!-- Three.js (modules ES), chargé à la demande par assets/js/viewer3d.js sur les fiches produit 3D -->
+  <script>
+    /* Statistiques de visite (Umami Cloud, sans cookie). Renseigner l'identifiant du site ;
+       vide = aucun suivi. Seul le domaine en ligne est compté (pas les tests en local). */
+    (function () {
+      var id = "c4454d44-ccb5-4bbd-ba65-54fc78c61b5b";
+      if (!id || !/(^|\.)evarysth\.fr$/.test(location.hostname)) return;
+      var s = document.createElement("script");
+      s.defer = true; s.src = "https://cloud.umami.is/script.js";
+      s.dataset.websiteId = id; s.dataset.autoTrack = "false";
+      s.onload = function () { window.modulrTrack(); };
+      document.head.appendChild(s);
+    })();
+    /* modulrTrack() = page vue (adresse avec #vue) ; modulrTrack(nom, données) = événement */
+    window.modulrTrack = function (name, data) {
+      try {
+        if (!window.umami) return;
+        if (name) umami.track(name, data);
+        else umami.track(function (p) { return Object.assign({}, p, { url: location.pathname + location.hash, title: document.title }); });
+      } catch (e) { /* statistiques indisponibles */ }
+    };
+  </script>
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
