@@ -56,7 +56,16 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 - Commandes payées : tableau de bord Stripe, et fiche de fabrication dans les journaux du Worker (Cloudflare → Workers → Logs).
 - Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`. En mode test, une clé live est refusée.
 - Tests : `cd worker && node --test`.
-- Passage en production : `CHECKOUT_MODE = "live"` dans `worker/wrangler.toml`, clés et webhook live, recréer les codes promo en live, retirer le drapeau dans `cart.js`.
+- Passage en production (checklist, dans l'ordre) :
+  1. Pages légales sans `[À COMPLÉTER]` ; Stripe → activer le compte (identité, SIRET, IBAN) ; Paramètres → Informations
+     publiques : URL CGV `https://www.evarysth.fr/cgv/`, confidentialité `https://www.evarysth.fr/confidentialite/`,
+     e-mail support `contact@evarysth.fr` (active aussi la case CGV, `cgv: "case"`).
+  2. Paramètres → E-mails clients : « Paiements réussis » et « Remboursements » cochés (reçus Stripe).
+  3. En mode live : clé `sk_live_` (ou `rk_live_` restreinte) → secret `STRIPE_SECRET_KEY` ; webhook live
+     `https://evarysth-checkout.virnichka.workers.dev/webhook` sur `checkout.session.completed` → secret `STRIPE_WEBHOOK_SECRET`.
+  4. Recréer les coupons/codes promo en live (ex. `BRABOU78`, mêmes conditions qu'en test).
+  5. `CHECKOUT_MODE = "live"` dans `worker/wrangler.toml` (déploiement auto) ; retirer le drapeau `?checkout=test` dans `cart.js`.
+  6. Commande réelle à petit prix puis remboursement : e-mail reçu, webhook 200, reçu client.
 
 ### E-mails de commande (Brevo) — configuration faite le 7 novembre 2026
 À chaque commande payée, le Worker doit m'envoyer par l'API Brevo un e-mail « Nouvelle commande » avec la fiche de fabrication.
@@ -66,12 +75,17 @@ Le code d'envoi est **en cours dans une autre session (pas encore dans le dépô
   `brevo1._domainkey` → `b1.evarysth-fr.dkim.brevo.com.` et `brevo2._domainkey` → `b2.evarysth-fr.dkim.brevo.com.`,
   du TXT `_dmarc` `v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com` ; SPF unique complété :
   `v=spf1 include:mx.ovh.com include:spf.brevo.com -all`. A/AAAA (GitHub Pages), `www` et MX OVH inchangés.
-- **Expéditeur** : `Evarysth <commandes@evarysth.fr>` (validé). Reply-to : à fixer (voir « Reste à faire »).
+- **Expéditeur** : `Evarysth <commandes@evarysth.fr>` (validé). Reply-to : l'e-mail du client, sinon `REPLY_TO`
+  (`contact@evarysth.fr`, `worker/wrangler.toml`).
+- **Adresses du projet** : boîte `evarysth@gmail.com` ; redirections OVH (MX Plan → Redirections) `contact@evarysth.fr`
+  (clients, affichée sur les pages légales) et `commandes@evarysth.fr` (expéditeur) → `evarysth@gmail.com`.
+  Aucune adresse personnelle dans le dépôt.
 - **Clé API v3** `evarysth-worker`, restreinte à « E-mails transactionnels » ; enregistrée dans Cloudflare comme secret
   **`BREVO_API_KEY`** du Worker `evarysth-checkout`. Blocage des IP non autorisées **désactivé** pour les clés API
   (le Worker appelle depuis des IP Cloudflare variables).
-- Reste à faire : redirection OVH `commandes@evarysth.fr` → boîte perso (créée, pas encore reçue au test) puis choix du
-  reply-to ; contrôle SPF/DKIM/DMARC « pass » dans les en-têtes du mail de test (reçu).
+- Test de réception d'une redirection : écrire depuis une **autre** boîte que `evarysth@gmail.com` (Gmail masque un
+  message qui revient vers l'expéditeur : il n'apparaît que dans « Envoyés »). Contrôle SPF/DKIM/DMARC « PASS » :
+  « Afficher l'original » de l'e-mail « [TEST] Nouvelle commande ».
 - **Envoi branché** (`worker/src/email.js`) : à chaque `checkout.session.completed`, e-mail « Nouvelle commande EV-… »
   (« [TEST] » en mode test) avec la fiche de fabrication (cotes en mm avec leurs libellés, coloris, emballage cadeau et
   message, adresse, lien Stripe). Répondre à l'e-mail écrit au client (reply-to). Expéditeur : `EMAIL_FROM` dans

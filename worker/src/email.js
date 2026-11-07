@@ -1,6 +1,6 @@
 /* E-mail « Nouvelle commande » envoyé au vendeur par l'API Brevo (transactionnel).
    Secrets Cloudflare : BREVO_API_KEY, ORDER_EMAIL (destinataire : jamais dans le dépôt, il est public).
-   Variable : EMAIL_FROM (expéditeur authentifié dans Brevo). */
+   Variables : EMAIL_FROM (expéditeur authentifié dans Brevo), REPLY_TO (réponse par défaut si le client n'a pas d'e-mail). */
 import { EVARYSTH } from "./catalogue.js";
 
 const LETTRES = "ABCDEFGH";
@@ -82,7 +82,10 @@ export async function envoyerFiche(env, f) {
     body: JSON.stringify({
       sender: { name: "Evarysth", email: env.EMAIL_FROM || "commandes@evarysth.fr" },
       to: env.ORDER_EMAIL.split(",").map(e => ({ email: e.trim() })).filter(e => e.email),
-      ...(f.client && f.client.email ? { replyTo: { email: f.client.email, ...(f.client.nom ? { name: f.client.nom } : {}) } } : {}),
+      // Répondre écrit au client ; sans e-mail client, à l'adresse de contact publique
+      replyTo: f.client && f.client.email
+        ? { email: f.client.email, ...(f.client.nom ? { name: f.client.nom } : {}) }
+        : { email: env.REPLY_TO || "contact@evarysth.fr", name: "Evarysth" },
       subject: sujet(f),
       htmlContent: html,
       textContent: texte,
