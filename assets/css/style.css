@@ -449,7 +449,6 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .qty--lg span { min-width: 26px; font-size: 17px; }
 .delivery { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 10px 16px; border-radius: 16px; background: var(--bg-2); border: 1px solid var(--line); font-size: 14px; color: var(--soft); }
 .delivery b { color: var(--text); font-weight: 600; }
-.aside-links { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; }
 .row-block--related { margin-top: 64px; border-top: 1px solid var(--line); }
 
 /* ---------- Panier (tiroir) ---------- */
