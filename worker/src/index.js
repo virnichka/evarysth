@@ -2,11 +2,13 @@
    POST /checkout   panier du site → session Stripe Checkout → { url }
    POST /promo      vérifie un code promo Stripe → { code, rate, amount }
    GET  /session    résumé d'une commande payée (page commande/merci/)
-   POST /webhook    événements Stripe signés (checkout.session.completed → fiche de fabrication) */
+   POST /webhook    événements Stripe signés (checkout.session.completed → Sheet back-office, e-mail client, fiche de fabrication) */
 import { versionCatalogue } from "./catalogue.js";
 import { ErreurPanier, lireCadeau, lirePanier, nouvelleReference, parametresSession } from "./commande.js";
 import { appelStripe, ErreurStripe, verifierSignature } from "./stripe.js";
-import { envoyerFiche } from "./email.js";
+import { envoyerConfirmationClient, envoyerFiche } from "./email.js";
+import { googleConfigure } from "./google.js";
+import { enregistrerCommande, journaliserCreation, majCommande } from "./sheet.js";
 
 const TAILLE_MAX = 20000;
 
@@ -125,6 +127,34 @@ async function resumeSession(url, env, origine) {
   }, 200, origine);
 }
 
+/* Back-office (Google Sheet) : inactif tant que GOOGLE_SA_EMAIL, GOOGLE_SA_KEY et SHEET_ID ne sont pas tous définis.
+   Ajoute la commande (sans doublon), envoie au client l'e-mail « commande reçue » (une seule fois), journalise.
+   Renvoie l'erreur Google éventuelle (le webhook répond alors 5xx) ; fiche.commande reçoit le n° EV-AAAA-NNNN. */
+async function backOffice(env, fiche, session) {
+  if (!googleConfigure(env)) {
+    if (env.GOOGLE_SA_EMAIL || env.GOOGLE_SA_KEY || env.SHEET_ID) console.warn("Sheet inactif : GOOGLE_SA_EMAIL, GOOGLE_SA_KEY et SHEET_ID sont tous nécessaires.");
+    return null;
+  }
+  try {
+    const cmd = await enregistrerCommande(env, fiche, session);
+    fiche.commande = cmd.numero;
+    if (cmd.nouveau) {
+      /* Échec de l'e-mail client : journalisé seulement (« Dernier statut notifié » reste vide) */
+      try {
+        if (await envoyerConfirmationClient(env, fiche, cmd)) {
+          await majCommande(env, cmd.numero, { "Dernier statut notifié": cmd.statut })
+            .catch(e => console.error("Sheet : Dernier statut notifié", e.message));
+        }
+      } catch (e) { console.error("E-mail « commande reçue »", cmd.numero, e.message); }
+    }
+    await journaliserCreation(env, cmd.numero, cmd.statut);
+    return null;
+  } catch (e) {
+    console.error("Sheet", e.statut || "", e.message);
+    return e;
+  }
+}
+
 async function recevoirWebhook(req, env) {
   const corps = await req.text();
   if (!(await verifierSignature(corps, req.headers.get("Stripe-Signature"), env.STRIPE_WEBHOOK_SECRET)))
@@ -150,10 +180,13 @@ async function recevoirWebhook(req, env) {
         meta: (l.price && l.price.product && l.price.product.metadata) || {}
       }))
     };
+    const erreurSheet = await backOffice(env, fiche, s);
     console.log(JSON.stringify(fiche));
     /* En cas d'échec, réponse 500 : Stripe renverra l'événement (rien n'est perdu) */
     try { await envoyerFiche(env, fiche); }
     catch (e) { console.error("E-mail de commande", e.message); return json({ error: "E-mail non envoyé." }, 500); }
+    /* Google en erreur : la fiche est partie, mais 503 pour que Stripe renvoie l'événement (pas de doublon dans le Sheet) */
+    if (erreurSheet) return json({ error: "Back-office indisponible." }, 503);
   }
   return json({ recu: true });
 }

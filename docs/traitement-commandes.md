@@ -122,6 +122,23 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
   4. Google en erreur → réponse 5xx.
   5. Sans `GOOGLE_SA_EMAIL`/`GOOGLE_SA_KEY`/`SHEET_ID` : rien ne change, la fiche Brevo actuelle part toujours.
   6. Tests avec Google et Brevo simulés, `cd worker && node --test` vert.
+- **Réalisé (2026-11-07)** :
+  - **N° de commande, méthode retenue : « écrire puis vérifier »** (`enregistrerCommande`, `worker/src/sheet.js`).
+    Google n'offre pas de verrou et le contrat interdit `values.append` sur Commandes, donc : (1) lecture des colonnes
+    `Commande` et `Stripe session id` (session déjà présente → rien à faire) ; (2) n° = plus grand `EV-<année>-NNNN`
+    de l'année (heure de Paris) + 1, ligne = 1re ligne dont `Commande` est vide ; (3) `values.update` (RAW, `null` pour
+    les colonnes non écrites, dont E et G), attente de 2 s, relecture. Deux webhooks simultanés lisent le même état, donc
+    visent la même ligne avec le même n° : un seul reste, l'autre ne se retrouve pas et recommence avec un état à jour
+    (n° et ligne suivants). Deux commandes ne gardent jamais le même n°. 5 essais, puis erreur → 503 (Stripe réessaie).
+    Limite : un n° supprimé à la main en fin de liste peut être réattribué ; ne pas supprimer de ligne (passer `annulee`).
+  - Ordre du webhook : Sheet (ligne, sauf si déjà là) → e-mail client « commande reçue » (seulement si la ligne vient d'être
+    ajoutée ; si Brevo réussit, `Dernier statut notifié` = statut initial, sinon reste vide et l'échec est journalisé dans
+    Cloudflare) → ligne `Journal` (ancien statut vide, auteur `worker`, écrite une seule fois même si l'événement revient)
+    → fiche de fabrication (inchangée, avec en plus « Back-office : EV-AAAA-NNNN »). Google en erreur : la fiche part quand
+    même, puis réponse 503. Sans les 3 secrets Google : comportement d'avant, aucun appel à Google.
+  - Fabricant : 1er `Nom` non vide de l'onglet `Fabricants`. `Cadeau / message` : `oui` ou `oui · <message>`.
+    Coloris de `Pièce` : libellé du catalogue (ex. `Rose poudré`). La ligne « Emballage cadeau » n'apparaît pas dans `Pièce`.
+  - Limite : la 1re ligne vide doit exister dans la grille (1 000 lignes par défaut) ; au-delà, ajouter des lignes au Sheet.
 
 ## Bloc C — Liens fournisseur
 
@@ -171,7 +188,7 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
 | Bloc | Statut | Session | PR | Date |
 |------|--------|---------|----|------|
 | A | fait | session_01GS5VpHVaTuCX1b9qmaJGA4 | — (Sheet seul) | 2026-11-07 |
-| B | à faire | — | — | — |
+| B | fait | session_01GS5VpHmWue7HWoi95gWYL7 | #52 | 2026-11-07 |
 | C | à faire | — | — | — |
 | D | à faire | — | — | — |
 | E | à faire | — | — | — |
