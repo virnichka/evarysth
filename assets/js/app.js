@@ -339,6 +339,7 @@ ${colors.length ? `
               </div>`).join("")}
             <p class="tip">Un mètre ruban suffit. On ajoute nous-mêmes la tolérance pour un ajustement parfait.
               <button class="link" data-measure="${p.id}">Comment mesurer ?</button></p>
+            <p class="legal-note">Fabriquée à vos cotes, une pièce sur-mesure n'est ni reprise ni échangée (hors défaut) : les cotes saisies font foi. <a href="cgv/#retractation">CGV</a></p>
           </div>
 
           <div class="summary">
@@ -361,8 +362,8 @@ ${colors.length ? `
 
           <div class="accordion accordion--pdp">
             <details open><summary>Matière &amp; entretien</summary><p>Nylon PA12 noir, imprimé en 3D industrielle : léger, très résistant aux chocs, à l'humidité et aux UV. Un coup de chiffon humide suffit.</p></details>
-            <details><summary>Livraison &amp; retours</summary><p>Fabriqué à la commande, expédié sous 3 à 5 jours. Retour gratuit sous 30 jours.</p></details>
-            <details><summary>Garantie 2 ans</summary><p>Si la pièce se casse ou ne s'ajuste pas malgré vos mesures, nous la refabriquons.</p></details>
+            <details><summary>Livraison &amp; retours</summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut. <a href="cgv/">Voir les CGV</a>.</p></details>
+            <details><summary>Garantie légale 2 ans</summary><p>Une pièce défectueuse ou non conforme à la commande (taille standard ou cotes saisies) est réparée, refabriquée ou remboursée, dans le cadre de la garantie légale de conformité.</p></details>
             <details><summary>Avis clients</summary><p>Les avis s'afficheront ici après les premières commandes. <button class="link" data-soon="Avis clients">Être prévenu</button></p></details>
           </div>
         </div>

@@ -4,6 +4,7 @@
      produits/<id>/index.html  une vraie page par produit (titre, description, aperçu de partage,
                                données structurées, texte lisible sans JavaScript) ; app.js y
                                construit ensuite la fiche complète (3D, curseurs, prix, panier).
+     cgv/, mentions-legales/, confidentialite/  pages légales (texte dans tools/pages-legales/<id>.html)
      sitemap.xml, 404.html
    Usage : node tools/generer-pages.mjs          (écrit les fichiers)
            node tools/generer-pages.mjs --check  (échoue si un fichier n'est pas à jour, pour la CI)
@@ -196,8 +197,41 @@ function notFoundPage() {
   return page({ base: "/", bodyAttr: ' data-page="404"', head, main });
 }
 
+/* Pages légales : le corps de l'article est écrit dans tools/pages-legales/<id>.html */
+const LEGAL = [
+  { id: "cgv", title: "Conditions générales de vente",
+    desc: "Conditions générales de vente Evarysth : commande, prix, livraison, droit de rétractation, sur-mesure, garanties légales et médiation." },
+  { id: "mentions-legales", title: "Mentions légales",
+    desc: "Mentions légales du site Evarysth : éditeur, hébergement, prestataires de paiement et propriété intellectuelle." },
+  { id: "confidentialite", title: "Politique de confidentialité",
+    desc: "Données personnelles chez Evarysth : ce qui est collecté, pourquoi, combien de temps, par qui, et comment exercer vos droits." }
+];
+
+function legalPage(l) {
+  const url = `${SITE}/${l.id}/`;
+  const head = `  <title>${esc(l.title)} — Evarysth</title>
+  <meta name="description" content="${esc(l.desc)}">
+  <link rel="canonical" href="${url}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Evarysth">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:title" content="${esc(l.title)} — Evarysth">
+  <meta property="og:description" content="${esc(l.desc)}">
+  <meta property="og:url" content="${url}">
+  <meta property="og:image" content="${SITE}/assets/og/accueil.jpg">
+`;
+  const main = `  <main>
+   <article class="legal" id="${l.id}">
+${read(`tools/pages-legales/${l.id}.html`).trimEnd()}
+   </article>
+  </main>
+`;
+  return page({ base: "../", bodyAttr: ` data-page="${l.id}"`, head, main });
+}
+
 function sitemap() {
-  const urls = [`${SITE}/`, `${SITE}/catalogue/`, ...E.universes.map(u => `${SITE}/univers/${u.id}/`), ...E.products.map(p => `${SITE}/produits/${p.id}/`)];
+  const urls = [`${SITE}/`, `${SITE}/catalogue/`, ...E.universes.map(u => `${SITE}/univers/${u.id}/`), ...E.products.map(p => `${SITE}/produits/${p.id}/`),
+    ...LEGAL.map(l => `${SITE}/${l.id}/`)];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url><loc>${u}</loc></url>`).join("\n")}
@@ -210,6 +244,7 @@ const out = new Map();
 for (const p of E.products) out.set(`produits/${p.id}/index.html`, productPage(p));
 out.set("catalogue/index.html", cataloguePage());
 for (const u of E.universes) out.set(`univers/${u.id}/index.html`, universePage(u));
+for (const l of LEGAL) out.set(`${l.id}/index.html`, legalPage(l));
 out.set("404.html", notFoundPage());
 out.set("sitemap.xml", sitemap());
 

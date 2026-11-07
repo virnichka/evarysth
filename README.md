@@ -41,6 +41,17 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche toujours le mess
   Le navigateur n'envoie que produit, taille ou cotes, coloris et quantité ; **les prix sont recalculés par le Worker**
   depuis `data.js`, les cotes vérifiées (min/max/pas). Codes promo : ceux créés dans Stripe.
 - Chaque ligne Stripe porte en métadonnées `produit`, `mode`, `cotes_mm` (JSON), `coloris`, `catalogue` (empreinte de `data.js`).
+- **Emballage cadeau** (3 € par commande, case `#gift-on` du panier, mémorisée dans `evarysth.cadeau`) : le navigateur n'envoie que
+  `cadeau: true` et `message` (200 caractères max, refusé au-delà). Le Worker ajoute lui-même la ligne Stripe « Emballage cadeau »
+  au prix de `CADEAU_CENTS` (`worker/src/commande.js`, même valeur que `GIFT` dans `cart.js`). Métadonnées de session :
+  `cadeau` (`oui`/`non`) et `message_cadeau` ; repris dans la fiche de fabrication et sur `commande/merci/`.
+  Comme chez Stripe, un code promo porte sur les articles et l'emballage, jamais sur la livraison : le total du panier est celui de Stripe.
+- **CGV** : pages `cgv/`, `mentions-legales/`, `confidentialite/` générées depuis `tools/pages-legales/<id>.html`
+  (repères `[À COMPLÉTER : …]` surlignés en jaune, classe `.todo`). Le Worker demande la case « J'accepte les CGV »
+  (`consent_collection.terms_of_service`) ; si l'URL des CGV n'est pas renseignée dans Stripe (Paramètres → Informations publiques),
+  Stripe refuse et le Worker repasse au texte seul (`custom_text.submit`). La réponse de `/checkout` indique `cgv: "case"` ou `"texte"`.
+  `CGV_STRIPE = "non"` dans `wrangler.toml` coupe l'essai. Sur-mesure : rappel de l'exclusion du droit de rétractation (art. L221-28 3°)
+  sur la fiche, dans le panier et sur la page Stripe.
 - Cartes de test : `4242 4242 4242 4242` (accepté), `4000 0025 0000 3155` (3D Secure), `4000 0000 0000 9995` (refusé).
 - Commandes payées : tableau de bord Stripe, et fiche de fabrication dans les journaux du Worker (Cloudflare → Workers → Logs).
 - Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`. En mode test, une clé live est refusée.

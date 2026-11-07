@@ -2,6 +2,8 @@
 (function () {
   const KEY = "evarysth.cart.v1";
   const SHIPPING = 4.9;
+  const GIFT = 3;                                   /* identique à CADEAU_CENTS dans worker/src/commande.js */
+  const GIFT_MAX = 200;
   const $ = s => document.querySelector(s);
 
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
@@ -9,6 +11,10 @@
   let items = load();
   const PROMOS = { BIENVENUE10: 0.10 };           /* code de démonstration : -10 % */
   let promo = (EVARYSTH.store && EVARYSTH.store.get("evarysth.promo", "")) || "";
+  /* Emballage cadeau : { on, message } mémorisé dans le navigateur */
+  const GIFT_KEY = "evarysth.cadeau";
+  let gift = { on: false, message: "", ...((EVARYSTH.store && EVARYSTH.store.get(GIFT_KEY, null)) || {}) };
+  const saveGift = () => EVARYSTH.store && EVARYSTH.store.set(GIFT_KEY, gift);
 
   /* Paiement Stripe en MODE TEST : actif seulement après ?checkout=test (mémorisé dans le navigateur),
      coupé par ?checkout=off. Sans ce drapeau, « Commander » garde le message de prototype.
@@ -55,6 +61,8 @@
       const j = await appelWorker("/checkout", {
         items: items.map(ligneCommande),
         promo: remiseActive() ? promo : "",
+        cadeau: gift.on,
+        message: gift.on ? gift.message.trim() : "",
         base: new URL(".", document.baseURI).href,
         retour: location.origin + location.pathname
       });
@@ -79,15 +87,22 @@
             <button class="btn" type="submit">Appliquer</button>
           </form>
           <p class="promo__msg" id="promo-msg" hidden></p>
-          <label class="gift" id="cart-gift"><input type="checkbox" data-soon="Emballage cadeau"> Emballage cadeau <small class="muted">+ 3 €</small></label>
+          <label class="gift" id="cart-gift"><input type="checkbox" id="gift-on"> Emballage cadeau <small class="muted">+ ${EVARYSTH.fmt(GIFT)} par commande</small></label>
+          <div class="gift-msg" id="gift-box" hidden>
+            <label for="gift-message">Message cadeau <small class="muted">(facultatif, joint au colis)</small></label>
+            <textarea id="gift-message" rows="2" maxlength="${GIFT_MAX}" placeholder="Joyeux anniversaire !"></textarea>
+            <small class="muted mono" id="gift-count">0 / ${GIFT_MAX}</small>
+          </div>
           <div class="row"><span>Sous-total</span><span id="cart-sub">0 €</span></div>
           <div class="row" id="cart-disc-row" hidden><span>Remise <span class="mono" id="cart-disc-code"></span></span><span id="cart-disc">0 €</span></div>
+          <div class="row" id="cart-gift-row" hidden><span>Emballage cadeau</span><span>${EVARYSTH.fmt(GIFT)}</span></div>
           <div class="row muted"><span>Livraison</span><span id="cart-shipcost">—</span></div>
           <div class="row total"><span>Total</span><span id="cart-total">0 €</span></div>
+          <p class="cart-legal" id="cart-legal">En commandant, vous acceptez nos <a href="cgv/" data-cart-close>conditions générales de vente</a>.<span id="cart-custom-note" hidden> <b>Sur-mesure :</b> ces pièces sont fabriquées à vos cotes ; elles ne sont ni reprises ni échangées (hors défaut). Vérifiez vos mesures.</span></p>
           <p class="promo__msg is-err" id="checkout-msg" role="alert" hidden></p>
           <button class="btn btn--primary btn--block" id="cart-checkout">Commander</button>
           <p class="promo__msg checkout-test" id="checkout-test" hidden>Mode test : aucun paiement réel. Carte 4242 4242 4242 4242, date future, CVC au choix.</p>
-          <p class="fine">Fabriqué à la commande en France · Expédié sous 3 à 5 jours · Paiement sécurisé</p>
+          <p class="fine">Fabriqué à la commande · Expédition en général sous 3 à 5 jours ouvrés · Paiement sécurisé</p>
         </footer>
       </aside>`);
     document.addEventListener("click", e => {
@@ -131,7 +146,10 @@
     });
     window.addEventListener("storage", e => { if (e.key === KEY) { items = load(); render(); } });
     $("#checkout-test").hidden = !paiement;
-    if (paiement) $("#cart-gift").hidden = true;   /* option pas encore proposée au paiement */
+    $("#gift-on").checked = gift.on;
+    $("#gift-message").value = gift.message.slice(0, GIFT_MAX);
+    $("#gift-on").addEventListener("change", e => { gift.on = e.target.checked; saveGift(); render(); });
+    $("#gift-message").addEventListener("input", e => { gift.message = e.target.value.slice(0, GIFT_MAX); saveGift(); renderGiftCount(); });
     render();
     /* Retour depuis Stripe sans payer */
     const q = new URLSearchParams(location.search);
@@ -160,14 +178,25 @@
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+  function renderGiftCount() { $("#gift-count").textContent = `${gift.message.length} / ${GIFT_MAX}`; }
+
   function render() {
     const fmt = EVARYSTH.fmt;
     const count = items.reduce((s, i) => s + i.qty, 0);
     const sub = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+    const giftCost = items.length && gift.on ? GIFT : 0;
     const r = remiseActive();
     const rate = r ? r.rate : 0;
-    const disc = r ? Math.min(sub, Math.round((sub * r.rate + r.amount) * 100) / 100) : 0;
-    const net = sub - disc;
+    /* Comme Stripe : la remise porte sur les articles et l'emballage, pas sur la livraison */
+    const base = sub + giftCost;
+    const disc = r ? Math.min(base, Math.round((base * r.rate + r.amount) * 100) / 100) : 0;
+    const net = base - disc;
+    $("#cart-gift-row").hidden = !giftCost;
+    $("#gift-box").hidden = !gift.on;
+    $("#cart-gift").hidden = !items.length;
+    $("#cart-legal").hidden = !items.length;
+    $("#cart-custom-note").hidden = !items.some(i => i.mode === "custom");
+    renderGiftCount();
     const ship = !items.length ? 0 : SHIPPING;
     $("#cart-disc-row").hidden = !disc;
     $("#cart-disc").textContent = "− " + fmt(disc);

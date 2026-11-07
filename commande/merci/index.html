@@ -22,6 +22,7 @@
     <p id="merci-texte">Récupération du récapitulatif…</p>
     <ul class="merci__lignes" id="merci-lignes" hidden></ul>
     <a class="btn" href="./">Retour à la boutique</a>
+    <p class="fine">Conditions de vente, rétractation et garanties : <a href="cgv/">CGV</a>.</p>
   </main>
   <script>
     /* Page de retour après paiement Stripe. Même adresse de service que CHECKOUT_URL dans assets/js/cart.js */
@@ -37,11 +38,12 @@
         .then(c => {
           if (c.statut === "paid") {
             /* Commande payée : le panier est vidé */
-            try { ["evarysth.cart.v1", "evarysth.promo", "evarysth.promo.remise"].forEach(k => localStorage.removeItem(k)); } catch (e) { /* indisponible */ }
+            try { ["evarysth.cart.v1", "evarysth.promo", "evarysth.promo.remise", "evarysth.cadeau"].forEach(k => localStorage.removeItem(k)); } catch (e) { /* indisponible */ }
           }
           texte.innerHTML = `Commande <b class="mono">${esc(c.ref)}</b>${c.environnement === "test" ? " (mode test, aucun paiement réel)" : ""}.` +
             (c.email ? ` Adresse de contact : <b>${esc(c.email)}</b>.` : "") +
-            (c.statut === "paid" ? "" : " Paiement en cours de confirmation.");
+            (c.statut === "paid" ? "" : " Paiement en cours de confirmation.") +
+            (c.cadeau ? `<br>Emballage cadeau${c.message_cadeau ? ` avec le message : « ${esc(c.message_cadeau)} »` : " (sans message)"}.` : "");
           liste.innerHTML = c.lignes.map(l => `<li><div>${esc(l.nom)} × ${l.quantite}<small>${esc(l.detail)}</small></div><span>${fmt(l.total)}</span></li>`).join("") +
             (c.remise ? `<li><div>Remise</div><span>− ${fmt(c.remise)}</span></li>` : "") +
             `<li><div>Livraison</div><span>${fmt(c.livraison)}</span></li>` +
