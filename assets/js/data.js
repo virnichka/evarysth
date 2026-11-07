@@ -325,6 +325,28 @@ EVARYSTH.products = [
     ],
     custom: { surcharge: 5, params: [param("a", "Longueur du vide-poche", 100, 450, 240, 10, 0.03)] }
   },
+  {
+    id: "crochet-appui-tete", universe: "bureau", matiere: "asa", shape: "hook", model: "crochet-appui-tete",
+    name: "Crochet d'appui-tête multifonction", price: 14,
+    tagline: "La tablette, le sac et la gourde rangés derrière le siège avant.",
+    desc: "Une plaque fine qui pend contre le dos du siège avant, tenue par un œillet enfilé sur une tige de l'appui-tête : on sort l'appui-tête, on passe l'œillet, on le remet. Deux petits crochets reçoivent la tranche d'une tablette, deux grands crochets en bas portent un sac, un cabas ou une gourde à mousqueton. Réglez le diamètre de la tige, l'épaisseur de votre tablette et la distance entre la tige et le dos du siège.",
+    variants: sizes("Épaisseur de la tablette", [["Fine", "tablette nue, 9 mm", { a: 14, b: 9, c: 35 }], ["Standard", "avec coque, 15 mm", { a: 14, b: 15, c: 35 }], ["Large", "coque épaisse, 20 mm", { a: 14, b: 20, c: 35 }]]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "gris", label: "Gris béton", hex: "#8a8c8e", roughness: 0.7 },
+      { id: "moka", label: "Moka", hex: "#5b4034", roughness: 0.6 }
+    ],
+    custom: { surcharge: 3, params: [
+      param("a", "Diamètre de la tige d'appui-tête", 10, 20, 14),
+      param("b", "Épaisseur de la tablette", 6, 22, 15),
+      param("c", "Distance tige – dos du siège", 25, 55, 35)
+    ] },
+    photos: [
+      { src: "assets/photos/crochet-appui-tete/1.webp", alt: "Tablette posée sur les petits crochets derrière un siège avant, un sac et une gourde suspendus aux grands crochets" },
+      { src: "assets/photos/crochet-appui-tete/2.webp", alt: "Gros plan des grands crochets : sangle de sac et mousqueton de gourde", pos: "50% 40%" }
+    ],
+    photosNote: "Photos d'illustration : modèle proche, la fixation et les détails diffèrent de la pièce livrée"
+  },
 
   /* ---------- 03 · Meubles & Rangement ---------- */
   {
