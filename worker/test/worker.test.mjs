@@ -127,7 +127,8 @@ test("sécurité : origine inconnue, clé live en mode test, panier invalide", a
 });
 
 test("webhook : signature vérifiée (valide, falsifiée, périmée)", async () => {
-  const corps = JSON.stringify({ type: "checkout.session.completed", livemode: false, data: { object: { id: "cs_test_abc", metadata: { ref: "EV-1" }, amount_total: 9690 } } });
+  const corps = JSON.stringify({ type: "checkout.session.completed", livemode: false, data: { object: { id: "cs_test_abc", payment_status: "paid", metadata: { ref: "EV-1" }, amount_total: 9690,
+    customer_details: { name: "Camille Test", email: "client@example.com" }, shipping_details: { name: "Camille Test", address: { line1: "1 rue Secrète", city: "Lyon" } } } } });
   const t = Math.floor(Date.now() / 1000);
   const sig = await signer(env.STRIPE_WEBHOOK_SECRET, `${t}.${corps}`);
   assert.equal(await verifierSignature(corps, `t=${t},v1=${sig}`, env.STRIPE_WEBHOOK_SECRET), true);
@@ -140,7 +141,10 @@ test("webhook : signature vérifiée (valide, falsifiée, périmée)", async () 
   try { assert.equal((await envoyer(`t=${t},v1=${sig}`)).status, 200, "sans secrets Brevo : pas d'e-mail, pas d'échec"); }
   finally { console.log = log; console.warn = warn; }
   assert.equal(fiche.ref, "EV-1");
-  assert.equal(fiche.lignes[0].meta.cotes_mm, '{"a":45,"b":300}');
+  assert.equal(fiche.paiement, "paid");
+  assert.ok(fiche.articles >= 1);
+  /* Journal Cloudflare : aucune donnée personnelle */
+  assert.doesNotMatch(JSON.stringify(fiche), /Camille|client@example\.com|Secrète|Lyon/);
   assert.equal(brevo.length, 0);
 });
 

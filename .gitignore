@@ -147,3 +147,8 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Cloudflare Wrangler : secrets locaux et cache (ne jamais publier)
+.dev.vars
+.dev.vars.*
+.wrangler/

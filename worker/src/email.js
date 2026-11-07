@@ -31,7 +31,7 @@ export function ligneLisible(l) {
 }
 
 export function sujet(f) {
-  return `${f.environnement === "test" ? "[TEST] " : ""}Nouvelle commande ${f.ref} — ${eur(f.total_eur)}`;
+  return `${f.environnement === "test" ? "[TEST] " : ""}${f.attente ? "[PAIEMENT EN ATTENTE] " : ""}Nouvelle commande ${f.ref} — ${eur(f.total_eur)}`;
 }
 
 export function contenu(f) {
@@ -42,6 +42,7 @@ export function contenu(f) {
 
   const texte = [
     sujet(f), "",
+    f.attente ? "Paiement pas encore confirmé par Stripe : ne pas fabriquer. La commande sera ajoutée au back-office à la confirmation du paiement.\n" : "",
     f.commande ? `Back-office : ${f.commande}` : "",
     ...lignes.flatMap(l => [`• ${l.nom} × ${l.quantite} (${eur(l.total)})`, ...[l.version, ...l.cotes, l.coloris && `Coloris : ${l.coloris}`].filter(Boolean).map(x => "    " + x)]),
     "",
@@ -58,6 +59,7 @@ export function contenu(f) {
   const html = `<!DOCTYPE html><html lang="fr"><body style="margin:0;background:#f4f1ea;font:15px/1.5 Arial,sans-serif;color:#1a1a18">
 <div style="max-width:600px;margin:0 auto;padding:24px">
 <h1 style="font-size:20px;margin:0 0 4px">${f.environnement === "test" ? '<span style="color:#b42318">[TEST]</span> ' : ""}Nouvelle commande ${esc(f.ref)}</h1>
+${f.attente ? '<p style="margin:0 0 8px;color:#b42318"><b>Paiement pas encore confirmé par Stripe : ne pas fabriquer.</b> La commande sera ajoutée au back-office à la confirmation du paiement.</p>' : ""}
 ${f.commande ? `<p style="margin:0 0 4px;color:#5c5a52">Back-office : <b>${esc(f.commande)}</b></p>` : ""}
 <p style="margin:0 0 16px;color:#5c5a52">Total payé : <b>${esc(eur(f.total_eur))}</b> · paiement : ${esc(f.paiement)}</p>
 <table style="width:100%;border-collapse:collapse;border-top:1px solid #e4dfd4">${lignes.map(l => `<tr>
