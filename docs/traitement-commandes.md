@@ -259,6 +259,7 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
    | `GOOGLE_SA_KEY` | clé privée du compte de service | JSON, champ `private_key` (tout le bloc) |
    | `SHEET_ID` | classeur des commandes | URL du Sheet, entre `/d/` et `/edit` |
    | `HMAC_SECRET` | liens fournisseur et `/fichier/` | `openssl rand -hex 32` (le changer invalide les liens envoyés) |
+   | `ADMIN_KEY` | vérification manuelle `$W/maj?cle=…` (facultatif) | valeur aléatoire longue, à garder en favori |
 
    Contrôle : `npx wrangler secret list` ; `curl $W/f/x` doit passer de 503 à une page « lien invalide ».
 9. **Brevo** : aucun modèle à créer (contenus dans `worker/src/email.js`). Authentifier le domaine `evarysth.fr`
