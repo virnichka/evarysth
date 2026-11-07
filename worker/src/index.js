@@ -4,7 +4,7 @@
    GET  /session    résumé d'une commande payée (page commande/merci/)
    POST /webhook    événements Stripe signés (checkout.session.completed → fiche de fabrication) */
 import { versionCatalogue } from "./catalogue.js";
-import { ErreurPanier, lirePanier, nouvelleReference, parametresSession } from "./commande.js";
+import { ErreurPanier, lireCadeau, lirePanier, nouvelleReference, parametresSession } from "./commande.js";
 import { appelStripe, ErreurStripe, verifierSignature } from "./stripe.js";
 
 const TAILLE_MAX = 20000;
@@ -59,6 +59,7 @@ async function trouverPromo(env, code) {
 async function creerSession(req, env, origine) {
   const corps = await lireJson(req);
   const lignes = lirePanier(corps);
+  const cadeau = lireCadeau(corps);
   let promotionCode = null;
   if (corps.promo) {
     const promo = await trouverPromo(env, corps.promo);
@@ -67,15 +68,27 @@ async function creerSession(req, env, origine) {
   }
   const base = adresseSurSite(corps.base, origine, origine + "/");
   const ref = nouvelleReference();
-  const session = await appelStripe(env, "POST", "checkout/sessions", parametresSession(lignes, {
+  const options = {
     base: base.endsWith("/") ? base : origine + "/",
     retour: adresseSurSite(corps.retour, origine, base),
     ref,
     promotionCode,
+    cadeau,
     catalogue: await versionCatalogue(),
     environnement: env.CHECKOUT_MODE === "live" ? "live" : "test"
-  }));
-  return json({ url: session.url, ref }, 200, origine);
+  };
+  /* Case CGV obligatoire sur la page Stripe ; si le compte n'a pas d'URL de CGV (Stripe → Paramètres → Public details),
+     Stripe refuse : on repasse au texte seul. CGV_STRIPE = "non" dans wrangler.toml coupe l'essai. */
+  let consentement = env.CGV_STRIPE !== "non", session;
+  try {
+    session = await appelStripe(env, "POST", "checkout/sessions", parametresSession(lignes, { ...options, consentement }));
+  } catch (e) {
+    if (!(consentement && e instanceof ErreurStripe && /terms of service|consent/i.test(e.message))) throw e;
+    console.warn("CGV non renseignées dans Stripe : case de consentement désactivée.", e.message);
+    consentement = false;
+    session = await appelStripe(env, "POST", "checkout/sessions", parametresSession(lignes, { ...options, consentement }));
+  }
+  return json({ url: session.url, ref, cgv: consentement ? "case" : "texte" }, 200, origine);
 }
 
 async function verifierPromo(req, env, origine) {
@@ -100,6 +113,8 @@ async function resumeSession(url, env, origine) {
     livraison: (t.amount_shipping || 0) / 100,
     remise: (t.amount_discount || 0) / 100,
     email: s.customer_details && s.customer_details.email,
+    cadeau: s.metadata.cadeau === "oui",
+    message_cadeau: s.metadata.message_cadeau || "",
     lignes: ((s.line_items && s.line_items.data) || []).map(li => ({
       nom: li.description,
       detail: li.price && li.price.product && li.price.product.description,
@@ -128,6 +143,7 @@ async function recevoirWebhook(req, env) {
       total_eur: s.amount_total / 100,
       client: s.customer_details && { nom: s.customer_details.name, email: s.customer_details.email },
       livraison: { nom: livraison.name, adresse: livraison.address },
+      cadeau: s.metadata && s.metadata.cadeau === "oui" ? { emballage: true, message: s.metadata.message_cadeau || "" } : null,
       lignes: li.data.map(l => ({ quantite: l.quantity, ...((l.price && l.price.product && l.price.product.metadata) || {}) }))
     }));
   }

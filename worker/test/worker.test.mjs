@@ -139,3 +139,65 @@ test("webhook : signature vérifiée (valide, falsifiée, périmée)", async () 
   assert.equal(fiche.ref, "EV-1");
   assert.deepEqual(fiche.lignes, [{ quantite: 1, produit: "x" }]);
 });
+
+test("emballage cadeau : ligne à 3 € ajoutée par le Worker, message en métadonnées", async () => {
+  const r = await poster("/checkout", { items: [tablette], cadeau: true, message: "  Joyeux\nanniversaire !  ", base: SITE + "/" });
+  assert.equal(r.status, 200);
+  const p = decode(appels.at(-1).corps);
+  assert.equal(p["line_items[1][price_data][product_data][name]"], "Emballage cadeau");
+  assert.equal(p["line_items[1][price_data][unit_amount]"], "300");
+  assert.equal(p["line_items[1][quantity]"], "1");
+  assert.equal(p["line_items[1][price_data][product_data][metadata][produit]"], "emballage-cadeau");
+  assert.equal(p["metadata[cadeau]"], "oui");
+  assert.equal(p["metadata[message_cadeau]"], "Joyeux anniversaire !");
+  /* Sans option : pas de ligne cadeau, message ignoré */
+  await poster("/checkout", { items: [tablette], message: "ignoré" });
+  const q = decode(appels.at(-1).corps);
+  assert.equal(q["line_items[1][quantity]"], undefined);
+  assert.equal(q["metadata[cadeau]"], "non");
+  assert.equal(q["metadata[message_cadeau]"], undefined);
+});
+
+test("emballage cadeau : prix falsifié ignoré, cadeau non booléen ignoré", async () => {
+  await poster("/checkout", { items: [tablette], cadeau: true, prixCadeau: 0, giftPrice: 0.01, cadeauCents: 1 });
+  const p = decode(appels.at(-1).corps);
+  assert.equal(p["line_items[1][price_data][unit_amount]"], "300");
+  await poster("/checkout", { items: [tablette], cadeau: "oui" });
+  assert.equal(decode(appels.at(-1).corps)["line_items[1][quantity]"], undefined);
+});
+
+test("emballage cadeau : message trop long ou illisible refusé", async () => {
+  const n = appels.length;
+  let r = await poster("/checkout", { items: [tablette], cadeau: true, message: "x".repeat(201) });
+  assert.equal(r.status, 400);
+  assert.match((await r.json()).error, /200 caractères/);
+  r = await poster("/checkout", { items: [tablette], cadeau: true, message: { html: "<b>" } });
+  assert.equal(r.status, 400);
+  assert.equal(appels.length, n, "aucune session Stripe créée");
+  r = await poster("/checkout", { items: [tablette], cadeau: true, message: "é".repeat(200) });
+  assert.equal(r.status, 200, "200 caractères exactement : accepté");
+});
+
+test("CGV : case de consentement Stripe, repli sur le texte si l'URL n'est pas renseignée", async () => {
+  let r = await poster("/checkout", { items: [tablette] });
+  assert.equal((await r.json()).cgv, "case");
+  let p = decode(appels.at(-1).corps);
+  assert.equal(p["consent_collection[terms_of_service]"], "required");
+  assert.match(p["custom_text[terms_of_service_acceptance][message]"], /\[conditions générales de vente\]\(https:\/\/www\.evarysth\.fr\/cgv\/\)/);
+  assert.match(p["custom_text[submit][message]"], /L221-28/, "rappel sur-mesure");
+
+  const fauxFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    if (String(url).endsWith("/v1/checkout/sessions") && /consent_collection/.test(init.body || "")) {
+      appels.push({ chemin: "/v1/checkout/sessions", methode: "POST", corps: init.body });
+      return new Response(JSON.stringify({ error: { message: "You must provide a terms of service URL in your public business details to collect consent." } }), { status: 400 });
+    }
+    return fauxFetch(url, init);
+  };
+  r = await poster("/checkout", { items: [tablette] });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).cgv, "texte");
+  p = decode(appels.at(-1).corps);
+  assert.equal(p["consent_collection[terms_of_service]"], undefined);
+  assert.match(p["custom_text[submit][message]"], /conditions générales de vente\]\(https:\/\/www\.evarysth\.fr\/cgv\/\).*L221-28/);
+});
