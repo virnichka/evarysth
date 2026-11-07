@@ -69,6 +69,17 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   `envoyee_fabricant` → `expediee`, transporteur + n° de suivi obligatoires, écrits dans le Sheet), puis une ligne de
   `Journal` (auteur `fabricant`). 2e clic : « déjà confirmée », sans 2e ligne. Lien falsifié 403, expiré 410, transition
   interdite 409. **Sans `HMAC_SECRET` ou sans secrets Google : `/f/` répond 503**, le reste du Worker est inchangé.
+- **Tâche planifiée** (`worker/src/planifie.js`, cron `*/10 * * * *` dans `worker/wrangler.toml`, handler `scheduled`) :
+  lit l'onglet `Commandes` ; pour chaque ligne où `Statut` ≠ `Dernier statut notifié`, envoie l'e-mail dû (Brevo), puis
+  **seulement après un envoi réussi** écrit cette colonne (ligne retrouvée par son n°) et journalise le changement
+  (auteur `proprietaire` s'il n'est pas déjà dans `Journal`). `envoyee_fabricant` → e-mail au fabricant de la ligne
+  (onglet `Fabricants` : e-mail, délai ; pièce, cotes, coloris, lien STL, boutons accepter/expédier signés `creerJeton`,
+  liens vers `WORKER_URL`) ; nom et adresse du client **seulement si `Livre le client` = oui**. `expediee` → e-mail client
+  avec transporteur et n° de suivi. Autres statuts : colonne mise à jour, sans e-mail. Relance à `ORDER_EMAIL` si pas
+  d'`acceptee` 48 h après le passage en `envoyee_fabricant` (date du `Journal`), **une seule par commande** (ligne
+  `Journal` « → `relance_48h` »). Sans secrets Google : ne fait rien ; sans `BREVO_API_KEY`/`HMAC_SECRET` ou fabricant
+  sans e-mail : la ligne attend (avertissement dans les journaux) ; Brevo en erreur : colonne inchangée, nouvel essai
+  10 min plus tard. La fiche « Nouvelle commande » du webhook est inchangée.
 - Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (+ `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET`). En mode test, une clé live est refusée.
 - Tests : `cd worker && node --test`.
 - Passage en production (checklist, dans l'ordre) :

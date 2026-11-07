@@ -3,6 +3,7 @@
    POST /promo      vérifie un code promo Stripe → { code, rate, amount }
    GET  /session    résumé d'une commande payée (page commande/merci/)
    POST /webhook    événements Stripe signés (checkout.session.completed → Sheet back-office, e-mail client, fiche de fabrication) */
+import { lancerTache } from "./planifie.js";
 import { versionCatalogue } from "./catalogue.js";
 import { ErreurPanier, lireCadeau, lirePanier, nouvelleReference, parametresSession } from "./commande.js";
 import { appelStripe, ErreurStripe, verifierSignature } from "./stripe.js";
@@ -193,6 +194,11 @@ async function recevoirWebhook(req, env) {
 }
 
 export default {
+  /* Tâche planifiée (wrangler.toml [triggers] crons) : e-mails selon le statut du Sheet, inactive sans secrets Google */
+  async scheduled(evenement, env, ctx) {
+    ctx.waitUntil(lancerTache(env));
+  },
+
   async fetch(req, env) {
     const url = new URL(req.url);
     const origine = req.headers.get("Origin");

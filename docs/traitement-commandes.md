@@ -168,6 +168,11 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
   3. Pas d'adresse client au fabricant s'il ne livre pas le client.
   4. Une seule relance par commande.
   5. Sans secrets : la tâche ne fait rien, sans erreur.
+- **Réalisé (2026-11-07)** : `worker/src/planifie.js` + e-mails dans `worker/src/email.js`, tests
+  `worker/test/planifie.test.mjs`. Ordre par ligne : e-mail → colonne M → Journal. Relance marquée dans le Journal
+  (`Nouveau statut` = `relance_48h`, auteur `worker`), ignorée pour le calcul du dernier statut. Liens fournisseur vers
+  la variable `WORKER_URL` (`wrangler.toml`). Le fabricant d'une ligne doit porter exactement le `Nom` de l'onglet
+  `Fabricants` (menu) et avoir un e-mail, sinon la ligne attend.
 
 ## Bloc E — R2 + recette complète
 
@@ -190,7 +195,7 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
 | A | fait | session_01GS5VpHVaTuCX1b9qmaJGA4 | — (Sheet seul) | 2026-11-07 |
 | B | fait | session_01GS5VpHmWue7HWoi95gWYL7 | #52 | 2026-11-07 |
 | C | fait | session_01GS5VpKRWwfCa8XJt9x4oFK | #53 | 2026-11-07 |
-| D | à faire | — | — | — |
+| D | fait | session_01GS5VpHmWB2agPXhtWWgf37 | (cette PR) | 2026-11-07 |
 | E | à faire | — | — | — |
 
 ## À faire par le propriétaire
