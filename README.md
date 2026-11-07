@@ -58,6 +58,22 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 - Tests : `cd worker && node --test`.
 - Passage en production : `CHECKOUT_MODE = "live"` dans `worker/wrangler.toml`, clés et webhook live, recréer les codes promo en live, retirer le drapeau dans `cart.js`.
 
+### E-mails de commande (Brevo) — configuration faite le 7 novembre 2026
+À chaque commande payée, le Worker doit m'envoyer par l'API Brevo un e-mail « Nouvelle commande » avec la fiche de fabrication.
+Le code d'envoi est **en cours dans une autre session (pas encore dans le dépôt)** ; les comptes et le DNS sont prêts :
+- **Compte Brevo** : offre gratuite (300 e-mails/jour), aucune validation en attente.
+- **Domaine evarysth.fr authentifié** dans Brevo. Zone DNS OVH : ajout du TXT `brevo-code:…` (racine), des CNAME DKIM
+  `brevo1._domainkey` → `b1.evarysth-fr.dkim.brevo.com.` et `brevo2._domainkey` → `b2.evarysth-fr.dkim.brevo.com.`,
+  du TXT `_dmarc` `v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com` ; SPF unique complété :
+  `v=spf1 include:mx.ovh.com include:spf.brevo.com -all`. A/AAAA (GitHub Pages), `www` et MX OVH inchangés.
+- **Expéditeur** : `Evarysth <commandes@evarysth.fr>` (validé). Reply-to : à fixer (voir « Reste à faire »).
+- **Clé API v3** `evarysth-worker`, restreinte à « E-mails transactionnels » ; enregistrée dans Cloudflare comme secret
+  **`BREVO_API_KEY`** du Worker `evarysth-checkout`. Blocage des IP non autorisées **désactivé** pour les clés API
+  (le Worker appelle depuis des IP Cloudflare variables).
+- Reste à faire : redirection OVH `commandes@evarysth.fr` → boîte perso (créée, pas encore reçue au test) puis choix du
+  reply-to ; contrôle SPF/DKIM/DMARC « pass » dans les en-têtes du mail de test (reçu) ; brancher l'envoi dans le Worker.
+- Attention : la clé expire après **90 jours sans aucun appel** ; tant que les ventes sont fermées, la recréer si besoin.
+
 ## 3. Où sont rangées les données ?
 Il n'y a **pas de base de données** : tout le contenu est écrit directement dans les fichiers du site.
 

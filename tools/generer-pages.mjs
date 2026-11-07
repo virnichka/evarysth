@@ -67,7 +67,7 @@ function productPage(p) {
       { "@type": "ListItem", position: 3, name: p.name, item: url }
     ]
   }];
-  const head = `  <title>${esc(title)}</title>
+  const head = `  <title>Evarysth</title>
   <meta name="description" content="${esc(desc)}">
   <link rel="canonical" href="${url}">
   <meta property="og:type" content="product">
@@ -106,7 +106,7 @@ function productPage(p) {
 
 /* En-tête commun aux pages liste (catalogue, univers) */
 function listHead({ title, desc, url, ogTitle, ld }) {
-  return `  <title>${esc(title)}</title>
+  return `  <title>Evarysth</title>
   <meta name="description" content="${esc(desc)}">
   <link rel="canonical" href="${url}">
   <meta property="og:type" content="website">
@@ -181,7 +181,7 @@ function universePage(u) {
 }
 
 function notFoundPage() {
-  const head = `  <title>Page introuvable — Evarysth</title>
+  const head = `  <title>Evarysth</title>
   <meta name="robots" content="noindex">
 `;
   const main = `  <main>
@@ -209,7 +209,7 @@ const LEGAL = [
 
 function legalPage(l) {
   const url = `${SITE}/${l.id}/`;
-  const head = `  <title>${esc(l.title)} — Evarysth</title>
+  const head = `  <title>Evarysth</title>
   <meta name="description" content="${esc(l.desc)}">
   <link rel="canonical" href="${url}">
   <meta property="og:type" content="website">
