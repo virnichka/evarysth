@@ -61,20 +61,23 @@ Deux niveaux, deux numérotations qui ne se croisent jamais :
 |-----|---------|-----------|--------|
 | A | Commande | Worker | `EV-AAAA-NNNN` (clé ; recherche par la colonne Stripe session id contre les doublons) |
 | B | Date | Worker | `AAAA-MM-JJ HH:MM` (heure de Paris) |
-| C | Statut | **tâche planifiée** (calculé), propriétaire pour `incident`, `remboursee`, `annulee` | menu (`Listes!D`) |
-| D | Type | Worker | `standard` ou `sur-mesure` (sur-mesure si au moins un article l'est) |
-| E | Articles | Worker | un article par ligne : `<produit> · <taille M \| a=45 b=32> · <coloris> · ×<qté>` |
-| F | Client | Worker | 3 lignes : nom / e-mail / adresse |
-| G | Commandes CF | tâche planifiée | n° CF de la commande, un par ligne |
-| H | Cadeau / message | Worker | vide, ou `oui` + message |
-| I | Dernier statut notifié | **Worker seulement** (repliée avec J) | `payee` une fois l'e-mail « commande reçue » parti |
-| J | Stripe session id | Worker | `cs_test_…` |
-| K | Notes | propriétaire | libre |
+| C | Statut | **formule** (en-tête, `MAP` + `COUNTIFS` sur `Commandes CF`) | ne jamais écrire ; statut forcé s'il y en a un, sinon calculé |
+| D | Statut forcé | propriétaire | menu : vide, `incident`, `remboursee`, `annulee` |
+| E | Type | Worker | `standard` ou `sur-mesure` (sur-mesure si au moins un article l'est) |
+| F | Articles | Worker | un article par ligne : `<produit> · <taille M \| a=45 b=32> · <matière> · <coloris> · ×<qté>` |
+| G | Client | Worker | 3 lignes : nom / e-mail / adresse |
+| H | Commandes CF | **formule** (en-tête, `MAP` + `FILTER`) | ne jamais écrire ; n° CF de la commande, un par ligne |
+| I | Cadeau / message | Worker | vide, ou `oui` + message |
+| J | Dernier statut notifié | **Worker seulement** (repliée avec K) | `payee` une fois l'e-mail « commande reçue » parti |
+| K | Stripe session id | Worker | `cs_test_…` |
+| L | Notes | propriétaire | libre |
 
-Statut client calculé à partir des statuts de ses articles (articles `annulee`/`remboursee` ignorés) : `payee` (rien
-d'envoyé) → `en_fabrication` (au moins un article chez un fabricant) → `partiellement_expediee` → `expediee` →
-`livree` ; `incident` si un article l'est. Tout annulé → `annulee` (ou `remboursee`). Un statut `incident`,
-`remboursee` ou `annulee` présent sur la commande EV n'est **jamais écrasé** (à remettre à la main).
+Statut client (formule, même règle que `statutEV` dans `planifie.js`, à garder identiques), calculé sur les articles de
+la commande hors `annulee`/`remboursee` : `incident` si un article l'est ; `livree` si tous livrés ; `expediee` si
+tous partis ; `partiellement_expediee` si une partie est partie ; `en_fabrication` si au moins un est
+`envoyee_fabricant`/`acceptee` ; sinon `payee`. Tout annulé → `annulee` (`remboursee` s'il y en a un). Un
+`Statut forcé` remplace le calcul (à vider pour revenir au calcul). La tâche planifiée n'écrit rien dans cet onglet :
+elle journalise seulement chaque changement de `Statut` (auteur `worker`).
 
 ### Onglet `Commandes CF` (ligne 1 = en-têtes, figée)
 
@@ -87,7 +90,7 @@ d'envoyé) → `en_fabrication` (au moins un article chez un fabricant) → `par
 | E | Statut | Worker puis propriétaire / fabricant (liens) | menu (`Listes!A`, les 9 statuts) |
 | F | Type | Worker | `standard` ou `sur-mesure` |
 | G | Action requise | **formule** (en-tête, `MAP`) | ne jamais écrire |
-| H | Article | Worker | `<produit> · <taille M \| a=45 b=32> · <coloris> · ×<qté>` |
+| H | Article | Worker | `<produit> · <taille M \| a=45 b=32> · <matière> · <coloris> · ×<qté>` (matière du catalogue) |
 | I | Commande OpenSCAD | **formule** (en-tête, `MAP`) | sur-mesure seulement ; fichier `<EV>-<n°>-<produit>.stl` |
 | J | Fabricant | **propriétaire** | menu (`Fabricants!A`) ; vide à la création |
 | K | Lien STL | propriétaire (sur-mesure) | URL Drive |
@@ -124,7 +127,7 @@ pré-remplie `À renseigner` / vide / `5` / `non`.
 
 ### Onglet `Listes`
 Colonne A `Statuts` (les 9 statuts d'article, menu de `Commandes CF`), B `Types`, D `Statuts EV` (les 8 statuts client,
-menu de `Commandes EV` : `payee`, `en_fabrication`, `partiellement_expediee`, `expediee`, `livree`, `incident`,
+pour mémoire : `payee`, `en_fabrication`, `partiellement_expediee`, `expediee`, `livree`, `incident`,
 `remboursee`, `annulee`), C `Transporteurs` (menu de la page fabricant « Expédier », lu à chaque
 affichage ; valeur hors liste refusée ; onglet illisible → liste de secours dans `fournisseur.js`).
 
@@ -259,7 +262,9 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
   fabricant choisi **à la main** : pas d'attribution automatique, faute de règles fiables pour l'instant).
 - Le Worker écrit les deux au paiement (`sheet.js`) ; la tâche planifiée (`planifie.js`) attribue les n° CF, recopie le
   suivi dans la CF, envoie un e-mail par CF (fabricant) et par colis (client, « un colis de votre commande… / le reste
-  suivra » quand il y a plusieurs CF), puis calcule le statut client et la liste des CF de la commande EV.
+  suivra » quand il y a plusieurs CF). Statut client et liste des CF de la commande EV : formules du Sheet (le
+  propriétaire peut forcer `incident`, `remboursee` ou `annulee` dans `Statut forcé`) ; la tâche journalise les
+  changements de statut client.
 - Liens fournisseur (`fournisseur.js`, `jeton.js`) : le jeton porte le n° CF (format `CF-AAAA-NNNN-X` exigé) ;
   accepter/expédier s'applique à toutes les lignes de la CF ; lignes `annulee`/`remboursee` ignorées ; une ligne en
   `incident` bloque l'action (409) ; une ligne confiée à un autre fabricant → 403.
@@ -329,8 +334,9 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
 
 ### Règles d'usage du Sheet
 - Ne jamais supprimer une ligne de commande : passer son statut à `annulee` (ou `remboursee` après remboursement dans Stripe),
-  sur les lignes de `Commandes CF` (le statut client suit) ou directement sur la commande EV.
-- Ne rien écrire dans `Commande CF`, `Action requise`, `Commande OpenSCAD` ni `Dernier statut notifié`.
+  sur les lignes de `Commandes CF` (le statut client suit), ou dans `Statut forcé` de la commande EV.
+- Ne rien écrire dans `Statut` et `Commandes CF` (Commandes EV), ni dans `Commande CF`, `Action requise`,
+  `Commande OpenSCAD` et `Dernier statut notifié` (Commandes CF).
 - Au quotidien, on travaille dans `Commandes CF` : choisir le fabricant, puis passer **toutes les lignes d'une même CF**
   à `envoyee_fabricant`. Le statut de `Commandes EV` se met à jour seul.
 - Changer de fabricant après l'envoi : remettre les lignes à `payee`, choisir le nouveau fabricant, repasser à
@@ -344,4 +350,4 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
 - GitHub Action OpenSCAD : produit le STL sur-mesure à partir de la colonne « Commande OpenSCAD » et le dépose sur R2.
 - Rebrancher `Synthèse` / `Livre des recettes` sur le nouvel onglet `Commandes EV`.
 - Proposition automatique du fabricant (capacités dans `Fabricants` : matières, coloris, taille max, priorité).
-- Colonne `Matière` dans les articles quand le catalogue proposera un choix de matière.
+- Proposer le fabricant d'après la matière de l'article (déjà dans la colonne `Article`).
