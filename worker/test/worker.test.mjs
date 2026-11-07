@@ -25,7 +25,7 @@ beforeEach(() => {
     if (u.pathname === "/v1/checkout/sessions" && init.method === "POST") return rep({ id: "cs_test_abc", url: "https://checkout.stripe.com/c/pay/cs_test_abc" });
     if (u.pathname === "/v1/promotion_codes") {
       return u.searchParams.get("code") === "BRABOU78"
-        ? rep({ data: [{ id: "promo_123", code: "BRABOU78", promotion: { coupon: "72RlPcIT" } }] })
+        ? rep({ data: [{ id: "promo_123", code: "BRABOU78", active: true, promotion: { coupon: "72RlPcIT" } }] })
         : rep({ data: [] });
     }
     if (u.pathname === "/v1/coupons/72RlPcIT") return rep({ id: "72RlPcIT", percent_off: 10, valid: true });

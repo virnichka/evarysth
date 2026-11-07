@@ -42,15 +42,16 @@ function adresseSurSite(valeur, origine, defaut) {
   } catch { return defaut; }
 }
 
-/* Code promo Stripe → { id, code, rate, amount } ou null (gère les deux formes de l'API) */
+/* Code promo Stripe → { id, code, rate, amount } ou { erreur } (gère les deux formes de l'API) */
 async function trouverPromo(env, code) {
-  if (typeof code !== "string" || !/^[A-Za-z0-9_-]{2,40}$/.test(code)) return null;
-  const liste = await appelStripe(env, "GET", "promotion_codes", { code, active: "true", limit: 1 });
+  if (typeof code !== "string" || !/^[A-Za-z0-9_-]{2,40}$/.test(code)) return { erreur: "Code non reconnu." };
+  const liste = await appelStripe(env, "GET", "promotion_codes", { code, limit: 1 });
   const pc = liste.data && liste.data[0];
-  if (!pc) return null;
+  if (!pc) return { erreur: "Code non reconnu." };
+  if (!pc.active || (pc.expires_at && pc.expires_at * 1000 < Date.now())) return { erreur: "Ce code n'est plus actif." };
   let coupon = pc.coupon || (pc.promotion && pc.promotion.coupon);
   if (typeof coupon === "string") coupon = await appelStripe(env, "GET", `coupons/${encodeURIComponent(coupon)}`);
-  if (!coupon || coupon.valid === false) return null;
+  if (!coupon || coupon.valid === false) return { erreur: "Ce code a expiré ou a déjà été utilisé." };
   const euros = coupon.amount_off && (!coupon.currency || coupon.currency === "eur") ? coupon.amount_off / 100 : 0;
   return { id: pc.id, code: pc.code, rate: (coupon.percent_off || 0) / 100, amount: euros };
 }
@@ -61,7 +62,7 @@ async function creerSession(req, env, origine) {
   let promotionCode = null;
   if (corps.promo) {
     const promo = await trouverPromo(env, corps.promo);
-    if (!promo) return json({ error: "Code promo non valide ou expiré : retirez-le du panier." }, 400, origine);
+    if (promo.erreur) return json({ error: `${promo.erreur} Retirez le code promo du panier.` }, 400, origine);
     promotionCode = promo.id;
   }
   const base = adresseSurSite(corps.base, origine, origine + "/");
@@ -81,7 +82,7 @@ async function verifierPromo(req, env, origine) {
   const { code } = await lireJson(req);
   const promo = await trouverPromo(env, String(code || "").trim());
   /* Réponse 200 même si le code est faux : pas d'erreur réseau dans la console du client */
-  if (!promo) return json({ valide: false, error: "Code non reconnu ou expiré." }, 200, origine);
+  if (promo.erreur) return json({ valide: false, error: promo.erreur }, 200, origine);
   return json({ valide: true, code: promo.code, rate: promo.rate, amount: promo.amount }, 200, origine);
 }
 
