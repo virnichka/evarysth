@@ -362,7 +362,6 @@ ${colors.length ? `
           </div>
 
           <div class="accordion accordion--pdp">
-            <details open><summary>Matière &amp; entretien</summary><p>${mat.desc} Un coup de chiffon humide suffit.</p></details>
             <details><summary>Livraison &amp; retours</summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut. <a href="cgv/">Voir les CGV</a>.</p></details>
             <details><summary>Garantie légale 2 ans</summary><p>Une pièce défectueuse ou non conforme à la commande (taille standard ou cotes saisies) est réparée, refabriquée ou remboursée, dans le cadre de la garantie légale de conformité.</p></details>
             <details><summary>Avis clients</summary><p>Les avis s'afficheront ici après les premières commandes. <button class="link" data-soon="Avis clients">Être prévenu</button></p></details>
