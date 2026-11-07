@@ -6,6 +6,7 @@
 import { versionCatalogue } from "./catalogue.js";
 import { ErreurPanier, lireCadeau, lirePanier, nouvelleReference, parametresSession } from "./commande.js";
 import { appelStripe, ErreurStripe, verifierSignature } from "./stripe.js";
+import { envoyerFiche } from "./email.js";
 
 const TAILLE_MAX = 20000;
 
@@ -133,9 +134,8 @@ async function recevoirWebhook(req, env) {
     const s = evt.data.object;
     const li = await appelStripe(env, "GET", `checkout/sessions/${s.id}/line_items`, { limit: 100, expand: ["data.price.product"] });
     const livraison = (s.collected_information && s.collected_information.shipping_details) || s.shipping_details || {};
-    /* Fiche de fabrication : visible dans les journaux du Worker (Cloudflare → Workers → Logs).
-       Étape suivante prévue : l'envoyer par e-mail / l'enregistrer (D1). */
-    console.log(JSON.stringify({
+    /* Fiche de fabrication : envoyée par e-mail (Brevo) et visible dans les journaux du Worker */
+    const fiche = {
       fiche: "commande",
       ref: s.metadata && s.metadata.ref,
       environnement: evt.livemode ? "live" : "test",
@@ -144,8 +144,16 @@ async function recevoirWebhook(req, env) {
       client: s.customer_details && { nom: s.customer_details.name, email: s.customer_details.email },
       livraison: { nom: livraison.name, adresse: livraison.address },
       cadeau: s.metadata && s.metadata.cadeau === "oui" ? { emballage: true, message: s.metadata.message_cadeau || "" } : null,
-      lignes: li.data.map(l => ({ quantite: l.quantity, ...((l.price && l.price.product && l.price.product.metadata) || {}) }))
-    }));
+      payment_intent: typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent && s.payment_intent.id,
+      lignes: li.data.map(l => ({
+        nom: l.description, quantite: l.quantity, total: l.amount_total / 100,
+        meta: (l.price && l.price.product && l.price.product.metadata) || {}
+      }))
+    };
+    console.log(JSON.stringify(fiche));
+    /* En cas d'échec, réponse 500 : Stripe renverra l'événement (rien n'est perdu) */
+    try { await envoyerFiche(env, fiche); }
+    catch (e) { console.error("E-mail de commande", e.message); return json({ error: "E-mail non envoyé." }, 500); }
   }
   return json({ recu: true });
 }
