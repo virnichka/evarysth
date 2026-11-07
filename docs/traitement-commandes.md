@@ -187,6 +187,33 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
   3. Page de confidentialité à jour et republiée.
   4. Recette des deux parcours documentée ici (commandes lancées, résultats).
   5. Checklist des secrets et modèles Brevo ajoutée à « À faire par le propriétaire ».
+- **Réalisé** (2026-11-07) :
+  - `worker/src/fichier.js` + route `GET|HEAD /fichier/<jeton>` (`index.js`). Jeton `fichier.<clé b64url>.<exp>.<sig>`
+    (helpers exportés de `jeton.js`), 14 jours ; 403 falsifié/autre secret/lien fournisseur, 410 expiré, 404 objet absent,
+    405 autre méthode, 503 sans binding `STL` ou sans `HMAC_SECRET`. Clés R2 `<produit>/<taille>.<stl|3mf|zip>`
+    (taille = libellé en minuscules sans accents : `m`, `moyenne`, `Ø 12` → `12`).
+  - `planifie.js` : `Lien STL` vide → `liensStandards()` (un lien par ligne standard dont le fichier est dans R2 ;
+    lignes sur-mesure ignorées ; R2 absent/en panne → « fourni séparément », l'e-mail part quand même).
+  - **R2 non activé sur le compte Cloudflare** (API : « Please enable R2 through the Cloudflare Dashboard ») : bucket
+    non créé, binding laissé **commenté** dans `wrangler.toml` (voir « À faire par le propriétaire », 7).
+  - Confidentialité : Google (Sheets/Drive) sous-traitant, Brevo ajouté aux destinataires, fabricant (adresse seulement
+    s'il livre le client, jamais l'e-mail) ; `node tools/generer-pages.mjs` → `confidentialite/index.html`.
+- **Recette** (sans captures) :
+
+  | Commande | Résultat |
+  |----------|----------|
+  | `cd worker && node --test` | 46 tests, 46 OK (dont 5 `fichier.test.mjs`, 3 `parcours.test.mjs`) |
+  | `test/parcours.test.mjs` — standard | webhook Stripe signé (`cs_test_`) → ligne `payee`, fabricant par défaut, e-mail « commande reçue » + fiche Brevo ; tâche : rien au fabricant ; propriétaire → `envoyee_fabricant` ; tâche : e-mail `[TEST]` au fabricant avec lien `/fichier/` (STL téléchargé, octets identiques), sans adresse (`Livre le client` = non) ; GET `/f/` accepter → page seule ; POST → `acceptee` ; POST expédier (Colissimo + suivi) → `expediee` ; tâche : e-mail client avec transporteur et suivi, `Dernier statut notifié` = `expediee`, 3e passage sans effet. Journal : `payee/worker`, `envoyee_fabricant/proprietaire`, `acceptee/fabricant`, `expediee/fabricant` |
+  | `test/parcours.test.mjs` — sur-mesure | webhook → `fichier_a_produire` (cotes dans Pièce) ; lien Drive collé + `envoyee_fabricant` ; e-mail fabricant avec le lien Drive, nom + adresse (`Livre le client` = oui), sans e-mail client ; puis même suite jusqu'à `expediee` ; Journal `fichier_a_produire/worker` → … → `expediee/fabricant` |
+  | `test/parcours.test.mjs` — sans R2 | e-mail fabricant envoyé avec « fourni séparément » ; `/fichier/…` → 503 |
+  | `curl $W/` (W = `https://evarysth-checkout.virnichka.workers.dev`) | 200 `{"service":"evarysth-checkout","mode":"test"}` |
+  | `curl -X POST $W/checkout` (Origin site, `boite-rugged` standard M noir, puis sur-mesure 140×100×45) | 200, deux sessions Stripe `cs_test_…` (réf. `EV-261107-…`, `cgv: "case"`) |
+  | `curl -X POST $W/webhook` sans signature | 400 « Signature invalide. » |
+  | `curl $W/f/<faux jeton>` | 503 (en ligne : `HMAC_SECRET` / secrets Google pas encore posés → back-office inactif, sans erreur) |
+  | `curl $W/fichier/<faux jeton>` (après déploiement) | 503 « Fichiers indisponibles pour le moment (configuration). » |
+
+  Google, Brevo et R2 sont simulés dans les tests (secrets absents en ligne) ; le paiement réel des sessions test et
+  la suite en ligne restent à faire par le propriétaire (« À faire », 12).
 
 ## Suivi
 
@@ -196,7 +223,7 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
 | B | fait | session_01GS5VpHmWue7HWoi95gWYL7 | #52 | 2026-11-07 |
 | C | fait | session_01GS5VpKRWwfCa8XJt9x4oFK | #53 | 2026-11-07 |
 | D | fait | session_01GS5VpHmWB2agPXhtWWgf37 | #54 | 2026-11-07 |
-| E | à faire | — | — | — |
+| E | fait | session_01GS5VpKztszaCbXbHttRJK2 | #PR | 2026-11-07 |
 
 ## À faire par le propriétaire
 
@@ -212,3 +239,35 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
    - `npx wrangler secret put SHEET_ID` → l'identifiant dans l'URL du Sheet (entre `/d/` et `/edit`) ;
    - `npx wrangler secret put HMAC_SECRET` → une valeur aléatoire longue (ex. `openssl rand -hex 32`).
 6. Supprimer le fichier JSON de la clé une fois les secrets enregistrés.
+7. **R2 (STL standards)** : tableau de bord Cloudflare → R2 → activer R2 (gratuit jusqu'à 10 Go). Puis dans `worker/` :
+   `npx wrangler r2 bucket create evarysth-stl` ; décommenter le bloc `[[r2_buckets]]` de `wrangler.toml` (binding `STL`)
+   et pousser sur `main`. Envoyer les STL : `npx wrangler r2 object put evarysth-stl/boite-rugged/m.stl --file boite-m.stl --remote`
+   (une clé par produit et taille standard : `<produit>/<taille>.stl`, taille en minuscules sans accents ; `.zip` pour
+   plusieurs pièces). Contrôle : `curl -I $W/fichier/x` → 403 (et non plus 503).
+
+### Checklist finale (avant la 1re vraie commande)
+
+8. **Secrets Cloudflare** (`cd worker && npx wrangler secret put <NOM>` ; aucun dans le dépôt) :
+
+   | Secret | Rôle | Source |
+   |--------|------|--------|
+   | `STRIPE_SECRET_KEY` | API Stripe (sessions, lignes) | Stripe → Développeurs → Clés API (`sk_test_`/`rk_test_` en test) — déjà posé |
+   | `STRIPE_WEBHOOK_SECRET` | signature du webhook | Stripe → Webhooks → endpoint `$W/webhook` (`checkout.session.completed`) → `whsec_…` — déjà posé |
+   | `BREVO_API_KEY` | envoi de tous les e-mails | Brevo → SMTP et API → Clés API (`xkeysib-…`) |
+   | `ORDER_EMAIL` | destinataire fiche de fabrication + relances 48 h | votre adresse (plusieurs : séparées par des virgules) |
+   | `GOOGLE_SA_EMAIL` | compte de service (Sheet) | JSON de clé, champ `client_email` (étapes 2-4) |
+   | `GOOGLE_SA_KEY` | clé privée du compte de service | JSON, champ `private_key` (tout le bloc) |
+   | `SHEET_ID` | classeur des commandes | URL du Sheet, entre `/d/` et `/edit` |
+   | `HMAC_SECRET` | liens fournisseur et `/fichier/` | `openssl rand -hex 32` (le changer invalide les liens envoyés) |
+
+   Contrôle : `npx wrangler secret list` ; `curl $W/f/x` doit passer de 503 à une page « lien invalide ».
+9. **Brevo** : aucun modèle à créer (contenus dans `worker/src/email.js`). Authentifier le domaine `evarysth.fr`
+   (Expéditeurs, domaines et IP → Domaines : SPF/DKIM/DMARC), et l'expéditeur `commandes@evarysth.fr` (`EMAIL_FROM`) ;
+   les réponses vont à l'e-mail du client ou `contact@evarysth.fr` (`REPLY_TO`), boîte à faire exister.
+10. **Onglet `Fabricants`** : ligne 2 complète (nom identique à la colonne `Fabricant`, e-mail, délai, `Livre le client`).
+11. **Webhook Stripe** : endpoint `$W/webhook` actif sur `checkout.session.completed` (mode test).
+12. **Commande test réelle (mode test)** : site avec `?checkout=test` → panier (une pièce standard, puis une sur-mesure) →
+    carte `4242 4242 4242 4242` → vérifier : ligne dans le Sheet (`payee` / `fichier_a_produire`), e-mail « commande reçue »,
+    fiche de fabrication ; passer à `envoyee_fabricant` (sur-mesure : coller d'abord le lien Drive) → sous 10 min, e-mail
+    `[TEST]` au fabricant (mettre votre propre adresse dans `Fabricants` pour l'essai) → boutons accepter puis expédier →
+    sous 10 min, e-mail d'expédition au client ; Journal complet. Puis remettre l'e-mail du vrai fabricant.

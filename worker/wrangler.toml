@@ -29,3 +29,10 @@ crons = ["*/10 * * * *"]
 
 [observability]
 enabled = true
+
+# STL standards (bloc E), servis par GET /fichier/<jeton>. Sans ce binding : /fichier/ répond 503 et les e-mails
+# fabricant gardent « fourni séparément ». Ne décommenter qu'APRÈS `npx wrangler r2 bucket create evarysth-stl`
+# (un binding vers un bucket inexistant fait échouer le déploiement). Clés : <produit>/<taille>.stl (ex. boite-rugged/m.stl).
+# [[r2_buckets]]
+# binding = "STL"
+# bucket_name = "evarysth-stl"
