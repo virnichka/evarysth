@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import worker from "../src/index.js";
 import { viderCacheJeton } from "../src/google.js";
 import { creerJeton, verifierJeton, ErreurJeton } from "../src/jeton.js";
+import { COL_CF as COL, ENTETES_CF as ENTETES } from "./entetes.mjs";
 
 const paire = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
 const pkcs8 = Buffer.from(await crypto.subtle.exportKey("pkcs8", paire.privateKey)).toString("base64");
@@ -13,17 +14,20 @@ const env = { CHECKOUT_MODE: "test", ALLOWED_ORIGINS: "https://www.evarysth.fr",
   GOOGLE_SA_EMAIL: "worker@projet.iam.gserviceaccount.com", GOOGLE_SA_KEY: PEM, SHEET_ID: "id-factice" };
 const FAB = "Atelier Dupont & Fils";
 
-const ENTETES = ["Commande", "Date", "Statut", "Type", "Action requise", "Pièce", "Commande OpenSCAD", "Client", "Fabricant", "Lien STL",
-  "Transporteur", "N° de suivi", "Dernier statut notifié", "Stripe session id", "Cadeau / message", "Notes"];
-const COL = Object.fromEntries(ENTETES.map((n, i) => [n, i]));
 
 let sheet, ecritures;
 beforeEach(() => {
   viderCacheJeton();
-  const ligne = (num, statut) => { const l = ENTETES.map(() => ""); l[0] = num; l[2] = statut; l[5] = "Boîte · M · noir · ×1"; l[7] = "Camille / c@example.com / Paris"; l[8] = FAB; return l; };
-  /* Ordre volontairement « trié » : la commande visée n'est pas en ligne 2 */
+  const ligne = (num, n, statut, article = "Boîte · M · noir · ×1") => {
+    const l = ENTETES.map(() => "");
+    Object.assign(l, { [COL["Commande CF"]]: num, [COL["Commande EV"]]: num.replace(/^CF-/, "EV-").replace(/-[A-Z]+$/, ""), [COL["Article n°"]]: String(n),
+      [COL.Statut]: statut, [COL.Article]: article, [COL.Fabricant]: FAB });
+    return l;
+  };
+  /* Ordre volontairement « trié » : la commande visée n'est pas en ligne 2 ; CF-2026-0042-A compte 2 articles */
   sheet = {
-    Commandes: [ENTETES.slice(), ligne("EV-2026-0009", "payee"), ligne("EV-2026-0042", "envoyee_fabricant"), ligne("EV-2026-0001", "payee")],
+    "Commandes CF": [ENTETES.slice(), ligne("CF-2026-0009-A", 1, "payee"), ligne("CF-2026-0042-A", 1, "envoyee_fabricant"), ligne("CF-2026-0001-A", 1, "payee"),
+      ligne("CF-2026-0042-A", 2, "envoyee_fabricant", "Tablette · L · sable · ×2")],
     Journal: [["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"]],
     Listes: [["Statuts", "Types", "Transporteurs"], ["payee", "standard", "Colissimo"], ["acceptee", "", "Mondial Relay"]]
   };
@@ -53,7 +57,8 @@ async function fauxFetch(url, init = {}) {
   return rep({});
 }
 
-const cellule = (num, nom) => sheet.Commandes.find(l => l[0] === num)[COL[nom]];
+const cellule = (num, nom) => sheet["Commandes CF"].find(l => l[0] === num)[COL[nom]];
+const cellules = (num, nom) => sheet["Commandes CF"].filter(l => l[0] === num).map(l => l[COL[nom]]);
 const appeler = async (jeton, methode = "GET", champs, e = env) => {
   const err = console.error; console.error = () => {};
   try {
@@ -61,7 +66,7 @@ const appeler = async (jeton, methode = "GET", champs, e = env) => {
       ? { method: "POST", body: new URLSearchParams(champs || {}) } : {}), e);
   } finally { console.error = err; }
 };
-const jeton = (action, extra = {}) => creerJeton(env, { commande: "EV-2026-0042", action, fabricant: FAB, ...extra });
+const jeton = (action, extra = {}) => creerJeton(env, { commande: "CF-2026-0042-A", action, fabricant: FAB, ...extra });
 
 test("Jeton : aller-retour, falsification et expiration", async () => {
   const j = await jeton("accepter");
@@ -85,7 +90,7 @@ test("Route : jeton falsifié → 403, expiré → 410 avec message clair, rien 
   assert.equal(r2.status, 410);
   assert.match(await r2.text(), /expiré.*14 jours/s);
   assert.equal(ecritures, 0);
-  assert.equal(cellule("EV-2026-0042", "Statut"), "envoyee_fabricant");
+  assert.equal(cellule("CF-2026-0042-A", "Statut"), "envoyee_fabricant");
 });
 
 test("GET : page avec un bouton, aucune écriture, pas d'adresse client", async () => {
@@ -94,8 +99,9 @@ test("GET : page avec un bouton, aucune écriture, pas d'adresse client", async 
   assert.match(r.headers.get("Content-Type"), /text\/html/);
   const html = await r.text();
   assert.match(html, /<form method="post"[^>]*>.*<button/s);
-  assert.match(html, /EV-2026-0042/);
-  assert.doesNotMatch(html, /c@example\.com/);
+  assert.match(html, /CF-2026-0042-A/);
+  assert.match(html, /Boîte · M · noir · ×1\nTablette · L · sable · ×2/, "les 2 articles de la CF");
+  assert.doesNotMatch(html, /EV-2026/);
   assert.match(html, /Atelier|fabricant/);
   assert.equal(ecritures, 0);
   assert.equal(sheet.Journal.length, 1);
@@ -106,9 +112,9 @@ test("POST accepter : statut écrit sur la bonne ligne, Journal ; 2e clic → «
   const r = await appeler(j, "POST");
   assert.equal(r.status, 200);
   assert.match(await r.text(), /acceptée/);
-  assert.equal(cellule("EV-2026-0042", "Statut"), "acceptee");
-  assert.equal(cellule("EV-2026-0009", "Statut"), "payee");
-  assert.deepEqual(sheet.Journal.slice(1).map(l => l.slice(1)), [["EV-2026-0042", "envoyee_fabricant", "acceptee", "fabricant"]]);
+  assert.deepEqual(cellules("CF-2026-0042-A", "Statut"), ["acceptee", "acceptee"], "toutes les lignes de la CF");
+  assert.equal(cellule("CF-2026-0009-A", "Statut"), "payee");
+  assert.deepEqual(sheet.Journal.slice(1).map(l => l.slice(1)), [["CF-2026-0042-A", "envoyee_fabricant", "acceptee", "fabricant"]]);
   const r2 = await appeler(j, "POST");
   assert.equal(r2.status, 200);
   assert.match(await r2.text(), /Déjà confirmée/);
@@ -117,15 +123,16 @@ test("POST accepter : statut écrit sur la bonne ligne, Journal ; 2e clic → «
 });
 
 test("Transition interdite : expedier depuis payee → 409, rien d'écrit", async () => {
-  const j = await creerJeton(env, { commande: "EV-2026-0009", action: "expedier", fabricant: FAB });
+  const j = await creerJeton(env, { commande: "CF-2026-0009-A", action: "expedier", fabricant: FAB });
   const r = await appeler(j, "POST", { transporteur: "Colissimo", suivi: "6A123" });
   assert.equal(r.status, 409);
-  assert.equal(cellule("EV-2026-0009", "Statut"), "payee");
+  assert.equal(cellule("CF-2026-0009-A", "Statut"), "payee");
   assert.equal(ecritures, 0);
 });
 
 test("Expédier : transporteur + n° de suivi obligatoires, puis K et L écrits", async () => {
-  sheet.Commandes[2][COL.Statut] = "acceptee";
+  sheet["Commandes CF"][2][COL.Statut] = "acceptee";
+  sheet["Commandes CF"][4][COL.Statut] = "acceptee";
   const j = await jeton("expedier");
   for (const champs of [{}, { transporteur: "Colissimo" }, { transporteur: "Colissimo", suivi: "   " }, { suivi: "6A123" }]) {
     const r = await appeler(j, "POST", champs);
@@ -135,17 +142,34 @@ test("Expédier : transporteur + n° de suivi obligatoires, puis K et L écrits"
   assert.equal(ecritures, 0);
   const r = await appeler(j, "POST", { transporteur: " Colissimo ", suivi: "6A12345678901" });
   assert.equal(r.status, 200);
-  assert.equal(cellule("EV-2026-0042", "Transporteur"), "Colissimo");
-  assert.equal(cellule("EV-2026-0042", "N° de suivi"), "6A12345678901");
-  assert.equal(cellule("EV-2026-0042", "Statut"), "expediee");
-  assert.deepEqual(sheet.Journal.at(-1).slice(1), ["EV-2026-0042", "acceptee", "expediee", "fabricant"]);
+  assert.deepEqual(cellules("CF-2026-0042-A", "Transporteur"), ["Colissimo", "Colissimo"]);
+  assert.deepEqual(cellules("CF-2026-0042-A", "N° de suivi"), ["6A12345678901", "6A12345678901"]);
+  assert.deepEqual(cellules("CF-2026-0042-A", "Statut"), ["expediee", "expediee"]);
+  assert.deepEqual(sheet.Journal.at(-1).slice(1), ["CF-2026-0042-A", "acceptee", "expediee", "fabricant"]);
   assert.match(await (await appeler(j, "POST", { transporteur: "UPS", suivi: "1Z" })).text(), /Déjà confirmée/);
-  assert.equal(cellule("EV-2026-0042", "Transporteur"), "Colissimo");
+  assert.equal(cellule("CF-2026-0042-A", "Transporteur"), "Colissimo");
   assert.equal(sheet.Journal.length, 2);
 });
 
-test("Lien d'un autre fabricant → refus", async () => {
-  const j = await creerJeton(env, { commande: "EV-2026-0042", action: "accepter", fabricant: "Autre atelier" });
+test("CF avec une ligne annulée : ignorée ; une ligne en incident bloque l'action", async () => {
+  sheet["Commandes CF"][4][COL.Statut] = "annulee";
+  assert.equal((await appeler(await jeton("accepter"), "POST")).status, 200);
+  assert.deepEqual(cellules("CF-2026-0042-A", "Statut"), ["acceptee", "annulee"]);
+  sheet["Commandes CF"][4][COL.Statut] = "incident";
+  const r = await appeler(await jeton("expedier"), "POST", { transporteur: "Colissimo", suivi: "6A1" });
+  assert.equal(r.status, 409);
+  assert.deepEqual(cellules("CF-2026-0042-A", "Statut"), ["acceptee", "incident"]);
+});
+
+test("Ancien lien au n° EV : refusé (lien invalide)", async () => {
+  await assert.rejects(creerJeton(env, { commande: "EV-2026-0042", action: "accepter", fabricant: FAB }), e => e instanceof ErreurJeton);
+});
+
+test("Lien d'un autre fabricant (ou CF dont une ligne a changé de fabricant) → refus", async () => {
+  sheet["Commandes CF"][4][COL.Fabricant] = "Autre atelier";
+  assert.equal((await appeler(await jeton("accepter"), "POST")).status, 403);
+  sheet["Commandes CF"][4][COL.Fabricant] = FAB;
+  const j = await creerJeton(env, { commande: "CF-2026-0042-A", action: "accepter", fabricant: "Autre atelier" });
   assert.equal((await appeler(j, "POST")).status, 403);
   assert.equal(ecritures, 0);
 });
@@ -172,19 +196,19 @@ test("Google en panne → 503, page d'erreur sans plantage", async () => {
 });
 
 test("Expédier : menu = colonne Transporteurs de l'onglet Listes ; valeur hors liste refusée", async () => {
-  const j = await creerJeton(env, { commande: "EV-2026-0042", action: "expedier", fabricant: FAB });
+  const j = await creerJeton(env, { commande: "CF-2026-0042-A", action: "expedier", fabricant: FAB });
   const html = await (await appeler(j)).text();
   assert.match(html, /<select id="transporteur"/);
   assert.match(html, /<option value="Colissimo">/); assert.match(html, /<option value="Mondial Relay">/);
   assert.doesNotMatch(html, /Chronopost/);
   const r = await appeler(j, "POST", { transporteur: "Chronopost", suivi: "6A123" });
   assert.equal(r.status, 400);
-  assert.equal(cellule("EV-2026-0042", "Statut"), "envoyee_fabricant");
+  assert.equal(cellule("CF-2026-0042-A", "Statut"), "envoyee_fabricant");
 });
 
 test("Expédier : onglet Listes illisible → liste de secours", async () => {
   delete sheet.Listes;
-  const j = await creerJeton(env, { commande: "EV-2026-0042", action: "expedier", fabricant: FAB });
+  const j = await creerJeton(env, { commande: "CF-2026-0042-A", action: "expedier", fabricant: FAB });
   const w = console.warn; console.warn = () => {};
   try { assert.match(await (await appeler(j)).text(), /La Poste – Colissimo/); } finally { console.warn = w; }
 });

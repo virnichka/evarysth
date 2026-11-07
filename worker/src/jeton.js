@@ -3,7 +3,7 @@
    - expiration : secondes Unix ; signature : HMAC-SHA256 (secret HMAC_SECRET) des 4 premiers champs, en base64url. */
 export const ACTIONS = ["accepter", "expedier"];
 export const VALIDITE_JOURS = 14;
-const RE_COMMANDE = /^EV-\d{4}-\d{4,}$/;
+const RE_COMMANDE = /^CF-\d{4}-\d{4,}-[A-Z]{1,2}$/;           /* n° de commande fournisseur : seul n° que voit le fabricant */
 
 export class ErreurJeton extends Error {
   constructor(message, code) { super(message); this.code = code; }

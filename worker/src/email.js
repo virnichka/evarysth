@@ -168,7 +168,7 @@ export function contenuFabricant({ numero, piece, lienStl, delai, livraison, lie
   const p = [
     "Bonjour,",
     `Voici une nouvelle commande Evarysth à fabriquer : ${numero}.`,
-    `Pièce (produit · taille ou cotes en mm · coloris · quantité) :\n${piece || "—"}`,
+    `Pièces (produit · taille ou cotes en mm · coloris · quantité) :\n${piece || "—"}`,
     `Fichier STL : ${lienStl || "fourni séparément"}`,
     ...(delai ? [`Délai convenu : ${delai} jours.`] : []),
     livraison ? `À expédier directement au client :\n${livraison}` : "Pièce à nous renvoyer (vous ne livrez pas le client directement).",
@@ -181,11 +181,18 @@ export function contenuFabricant({ numero, piece, lienStl, delai, livraison, lie
 }
 
 /* Client : commande expédiée, avec transporteur et n° de suivi */
-export function contenuExpedition({ numero, nom, transporteur, suivi, test }) {
-  const titre = `${prefixe(test)}Commande ${numero} expédiée — Evarysth`;
+/* Client : un colis est parti. articles = contenu du colis quand la commande en compte plusieurs (sinon null) ;
+   reste = d'autres articles de la commande ne sont pas encore partis. */
+export function contenuExpedition({ numero, nom, transporteur, suivi, test, articles = null, reste = false }) {
+  const titre = `${prefixe(test)}Commande ${numero} ${reste ? "en partie expédiée" : "expédiée"} — Evarysth`;
   const p = [
     `Bonjour${nom ? " " + nom : ""},`,
-    `Votre commande ${numero} vient d'être expédiée.`,
+    articles
+      ? `Un colis de votre commande ${numero} vient d'être expédié :\n${articles.map(a => "• " + a).join("\n")}`
+      : `Votre commande ${numero} vient d'être expédiée.`,
+    ...(articles ? [reste
+      ? "Le reste de la commande est fabriqué séparément et vous sera envoyé dans un autre colis : vous recevrez un e-mail à son expédition."
+      : "Votre commande est expédiée en plusieurs colis : avec celui-ci, elle est entièrement en route."] : []),
     `Transporteur : ${transporteur || "—"}\nN° de suivi : ${suivi || "—"}`,
     "Une question ? Répondez simplement à cet e-mail en rappelant votre n° de commande.", "Evarysth"
   ];
@@ -197,7 +204,7 @@ export function contenuRelance({ numero, fabricant, depuis, test }) {
   const titre = `${prefixe(test)}Relance : ${numero} pas encore acceptée`;
   const p = [
     `La commande ${numero} a été envoyée au fabricant ${fabricant || "—"} le ${depuis} (heure de Paris) et n'est toujours pas acceptée.`,
-    "À vérifier avec lui (ou changer de fabricant dans le Sheet). Cette relance n'est envoyée qu'une fois par commande."
+    "À vérifier avec lui. Pour changer de fabricant : dans l'onglet Commandes CF, remettre ses lignes à payee, choisir le nouveau fabricant, puis repasser à envoyee_fabricant (l'ancien fabricant ne pourra plus utiliser ses liens). Cette relance n'est envoyée qu'une fois par commande fournisseur."
   ];
   return { sujet: titre, texte: texteBrut(p), html: page(titre, p) };
 }

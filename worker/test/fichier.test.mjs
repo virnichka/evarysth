@@ -39,7 +39,7 @@ test("jeton falsifié, expiré, lien fournisseur ou objet absent → refus", asy
   assert.equal((await appeler(autreCle.join("."))).status, 403, "clé changée");
   assert.equal((await appeler(await creerJetonFichier({ HMAC_SECRET: "autre" }, { cle: "boite-rugged/m.stl" }))).status, 403, "autre secret");
   assert.equal((await appeler(await creerJetonFichier(env, { cle: "boite-rugged/m.stl", maintenant: Date.now() - 20 * 86400_000 }))).status, 410, "expiré");
-  assert.equal((await appeler(await creerJeton(env, { commande: "EV-2026-0001", action: "accepter", fabricant: "A" }))).status, 403, "lien fournisseur");
+  assert.equal((await appeler(await creerJeton(env, { commande: "CF-2026-0001-A", action: "accepter", fabricant: "A" }))).status, 403, "lien fournisseur");
   assert.equal((await appeler("n%27importe.quoi")).status, 403);
   assert.equal((await appeler(await creerJetonFichier(env, { cle: "boite-rugged/s.stl" }))).status, 404, "objet absent");
   assert.equal((await appeler(j, env, "POST")).status, 405);

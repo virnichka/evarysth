@@ -17,7 +17,7 @@ Sheet (back-office) : son identifiant n'est **pas** écrit ici (dépôt public) 
   - Standard : `payee` → **le propriétaire valide à la main** en passant à `envoyee_fabricant` (pas d'envoi auto en V1).
   - Sur-mesure (la majorité des ventes) : arrivée directe en `fichier_a_produire` ; le propriétaire produit le STL
     en local avec OpenSCAD (modèles écrits par lui), colle un lien Drive, puis passe à `envoyee_fabricant`.
-- **Onglets** : `Commandes`, `Journal` (une ligne par changement de statut : date, commande,
+- **Onglets** (bloc F : `Commandes` remplacé par `Commandes EV` + `Commandes CF`, voir « Structure du Sheet ») : `Commandes`, `Journal` (une ligne par changement de statut : date, commande,
   ancien → nouveau, auteur), `Fabricants` (**un seul** en V1 : nom, e-mail, délai), `Listes`.
 - **Colonnes de Commandes** : Commande (`EV-AAAA-NNNN`, clé unique) · Date · Statut ▼ · Type
   (standard/sur-mesure) · Action requise (formule) · Pièce (produit, taille ou cotes, coloris, qté) ·
@@ -46,41 +46,75 @@ Sheet (back-office) : son identifiant n'est **pas** écrit ici (dépôt public) 
 
 ## Structure du Sheet (contrat entre le Sheet et le Worker)
 
-Établie au bloc A. Le Worker lit/écrit **par nom de colonne** (ligne 1), jamais par position figée ; les lettres
-ci-dessous sont l'état initial.
+Établie au bloc A, revue au bloc F (commande client / commandes fournisseur). Le Worker lit/écrit **par nom de
+colonne** (ligne 1), jamais par position figée ; les lettres ci-dessous sont l'état initial.
 
-### Onglet `Commandes` (ligne 1 = en-têtes, figée)
+Deux niveaux, deux numérotations qui ne se croisent jamais :
+- **commande client** `EV-AAAA-NNNN` (onglet `Commandes EV`, une ligne par achat) : seul n° que voit le client ;
+- **commande fournisseur** `CF-AAAA-NNNN-X` (onglet `Commandes CF`, une ligne par article) : seul n° que voit le
+  fabricant. Même `AAAA-NNNN` que la commande client ; la lettre (A, B…) distingue les fabricants. Les articles d'une
+  même commande client confiés au même fabricant portent le même n° CF : un seul e-mail, un seul colis.
+
+### Onglet `Commandes EV` (ligne 1 = en-têtes, figée)
 
 | Col | En-tête | Écrit par | Format |
 |-----|---------|-----------|--------|
-| A | Commande | Worker | `EV-AAAA-NNNN` |
+| A | Commande | Worker | `EV-AAAA-NNNN` (clé ; recherche par la colonne Stripe session id contre les doublons) |
 | B | Date | Worker | `AAAA-MM-JJ HH:MM` (heure de Paris) |
-| C | Statut | Worker puis propriétaire | menu déroulant (liste `Listes!A`) |
-| D | Type | Worker | `standard` ou `sur-mesure` (sur-mesure si au moins une ligne l'est) |
-| E | Action requise | **formule** (en-tête, `MAP`) | ne jamais écrire dans cette colonne |
-| F | Pièce | Worker | une ligne par article : `<produit> · <taille M \| a=45 b=32> · <coloris> · ×<qté>` |
-| G | Commande OpenSCAD | **formule** (en-tête, `MAP`) | ne jamais écrire ; fichier `<commande>-<produit>.stl`, modèle `modeles/<produit>.scad` |
-| H | Client | Worker | 3 lignes : nom / e-mail / adresse |
-| I | Fabricant | Worker (fabricant par défaut) puis propriétaire | menu déroulant (`Fabricants!A`) |
-| J | Lien STL | propriétaire (sur-mesure) | URL Drive |
-| K | Transporteur | Worker (via lien fournisseur) | texte |
-| L | N° de suivi | Worker (via lien fournisseur) | texte |
-| M | Dernier statut notifié | **Worker seulement** (protégée, avertissement) | une valeur de statut ou vide |
-| N | Stripe session id | Worker | `cs_test_…` |
-| O | Cadeau / message | Worker | vide, ou `oui` + message |
-| P | Notes | propriétaire | libre |
+| C | Statut | **tâche planifiée** (calculé), propriétaire pour `incident`, `remboursee`, `annulee` | menu (`Listes!D`) |
+| D | Type | Worker | `standard` ou `sur-mesure` (sur-mesure si au moins un article l'est) |
+| E | Articles | Worker | un article par ligne : `<produit> · <taille M \| a=45 b=32> · <coloris> · ×<qté>` |
+| F | Client | Worker | 3 lignes : nom / e-mail / adresse |
+| G | Commandes CF | tâche planifiée | n° CF de la commande, un par ligne |
+| H | Cadeau / message | Worker | vide, ou `oui` + message |
+| I | Dernier statut notifié | **Worker seulement** (repliée avec J) | `payee` une fois l'e-mail « commande reçue » parti |
+| J | Stripe session id | Worker | `cs_test_…` |
+| K | Notes | propriétaire | libre |
+
+Statut client calculé à partir des statuts de ses articles (articles `annulee`/`remboursee` ignorés) : `payee` (rien
+d'envoyé) → `en_fabrication` (au moins un article chez un fabricant) → `partiellement_expediee` → `expediee` →
+`livree` ; `incident` si un article l'est. Tout annulé → `annulee` (ou `remboursee`). Un statut `incident`,
+`remboursee` ou `annulee` présent sur la commande EV n'est **jamais écrasé** (à remettre à la main).
+
+### Onglet `Commandes CF` (ligne 1 = en-têtes, figée)
+
+| Col | En-tête | Écrit par | Format |
+|-----|---------|-----------|--------|
+| A | Commande CF | **tâche planifiée** | `CF-AAAA-NNNN-X`, vide tant que le fabricant n'est pas choisi |
+| B | Commande EV | Worker | `EV-AAAA-NNNN` |
+| C | Article n° | Worker | `1`, `2`… dans la commande ; clé de la ligne = Commande EV + Article n° |
+| D | Date | Worker | celle de la commande EV |
+| E | Statut | Worker puis propriétaire / fabricant (liens) | menu (`Listes!A`, les 9 statuts) |
+| F | Type | Worker | `standard` ou `sur-mesure` |
+| G | Action requise | **formule** (en-tête, `MAP`) | ne jamais écrire |
+| H | Article | Worker | `<produit> · <taille M \| a=45 b=32> · <coloris> · ×<qté>` |
+| I | Commande OpenSCAD | **formule** (en-tête, `MAP`) | sur-mesure seulement ; fichier `<EV>-<n°>-<produit>.stl` |
+| J | Fabricant | **propriétaire** | menu (`Fabricants!A`) ; vide à la création |
+| K | Lien STL | propriétaire (sur-mesure) | URL Drive |
+| L | Transporteur | Worker (lien fournisseur) ou propriétaire | menu (`Listes!C`) |
+| M | N° de suivi | Worker (lien fournisseur) ou propriétaire | texte |
+| N | Dernier statut notifié | **Worker seulement** (protégée, avertissement, repliée) | une valeur de statut ou vide |
+| O | Notes | propriétaire | libre |
 
 Règles d'écriture pour le Worker :
-- **Nouvelle ligne** : lire les colonnes A et N, refuser si le session id existe déjà, puis écrire avec
-  `values.update` sur la 1re ligne dont A est vide, en envoyant `null` pour E et G (cellules ignorées) : les
-  formules d'en-tête s'étendent seules. Ne pas utiliser `values.append` (les formules remplissent la colonne).
-- **Mise à jour** : retrouver la ligne en cherchant le n° de commande dans la colonne A, puis écrire la cellule.
+- **Nouvelle commande** : ligne EV sur la 1re ligne dont A est vide (méthode « écrire puis vérifier », bloc B), puis une
+  ligne CF par article sur les 1res lignes dont B est vide, même méthode ; `Dernier statut notifié` = statut initial
+  (pas d'e-mail ni de Journal pour l'état initial). Rejeu Stripe : seuls les articles absents sont écrits.
+  Cellules de formule envoyées à `null` (ignorées) ; jamais de `values.append` sur ces deux onglets.
+- **n° CF** (tâche planifiée) : pour les articles pas encore envoyés (statut `payee`/`fichier_a_produire`, ou e-mail
+  fabricant pas encore parti), groupe = même commande EV + même fabricant → même n° ; un groupe inchangé garde sa
+  lettre ; un article déjà envoyé n'est jamais renuméroté (un nouvel article chez le même fabricant prend une
+  nouvelle lettre) ; fabricant effacé → n° effacé.
+- **Suivi** : transporteur + n° de suivi saisis sur une ligne d'une CF sont recopiés sur ses lignes qui n'en ont pas.
+- **Mise à jour** : ligne EV retrouvée par son n° (colonne A) ; ligne CF par Commande EV + Article n° ; lien
+  fournisseur : toutes les lignes portant le n° CF du jeton.
 - Écrire avec `valueInputOption=RAW` (A et B sont au format texte ; évite qu'un texte soit converti en date).
 - Le Sheet est en locale `fr_FR`, fuseau `Europe/Paris` : une formule écrite par l'API doit utiliser `;`
-  comme séparateur d'arguments (le Worker n'écrit aucune formule en V1).
+  comme séparateur d'arguments (le Worker n'écrit aucune formule).
 
 ### Onglet `Journal`
 `Date` · `Commande` · `Ancien statut` · `Nouveau statut` · `Auteur` (`worker`, `fabricant`, `proprietaire`).
+`Commande` porte un n° EV (création, statut client recalculé, auteur `worker`) ou un n° CF (statuts fournisseur, relance).
 Ajout en fin (`values.append` autorisé ici). Les changements faits à la main dans le Sheet sont journalisés par
 la tâche planifiée (auteur `proprietaire`) quand elle détecte `Statut` ≠ `Dernier statut notifié`.
 
@@ -89,7 +123,9 @@ la tâche planifiée (auteur `proprietaire`) quand elle détecte `Statut` ≠ `D
 pré-remplie `À renseigner` / vide / `5` / `non`.
 
 ### Onglet `Listes`
-Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (menu de la page fabricant « Expédier », lu à chaque
+Colonne A `Statuts` (les 9 statuts d'article, menu de `Commandes CF`), B `Types`, D `Statuts EV` (les 8 statuts client,
+menu de `Commandes EV` : `payee`, `en_fabrication`, `partiellement_expediee`, `expediee`, `livree`, `incident`,
+`remboursee`, `annulee`), C `Transporteurs` (menu de la page fabricant « Expédier », lu à chaque
 affichage ; valeur hors liste refusée ; onglet illisible → liste de secours dans `fournisseur.js`).
 
 ## Bloc A — Sheet
@@ -216,6 +252,21 @@ affichage ; valeur hors liste refusée ; onglet illisible → liste de secours d
   Google, Brevo et R2 sont simulés dans les tests (secrets absents en ligne) ; le paiement réel des sessions test et
   la suite en ligne restent à faire par le propriétaire (« À faire », 12).
 
+## Bloc F — Commande client (EV) et commandes fournisseur (CF)
+
+Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas tous faire (matière, coloris).
+- Onglet `Commandes` renommé `Commandes EV` (une ligne par achat) ; nouvel onglet `Commandes CF` (une ligne par article,
+  fabricant choisi **à la main** : pas d'attribution automatique, faute de règles fiables pour l'instant).
+- Le Worker écrit les deux au paiement (`sheet.js`) ; la tâche planifiée (`planifie.js`) attribue les n° CF, recopie le
+  suivi dans la CF, envoie un e-mail par CF (fabricant) et par colis (client, « un colis de votre commande… / le reste
+  suivra » quand il y a plusieurs CF), puis calcule le statut client et la liste des CF de la commande EV.
+- Liens fournisseur (`fournisseur.js`, `jeton.js`) : le jeton porte le n° CF (format `CF-AAAA-NNNN-X` exigé) ;
+  accepter/expédier s'applique à toutes les lignes de la CF ; lignes `annulee`/`remboursee` ignorées ; une ligne en
+  `incident` bloque l'action (409) ; une ligne confiée à un autre fabricant → 403.
+- Frais de port : inchangés (un seul port payé par le client, colis multiples à la charge d'Evarysth).
+- Transporteur et n° de suivi : sur la ligne CF (saisis par le fabricant via son lien, ou à la main).
+- Tests : `test/planifie.test.mjs` (n° CF, statut client, colis), `test/parcours.test.mjs` (« deux fabricants »).
+
 ## Suivi
 
 | Bloc | Statut | Session | PR | Date |
@@ -225,6 +276,7 @@ affichage ; valeur hors liste refusée ; onglet illisible → liste de secours d
 | C | fait | session_01GS5VpKRWwfCa8XJt9x4oFK | #53 | 2026-11-07 |
 | D | fait | session_01GS5VpHmWB2agPXhtWWgf37 | #54 | 2026-11-07 |
 | E | fait | session_01GS5VpKztszaCbXbHttRJK2 | #55 | 2026-11-07 |
+| F | fait | session_01GS5VpLFnaQ2PVEEt3DgtCA | — | 2026-11-07 |
 
 ## À faire par le propriétaire
 
@@ -269,20 +321,27 @@ affichage ; valeur hors liste refusée ; onglet illisible → liste de secours d
 10. **Onglet `Fabricants`** : ligne 2 complète (nom identique à la colonne `Fabricant`, e-mail, délai, `Livre le client`).
 11. **Webhook Stripe** : endpoint `$W/webhook` actif sur `checkout.session.completed` (mode test).
 12. **Commande test réelle (mode test)** : site avec `?checkout=test` → panier (une pièce standard, puis une sur-mesure) →
-    carte `4242 4242 4242 4242` → vérifier : ligne dans le Sheet (`payee` / `fichier_a_produire`), e-mail « commande reçue »,
-    fiche de fabrication ; passer à `envoyee_fabricant` (sur-mesure : coller d'abord le lien Drive) → sous 10 min, e-mail
+    carte `4242 4242 4242 4242` → vérifier : une ligne dans `Commandes EV` (`payee`) et une par article dans `Commandes CF`
+    (`payee` / `fichier_a_produire`), e-mail « commande reçue », fiche de fabrication ; dans `Commandes CF`, choisir le
+    fabricant (n° CF attribué sous 10 min), puis passer à `envoyee_fabricant` (sur-mesure : coller d'abord le lien Drive) → sous 10 min, e-mail
     `[TEST]` au fabricant (mettre votre propre adresse dans `Fabricants` pour l'essai) → boutons accepter puis expédier →
     sous 10 min, e-mail d'expédition au client ; Journal complet. Puis remettre l'e-mail du vrai fabricant.
 
 ### Règles d'usage du Sheet
-- Ne jamais supprimer une ligne de commande : passer son statut à `annulee` (ou `remboursee` après remboursement dans Stripe).
-- Ne rien écrire dans `Action requise`, `Commande OpenSCAD` ni `Dernier statut notifié` (avertissement à la saisie).
-- Trier et filtrer librement : le Worker retrouve chaque ligne par son n° de commande.
+- Ne jamais supprimer une ligne de commande : passer son statut à `annulee` (ou `remboursee` après remboursement dans Stripe),
+  sur les lignes de `Commandes CF` (le statut client suit) ou directement sur la commande EV.
+- Ne rien écrire dans `Commande CF`, `Action requise`, `Commande OpenSCAD` ni `Dernier statut notifié`.
+- Au quotidien, on travaille dans `Commandes CF` : choisir le fabricant, puis passer **toutes les lignes d'une même CF**
+  à `envoyee_fabricant`. Le statut de `Commandes EV` se met à jour seul.
+- Changer de fabricant après l'envoi : remettre les lignes à `payee`, choisir le nouveau fabricant, repasser à
+  `envoyee_fabricant` (l'ancien fabricant reçoit un refus s'il utilise encore ses liens).
+- Trier et filtrer librement : le Worker retrouve chaque ligne par sa clé, jamais par sa position.
 - Modèles OpenSCAD : `modeles/<id-produit>.scad`, paramètres nommés `a`, `b`, `c` comme dans `custom.params` de `data.js`.
 - Les onglets `Synthèse` et `Livre des recettes` lisent encore `Commandes (ancien)` : à rebrancher si tu veux les garder.
 
 ## Idées gardées pour la V2
 - Envoi automatique des commandes standard au fabricant (sans validation manuelle de `payee`).
 - GitHub Action OpenSCAD : produit le STL sur-mesure à partir de la colonne « Commande OpenSCAD » et le dépose sur R2.
-- Rebrancher `Synthèse` / `Livre des recettes` sur le nouvel onglet `Commandes`.
-- Plusieurs fabricants (choix selon le coloris, le délai ou la charge).
+- Rebrancher `Synthèse` / `Livre des recettes` sur le nouvel onglet `Commandes EV`.
+- Proposition automatique du fabricant (capacités dans `Fabricants` : matières, coloris, taille max, priorité).
+- Colonne `Matière` dans les articles quand le catalogue proposera un choix de matière.

@@ -9,7 +9,7 @@ const post = cle => new Request("https://w.example/maj", {
   method: "POST", body: cle === undefined ? new URLSearchParams() : new URLSearchParams({ cle })
 });
 const get = (q = "") => new Request(`https://w.example/maj${q}`);
-const bilan = { notifiees: ["EV-2026-0001 : envoyee_fabricant"], relances: [], attente: [], erreurs: [] };
+const bilan = { attribuees: [], notifiees: ["CF-2026-0001-A : envoyee_fabricant"], relances: [], attente: [], erreurs: [], commandes: ["EV-2026-0001 : en_fabrication"] };
 const espion = () => { const s = { lancee: false }; s.t = async () => { s.lancee = true; return bilan; }; return s; };
 
 test("sans ADMIN_KEY : 503, tâche non lancée", async () => {
@@ -47,7 +47,7 @@ test("POST bonne clé : lance la tâche et affiche le bilan", async () => {
   assert.equal(r.status, 200);
   assert.equal(r.headers.get("Cache-Control"), "no-store");
   const html = await r.text();
-  assert.match(html, /Vérification faite/); assert.match(html, /E-mails de statut envoyés : 1/); assert.match(html, /EV-2026-0001/);
+  assert.match(html, /Vérification faite/); assert.match(html, /Statuts traités \(e-mail envoyé si prévu\) : 1/); assert.match(html, /CF-2026-0001-A/); assert.match(html, /EV-2026-0001 : en_fabrication/);
 });
 
 test("Sheet inactif ou indisponible : pas de 200", async () => {

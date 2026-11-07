@@ -1,9 +1,10 @@
 /* Liens fournisseur (bloc C) : GET /f/<jeton> affiche une page avec un bouton, sans rien modifier
    (les robots de messagerie ouvrent les liens) ; POST /f/<jeton> revérifie le jeton et applique la seule transition prévue.
-   Ligne retrouvée par son n° de commande (colonne « Commande »), jamais par sa position. */
+   Le jeton porte un n° de commande fournisseur (CF-AAAA-NNNN-X) : l'action s'applique à toutes les lignes de
+   l'onglet « Commandes CF » qui portent ce n°, retrouvées par la colonne « Commande CF », jamais par leur position. */
 import { ecrireCellule, entetes, ErreurGoogle, googleConfigure, lireColonnes } from "./google.js";
 import { ErreurJeton, jetonConfigure, verifierJeton } from "./jeton.js";
-import { JOURNAL, journaliser, ONGLET } from "./sheet.js";
+import { CF, JOURNAL, journaliser, ONGLET_CF } from "./sheet.js";
 
 /* Transitions : statuts de départ acceptés → statut d'arrivée ; « déjà » = statuts où l'action est déjà faite */
 export const TRANSITIONS = {
@@ -54,13 +55,20 @@ button{width:100%;font:600 16px/1 Inter,sans-serif;padding:14px;border:0;border-
 }
 const message = (titre, texte, statut, classe = "") => page(titre, `<p class="${classe}">${esc(texte)}</p>`, statut);
 
-/* Lecture de la ligne de la commande (par n°) : { cols, ligne, statut, fabricant, piece } */
+/* Lignes de la commande fournisseur (par n° CF) : { cols, lignes: [{ ligne, statut }], statut, fabricants, piece } ;
+   statut = le moins avancé des lignes (celui qui décide si l'action est possible) */
+const ORDRE = ["payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree"];
 async function lireCommande(env, numero) {
-  const cols = await entetes(env, ONGLET);
-  const lu = await lireColonnes(env, ONGLET, cols, ["Commande", "Statut", "Fabricant", "Pièce"]);
-  const i = lu.Commande.indexOf(numero);
-  if (i < 0) return null;
-  return { cols, ligne: i + 2, statut: (lu.Statut[i] || "").trim(), fabricant: (lu.Fabricant[i] || "").trim(), piece: lu["Pièce"][i] || "" };
+  const cols = await entetes(env, ONGLET_CF);
+  const lu = await lireColonnes(env, ONGLET_CF, cols, [CF.num, "Statut", "Fabricant", "Article"]);
+  const lignes = [];
+  lu[CF.num].forEach((n, i) => { if (n.trim() === numero) lignes.push({ ligne: i + 2, statut: (lu.Statut[i] || "").trim(), fabricant: (lu.Fabricant[i] || "").trim(), article: lu.Article[i] || "" }); });
+  if (!lignes.length) return null;
+  const actives = lignes.filter(l => !["annulee", "remboursee"].includes(l.statut));
+  const base = actives.length ? actives : lignes;
+  const rang = s => { const r = ORDRE.indexOf(s); return r < 0 ? -1 : r; };
+  const statut = base.reduce((m, l) => (rang(l.statut) < rang(m) ? l.statut : m), base[0].statut);
+  return { cols, lignes: base, statut, fabricants: [...new Set(base.map(l => l.fabricant).filter(Boolean))], piece: base.map(l => l.article).join("\n") };
 }
 
 function formulaire(jeton, action, transporteurs = []) {
@@ -83,7 +91,7 @@ async function preparer(env, jeton) {
   }
   const c = await lireCommande(env, j.commande);
   if (!c) return message("Commande introuvable", `La commande ${j.commande} n'existe plus. Contactez l'atelier Evarysth.`, 404, "erreur");
-  if (c.fabricant && c.fabricant !== j.fabricant)
+  if (c.fabricants.some(f => f !== j.fabricant))
     return message("Lien plus valable", `La commande ${j.commande} a été confiée à un autre fabricant.`, 403, "erreur");
   return { j, c, t: TRANSITIONS[j.action] };
 }
@@ -116,8 +124,11 @@ ${c.piece ? `<div class="piece">${esc(c.piece)}</div>` : ""}${formulaire(jeton, 
       if (!transporteurs.includes(ecrits.Transporteur))
         return page(LIBELLES.expedier.titre, `<p class="erreur">Choisissez un transporteur dans la liste.</p>${formulaire(jeton, "expedier", transporteurs)}`, 400);
     }
-    for (const [nom, v] of Object.entries(ecrits)) await ecrireCellule(env, ONGLET, c.cols, c.ligne, nom, v);
-    await ecrireCellule(env, ONGLET, c.cols, c.ligne, "Statut", t.vers);
+    for (const l of c.lignes) {
+      if (!t.depuis.includes(l.statut)) continue;           /* ligne déjà plus avancée (ou en incident) : inchangée */
+      for (const [nom, v] of Object.entries(ecrits)) await ecrireCellule(env, ONGLET_CF, c.cols, l.ligne, nom, v);
+      await ecrireCellule(env, ONGLET_CF, c.cols, l.ligne, "Statut", t.vers);
+    }
     /* Deux envois quasi simultanés (double clic rapide) : une seule ligne de Journal */
     const cj = await entetes(env, JOURNAL);
     const lu = await lireColonnes(env, JOURNAL, cj, ["Commande", "Nouveau statut", "Auteur"]);

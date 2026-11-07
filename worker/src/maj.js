@@ -56,10 +56,12 @@ export async function routeMaj(req, env, tache = lancerTache) {
   if (b.erreur) return page("Sheet indisponible", [b.erreur], 502);
   const n = v => (Array.isArray(v) ? v.length : 0);
   return page("Vérification faite", [
-    `E-mails de statut envoyés : ${n(b.notifiees)}`,
+    `N° CF attribués ou modifiés : ${n(b.attribuees)}`,
+    `Statuts traités (e-mail envoyé si prévu) : ${n(b.notifiees)}`,
+    `Statuts de commande EV recalculés : ${n(b.commandes)}`,
     `Relances 48 h : ${n(b.relances)}`,
     `En attente (info manquante) : ${n(b.attente)}`,
     `Erreurs : ${n(b.erreurs)}`,
-    ...[...(b.notifiees || []), ...(b.attente || []), ...(b.erreurs || [])].map(x => `• ${x}`)
+    ...[...(b.attribuees || []), ...(b.notifiees || []), ...(b.commandes || []), ...(b.attente || []), ...(b.erreurs || [])].map(x => `• ${x}`)
   ]);
 }
