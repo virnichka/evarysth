@@ -15,6 +15,14 @@ import { routeMaj } from "./maj.js";
 import { enregistrerCommande, journaliserCreation, majCommande } from "./sheet.js";
 
 const TAILLE_MAX = 20000;
+const EVENEMENTS_COMMANDE = ["checkout.session.completed", "checkout.session.async_payment_succeeded"];
+const PAIEMENT_OK = ["paid", "no_payment_required"];
+
+/* Ce qui va dans les journaux Cloudflare : aucune donnée personnelle */
+const resumeJournal = f => ({
+  fiche: f.fiche, ref: f.ref, commande: f.commande, environnement: f.environnement, paiement: f.paiement,
+  total_eur: f.total_eur, articles: f.lignes.reduce((n, l) => n + (l.quantite || 0), 0), cadeau: Boolean(f.cadeau)
+});
 
 const origines = env => (env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
 
@@ -106,6 +114,11 @@ async function verifierPromo(req, env, origine) {
   return json({ valide: true, code: promo.code, rate: promo.rate, amount: promo.amount }, 200, origine);
 }
 
+function masquerEmail(e) {
+  const m = /^([^@\s])[^@\s]*@(.+)$/.exec(String(e || ""));
+  return m ? `${m[1]}•••@${m[2]}` : "";
+}
+
 async function resumeSession(url, env, origine) {
   const id = url.searchParams.get("id") || "";
   if (!/^cs_(test|live)_[A-Za-z0-9]{10,}$/.test(id)) return json({ error: "Commande introuvable." }, 404, origine);
@@ -119,7 +132,8 @@ async function resumeSession(url, env, origine) {
     total: s.amount_total / 100,
     livraison: (t.amount_shipping || 0) / 100,
     remise: (t.amount_discount || 0) / 100,
-    email: s.customer_details && s.customer_details.email,
+    /* E-mail masqué : la page merci n'a besoin que de le rappeler, et son lien peut circuler */
+    email: masquerEmail(s.customer_details && s.customer_details.email),
     cadeau: s.metadata.cadeau === "oui",
     message_cadeau: s.metadata.message_cadeau || "",
     lignes: ((s.line_items && s.line_items.data) || []).map(li => ({
@@ -164,8 +178,11 @@ async function recevoirWebhook(req, env) {
   if (!(await verifierSignature(corps, req.headers.get("Stripe-Signature"), env.STRIPE_WEBHOOK_SECRET)))
     return json({ error: "Signature invalide." }, 400);
   const evt = JSON.parse(corps);
-  if (evt.type === "checkout.session.completed") {
+  if (EVENEMENTS_COMMANDE.includes(evt.type)) {
     const s = evt.data.object;
+    /* Paiement différé (ex. prélèvement SEPA) : « completed » arrive avant l'argent. Pas de back-office ni d'e-mail
+       client tant que Stripe n'a pas confirmé (checkout.session.async_payment_succeeded) ; l'atelier est prévenu. */
+    const attente = !PAIEMENT_OK.includes(s.payment_status);
     const li = await appelStripe(env, "GET", `checkout/sessions/${s.id}/line_items`, { limit: 100, expand: ["data.price.product"] });
     const livraison = (s.collected_information && s.collected_information.shipping_details) || s.shipping_details || {};
     /* Fiche de fabrication : envoyée par e-mail (Brevo) et visible dans les journaux du Worker */
@@ -174,6 +191,7 @@ async function recevoirWebhook(req, env) {
       ref: s.metadata && s.metadata.ref,
       environnement: evt.livemode ? "live" : "test",
       paiement: s.payment_status,
+      ...(attente ? { attente: true } : {}),
       total_eur: s.amount_total / 100,
       client: s.customer_details && { nom: s.customer_details.name, email: s.customer_details.email },
       livraison: { nom: livraison.name, adresse: livraison.address },
@@ -184,8 +202,9 @@ async function recevoirWebhook(req, env) {
         meta: (l.price && l.price.product && l.price.product.metadata) || {}
       }))
     };
-    const erreurSheet = await backOffice(env, fiche, s);
-    console.log(JSON.stringify(fiche));
+    const erreurSheet = attente ? null : await backOffice(env, fiche, s);
+    /* Journal sans donnée personnelle (nom, e-mail, adresse, message cadeau restent dans Stripe, le Sheet et l'e-mail) */
+    console.log(JSON.stringify(resumeJournal(fiche)));
     /* En cas d'échec, réponse 500 : Stripe renverra l'événement (rien n'est perdu) */
     try { await envoyerFiche(env, fiche); }
     catch (e) { console.error("E-mail de commande", e.message); return json({ error: "E-mail non envoyé." }, 500); }
@@ -230,7 +249,7 @@ export default {
     if (lienFichier) return routeFichier(req, env, lienFichier[1]);
 
     /* Vérification manuelle du Sheet (même tâche que le cron), protégée par ADMIN_KEY */
-    if (url.pathname === "/maj" && req.method === "GET") return routeMaj(url, env);
+    if (url.pathname === "/maj" && (req.method === "GET" || req.method === "POST")) return routeMaj(req, env);
 
     const route = `${req.method} ${url.pathname}`;
     const routesSite = ["POST /checkout", "POST /promo", "GET /session"];
@@ -247,7 +266,9 @@ export default {
       if (e instanceof ErreurPanier) return json({ error: e.message }, 400, autorisee);
       if (e instanceof ErreurStripe) {
         console.error("Stripe", e.statut, e.code, e.message);
-        return json({ error: `Le paiement n'a pas pu être préparé : ${e.message}` }, 502, autorisee);
+        /* Détail Stripe gardé dans les journaux : le visiteur ne reçoit qu'un message générique */
+        if (route === "GET /session" && e.statut === 404) return json({ error: "Commande introuvable." }, 404, autorisee);
+        return json({ error: "Le paiement n'a pas pu être préparé. Réessayez dans quelques minutes." }, 502, autorisee);
       }
       console.error(e);
       return json({ error: "Erreur interne." }, 500, autorisee);

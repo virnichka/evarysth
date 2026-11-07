@@ -53,7 +53,13 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   `CGV_STRIPE = "non"` dans `wrangler.toml` coupe l'essai. Sur-mesure : rappel de l'exclusion du droit de rétractation (art. L221-28 3°)
   sur la fiche, dans le panier et sur la page Stripe.
 - Cartes de test : `4242 4242 4242 4242` (accepté), `4000 0025 0000 3155` (3D Secure), `4000 0000 0000 9995` (refusé).
-- Commandes payées : tableau de bord Stripe, et fiche de fabrication dans les journaux du Worker (Cloudflare → Workers → Logs).
+- Commandes payées : tableau de bord Stripe et e-mail « Nouvelle commande ». Les journaux du Worker (Cloudflare → Workers → Logs)
+  ne gardent qu'un résumé **sans donnée personnelle** (réf., n° EV-…, total, nombre d'articles).
+- **Paiement différé** (ex. prélèvement SEPA, si activé dans Stripe) : `checkout.session.completed` arrive avec
+  `payment_status: unpaid` ; le Worker n'écrit rien dans le Sheet et n'envoie rien au client, l'atelier reçoit
+  « [PAIEMENT EN ATTENTE] Nouvelle commande … — ne pas fabriquer ». La commande est traitée à
+  `checkout.session.async_payment_succeeded` : **cocher aussi cet événement sur le webhook Stripe** si un moyen de paiement
+  différé est activé (avec les cartes seules, rien à faire).
 - **Back-office Google Sheet** (`worker/src/google.js`, `worker/src/sheet.js`, plan : `docs/traitement-commandes.md`) : à chaque
   `checkout.session.completed`, le Worker ajoute la commande à l'onglet `Commandes` (sans doublon, clé : Stripe session id),
   lui attribue un n° `EV-AAAA-NNNN` (méthode « écrire puis vérifier », voir le plan, bloc B), statut `payee` (standard) ou
@@ -80,8 +86,9 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   `Journal` « → `relance_48h` »). Sans secrets Google : ne fait rien ; sans `BREVO_API_KEY`/`HMAC_SECRET` ou fabricant
   sans e-mail : la ligne attend (avertissement dans les journaux) ; Brevo en erreur : colonne inchangée, nouvel essai
   10 min plus tard. La fiche « Nouvelle commande » du webhook est inchangée.
-  **Vérification manuelle** : `GET $W/maj?cle=<ADMIN_KEY>` lance la même tâche tout de suite et affiche un bilan
-  (secret `ADMIN_KEY` ; absent → 503, clé fausse → 403).
+  **Vérification manuelle** : ouvrir `$W/maj`, saisir la clé `ADMIN_KEY` dans le formulaire (envoyée en POST, jamais dans
+  l'adresse ni l'historique) : la même tâche est lancée tout de suite et un bilan s'affiche (secret absent → 503, clé
+  fausse → 403). L'ancien lien `?cle=…` ne lance plus rien.
 - **STL standards** (`worker/src/fichier.js`, bucket R2 `evarysth-stl`, binding `STL` **commenté** dans `worker/wrangler.toml`
   tant que le bucket n'existe pas) : `GET /fichier/<jeton>` sert l'objet R2 en pièce jointe ; jeton
   `fichier.<clé>.<expiration>.<signature>` (HMAC_SECRET, 14 jours, même mécanique que les liens fournisseur, non
@@ -97,7 +104,8 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
      e-mail support `contact@evarysth.fr` (active aussi la case CGV, `cgv: "case"`).
   2. Paramètres → E-mails clients : « Paiements réussis » et « Remboursements » cochés (reçus Stripe).
   3. En mode live : clé `sk_live_` (ou `rk_live_` restreinte) → secret `STRIPE_SECRET_KEY` ; webhook live
-     `https://evarysth-checkout.virnichka.workers.dev/webhook` sur `checkout.session.completed` → secret `STRIPE_WEBHOOK_SECRET`.
+     `https://evarysth-checkout.virnichka.workers.dev/webhook` sur `checkout.session.completed` (+ `checkout.session.async_payment_succeeded`
+     si un paiement différé est activé) → secret `STRIPE_WEBHOOK_SECRET`.
   4. Recréer les coupons/codes promo en live (ex. `BRABOU78`, mêmes conditions qu'en test).
   5. `CHECKOUT_MODE = "live"` dans `worker/wrangler.toml` (déploiement auto) ; retirer le drapeau `?checkout=test` dans `cart.js`.
   6. Commande réelle à petit prix puis remboursement : e-mail reçu, webhook 200, reçu client.
@@ -128,6 +136,20 @@ Le code d'envoi est **en cours dans une autre session (pas encore dans le dépô
   virgules), jamais dans le dépôt, qui est public. Sans `ORDER_EMAIL` ou `BREVO_API_KEY`, aucun e-mail (avertissement dans
   les journaux) ; si Brevo refuse, le webhook répond 500 et Stripe renvoie l'événement plus tard.
 - Attention : la clé expire après **90 jours sans aucun appel** ; tant que les ventes sont fermées, la recréer si besoin.
+
+### Sécurité du Worker (audit du 7 novembre 2026)
+- Webhook : signature HMAC Stripe vérifiée en temps constant, 5 min de tolérance ; rejeu sans doublon dans le Sheet
+  (clé : session id ; seul l'e-mail interne peut repartir). Commande traitée seulement si `payment_status` = `paid`.
+- Prix et cotes toujours recalculés depuis `data.js` ; ≤ 30 lignes, quantité 1–99, corps ≤ 20 Ko.
+- Jetons fabricant et `/fichier` : HMAC-SHA256 (`HMAC_SECRET`), comparaison en temps constant, 14 jours.
+- E-mails et pages HTML : tout texte inséré est échappé ; Sheet écrit en `RAW` (pas de formule injectée).
+- Visiteur : erreurs Stripe génériques (détail dans les journaux) ; `/session` renvoie l'e-mail masqué (`c•••@domaine`).
+- `/maj` : clé en POST ; **après ce changement, changer la valeur de `ADMIN_KEY`** (l'ancienne a pu passer dans l'historique
+  ou les journaux) : `cd worker && npx wrangler secret put ADMIN_KEY`.
+- Workflows : actions GitHub épinglées par empreinte (SHA, version en commentaire) ; mettre à jour SHA et commentaire ensemble.
+- Tests : `worker/test/securite.test.mjs`, `worker/test/maj.test.mjs`.
+- Restent à faire hors code : limite d'appels Cloudflare sur `/checkout` et `/promo` (Sécurité → WAF → règles de limitation),
+  jeton `CLOUDFLARE_API_TOKEN` limité à « Workers Scripts : Edit », purge annuelle du Sheet (> 5 ans).
 
 ## Sécurité du site (CSP)
 
