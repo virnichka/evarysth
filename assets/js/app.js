@@ -356,15 +356,10 @@ ${colors.length ? `
           </div>
           <p class="delivery"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>
             <span>Livraison estimée <b>${deliveryRange()}</b></span></p>
-          <div class="aside-links">
-            <button class="link" data-soon="Échantillon de matière">Recevoir un échantillon de matière</button>
-            <button class="link" data-soon="Chat avec l'atelier">Une question ? Parler à l'atelier</button>
-          </div>
 
           <div class="accordion accordion--pdp">
             <details><summary>Livraison &amp; retours</summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut. <a href="cgv/">Voir les CGV</a>.</p></details>
             <details><summary>Garantie légale 2 ans</summary><p>Une pièce défectueuse ou non conforme à la commande (taille standard ou cotes saisies) est réparée, refabriquée ou remboursée, dans le cadre de la garantie légale de conformité.</p></details>
-            <details><summary>Avis clients</summary><p>Les avis s'afficheront ici après les premières commandes. <button class="link" data-soon="Avis clients">Être prévenu</button></p></details>
           </div>
         </div>
       </div>
@@ -404,7 +399,6 @@ ${colors.length ? `
         `<span class="dim mono"><i>${LETTERS[i]}</i>${v[prm.key]}<small>mm</small></span>`).join("");
 
       const rows = [
-        ["Produit", p.name],
         ["Version", state.mode === "custom" ? "Sur-mesure" : `Standard — ${p.variants.options[state.variant].label}`],
         ...dimRows,
         ["Matière", col ? `${mat.label} · ${col.label}` : `${mat.label} noir mat`],
