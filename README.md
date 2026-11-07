@@ -54,7 +54,14 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   sur la fiche, dans le panier et sur la page Stripe.
 - Cartes de test : `4242 4242 4242 4242` (accepté), `4000 0025 0000 3155` (3D Secure), `4000 0000 0000 9995` (refusé).
 - Commandes payées : tableau de bord Stripe, et fiche de fabrication dans les journaux du Worker (Cloudflare → Workers → Logs).
-- Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`. En mode test, une clé live est refusée.
+- **Back-office Google Sheet** (`worker/src/google.js`, `worker/src/sheet.js`, plan : `docs/traitement-commandes.md`) : à chaque
+  `checkout.session.completed`, le Worker ajoute la commande à l'onglet `Commandes` (sans doublon, clé : Stripe session id),
+  lui attribue un n° `EV-AAAA-NNNN` (méthode « écrire puis vérifier », voir le plan, bloc B), statut `payee` (standard) ou
+  `fichier_a_produire` (sur-mesure), écrit une ligne dans `Journal` et envoie au client l'e-mail Brevo « Commande EV-… reçue »
+  (une seule fois). Accès par compte de service (JWT RS256 en WebCrypto, jeton en cache 1 h). Google en erreur : la fiche
+  de fabrication part quand même, puis réponse 503 (Stripe réessaie). **Inactif tant que les secrets `GOOGLE_SA_EMAIL`,
+  `GOOGLE_SA_KEY` et `SHEET_ID` ne sont pas tous définis** (marche à suivre : plan, « À faire par le propriétaire »).
+- Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (+ `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`). En mode test, une clé live est refusée.
 - Tests : `cd worker && node --test`.
 - Passage en production (checklist, dans l'ordre) :
   1. Pages légales sans `[À COMPLÉTER]` ; Stripe → activer le compte (identité, SIRET, IBAN) ; Paramètres → Informations
