@@ -12,21 +12,21 @@ export class ErreurJeton extends Error {
 export const jetonConfigure = env => Boolean(env.HMAC_SECRET);
 
 const enc = new TextEncoder();
-const b64url = octets => btoa(String.fromCharCode(...new Uint8Array(octets))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+export const b64url = octets => btoa(String.fromCharCode(...new Uint8Array(octets))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 function deB64url(s) {
   const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4));
   return Uint8Array.from(b, c => c.charCodeAt(0));
 }
-const texteB64 = t => b64url(enc.encode(t));
-const b64Texte = s => new TextDecoder("utf-8", { fatal: true }).decode(deB64url(s));
+export const texteB64 = t => b64url(enc.encode(t));
+export const b64Texte = s => new TextDecoder("utf-8", { fatal: true }).decode(deB64url(s));
 
-async function signature(secret, message) {
+export async function signature(secret, message) {
   const cle = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return b64url(await crypto.subtle.sign("HMAC", cle, enc.encode(message)));
 }
 
 /* Comparaison en temps constant (évite de deviner la signature octet par octet) */
-function egal(a, b) {
+export function egal(a, b) {
   if (a.length !== b.length) return false;
   let d = 0;
   for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);

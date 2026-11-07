@@ -10,6 +10,7 @@ import { appelStripe, ErreurStripe, verifierSignature } from "./stripe.js";
 import { envoyerConfirmationClient, envoyerFiche } from "./email.js";
 import { googleConfigure } from "./google.js";
 import { routeFournisseur } from "./fournisseur.js";
+import { routeFichier } from "./fichier.js";
 import { enregistrerCommande, journaliserCreation, majCommande } from "./sheet.js";
 
 const TAILLE_MAX = 20000;
@@ -223,6 +224,9 @@ export default {
     /* Liens fournisseur (indépendants de Stripe : 503 propre sans HMAC_SECRET ou secrets Google) */
     const lienF = /^\/f\/([^/]+)$/.exec(url.pathname);
     if (lienF && (req.method === "GET" || req.method === "POST")) return routeFournisseur(req, env, lienF[1]);
+    /* STL standards (bloc E) : 503 propre sans binding R2 STL ou sans HMAC_SECRET */
+    const lienFichier = /^\/fichier\/([^/]+)$/.exec(url.pathname);
+    if (lienFichier) return routeFichier(req, env, lienFichier[1]);
 
     const route = `${req.method} ${url.pathname}`;
     const routesSite = ["POST /checkout", "POST /promo", "GET /session"];

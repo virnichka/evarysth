@@ -4,9 +4,11 @@
    envoyee_fabricant → fabricant ; expediee → client ; autres statuts : colonne mise à jour sans e-mail.
    Relance au propriétaire (une seule par commande, marquée dans le Journal) si pas d'acceptee 48 h après l'envoi.
    Inactive sans secrets Google ; un e-mail dont le secret manque n'est pas envoyé et la ligne attend (aucune erreur).
+   Lien STL vide (commande standard) : liens /fichier/<jeton> vers R2 si le STL y est (fichier.js).
    Lignes retrouvées par leur n° de commande (majCommande), jamais par leur position. */
 import { entetes, googleConfigure, lireColonnes } from "./google.js";
 import { creerJeton, jetonConfigure } from "./jeton.js";
+import { liensStandards } from "./fichier.js";
 import { contenuExpedition, contenuFabricant, contenuRelance, envoyerEmail } from "./email.js";
 import { dateParis, FABRICANTS, JOURNAL, journaliser, majCommande, ONGLET } from "./sheet.js";
 
@@ -59,7 +61,9 @@ async function envoyerSelonStatut(env, c, fabs) {
     const base = (env.WORKER_URL || URL_WORKER).replace(/\/+$/, "");
     const lien = async action => `${base}/f/${await creerJeton(env, { commande: c.numero, action, fabricant: nom })}`;
     const [nomClient = "", , adresse = ""] = c.client.split("\n");
-    const m = contenuFabricant({ numero: c.numero, piece: c.piece, lienStl: c.stl.trim(), delai: f.delai, test,
+    /* Lien STL vide : liens temporaires vers les STL standards de R2 (bloc E) ; R2 absent ou en panne → « fourni séparément » */
+    const lienStl = c.stl.trim() || await liensStandards(env, c.piece, base).catch(e => { console.warn("R2", e.message); return ""; });
+    const m = contenuFabricant({ numero: c.numero, piece: c.piece, lienStl, delai: f.delai, test,
       livraison: f.livre ? [nomClient, adresse].filter(Boolean).join("\n") : null,
       liens: { accepter: await lien("accepter"), expedier: await lien("expedier") } });
     await envoyerEmail(env, { to: [{ email: f.email.trim(), name: nom }], replyTo: repondreA(env), subject: m.sujet, htmlContent: m.html, textContent: m.texte, tags: ["fabricant", test ? "test" : "live"] });
