@@ -232,7 +232,7 @@
 
   /* ---------- Favoris ---------- */
   function renderFavorites() {
-    document.title = "Mes favoris — Evarysth";
+    document.title = "Evarysth";
     const list = EVARYSTH.favs.all().map(EVARYSTH.getProduct).filter(Boolean);
     $("#family-view").innerHTML = `
       <nav class="crumbs" aria-label="Fil d'Ariane"><a href="catalogue/">Catalogue</a> / <span>Favoris</span></nav>
