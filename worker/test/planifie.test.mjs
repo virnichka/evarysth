@@ -6,7 +6,7 @@ import { viderCacheJeton } from "../src/google.js";
 import { verifierJeton } from "../src/jeton.js";
 import { dateParis } from "../src/sheet.js";
 import { lancerTache, numerosCF, parisVersMs, RELANCE, statutEV, tachePlanifiee } from "../src/planifie.js";
-import { COL_CF, COL_EV, ENTETES_CF, ENTETES_EV } from "./entetes.mjs";
+import { COL_CF, COL_EV, ENTETES_CF, ENTETES_EV, appliquerFormules } from "./entetes.mjs";
 
 const paire = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
 const pkcs8 = Buffer.from(await crypto.subtle.exportKey("pkcs8", paire.privateKey)).toString("base64");
@@ -59,6 +59,7 @@ async function fauxFetch(url, init = {}) {
   if (u.host === "oauth2.googleapis.com") return rep({ access_token: "ya29.test", expires_in: 3599 });
   if (u.host !== "sheets.googleapis.com") throw new Error("Appel réseau inattendu : " + url);
   const chemin = decodeURIComponent(u.pathname.replace("/v4/spreadsheets/id-factice/", ""));
+  if (chemin === "values:batchGet") appliquerFormules(sheet);
   if (chemin === "values:batchGet") return rep({ valueRanges: u.searchParams.getAll("ranges").map(r => {
     const { onglet, ref } = lirePlage(r); const c = col(ref.split(":")[0]);
     return { range: r, values: [sheet[onglet].map(l => l[c] ?? "")] };
@@ -72,7 +73,7 @@ async function fauxFetch(url, init = {}) {
   return rep({});
 }
 const cf = (ev, n, nom) => sheet["Commandes CF"].find(l => l[COL_CF["Commande EV"]] === ev && l[COL_CF["Article n°"]] === String(n))[COL_CF[nom]];
-const ev = (num, nom) => sheet["Commandes EV"].find(l => l[0] === num)[COL_EV[nom]];
+const ev = (num, nom) => (appliquerFormules(sheet), sheet["Commandes EV"]).find(l => l[0] === num)[COL_EV[nom]];
 const journalSans = () => sheet.Journal.slice(1).map(l => l.slice(1));
 const silence = async f => { const e = console.error, w = console.warn, l = console.log; console.error = console.warn = console.log = () => {}; try { return await f(); } finally { Object.assign(console, { error: e, warn: w, log: l }); } };
 
@@ -152,7 +153,7 @@ test("envoyee_fabricant : un seul e-mail par CF avec tous ses articles, n° CF s
   assert.equal(cf("EV-2026-0042", 1, "Dernier statut notifié"), "envoyee_fabricant");
   assert.equal(cf("EV-2026-0042", 2, "Dernier statut notifié"), "envoyee_fabricant");
   assert.equal(ev("EV-2026-0042", "Statut"), "en_fabrication");
-  assert.deepEqual(journalSans(), [["CF-2026-0042-A", "payee", "envoyee_fabricant", "proprietaire"], ["EV-2026-0042", "payee", "en_fabrication", "worker"]]);
+  assert.deepEqual(journalSans(), [["CF-2026-0042-A", "payee", "envoyee_fabricant", "proprietaire"], ["EV-2026-0042", "", "en_fabrication", "worker"]], "statut client calculé par le Sheet : journalisé");
 });
 
 test("envoyee_fabricant sans fabricant choisi : la ligne attend", async () => {
@@ -180,7 +181,7 @@ test("Échec d'envoi : colonne non mise à jour, rien au Journal, nouvel essai a
   const b = await tachePlanifiee(env);
   assert.equal(b.erreurs.length, 1);
   assert.equal(cf("EV-2026-0042", 1, "Dernier statut notifié"), "fichier_a_produire");
-  assert.equal(sheet.Journal.length, 1);
+  assert.equal(sheet.Journal.filter(l => l[1].startsWith("CF-")).length, 0, "rien au Journal pour la CF");
   brevoEnPanne = false;
   await tachePlanifiee(env);
   assert.equal(emails.length, 1);
@@ -219,7 +220,7 @@ test("expediee : suivi recopié dans la CF, e-mail client par colis avec le n° 
   assert.match(m.textContent, /Colissimo[\s\S]*6A123/);
   assert.doesNotMatch(m.textContent, /CF-2026/, "le client ne voit pas les n° CF");
   assert.equal(ev("EV-2026-0042", "Statut"), "partiellement_expediee");
-  assert.deepEqual(journalSans(), [["CF-2026-0042-A", "acceptee", "expediee", "fabricant"], ["EV-2026-0042", "en_fabrication", "partiellement_expediee", "worker"]],
+  assert.deepEqual(journalSans(), [["CF-2026-0042-A", "acceptee", "expediee", "fabricant"], ["EV-2026-0042", "", "partiellement_expediee", "worker"]],
     "changement déjà journalisé par le lien fabricant : pas de doublon");
 
   /* 2e colis */
@@ -241,9 +242,9 @@ test("Commande d'un seul colis : e-mail d'expédition simple", async () => {
   assert.doesNotMatch(emails[0].textContent, /colis de votre commande|autre colis/);
 });
 
-test("Autres statuts : colonne mise à jour sans e-mail ; statut client mis à la main jamais écrasé", async () => {
+test("Autres statuts : colonne mise à jour sans e-mail ; statut forcé prioritaire et journalisé", async () => {
   commande("EV-2026-0001");
-  commande("EV-2026-0002", "remboursee");
+  commande("EV-2026-0002", "", { "Statut forcé": "remboursee" });
   article("EV-2026-0001", 1, "payee", "");
   article("EV-2026-0002", 1, "incident", "acceptee", { Fabricant: FAB, "Commande CF": "CF-2026-0002-A" });
   sheet.Journal.push(journal("EV-2026-0001", "", "payee", "worker"));
@@ -251,8 +252,9 @@ test("Autres statuts : colonne mise à jour sans e-mail ; statut client mis à l
   assert.equal(emails.length, 0);
   assert.equal(cf("EV-2026-0001", 1, "Dernier statut notifié"), "payee");
   assert.equal(cf("EV-2026-0002", 1, "Dernier statut notifié"), "incident");
-  assert.equal(ev("EV-2026-0002", "Statut"), "remboursee", "statut manuel conservé");
-  assert.deepEqual(journalSans(), [["EV-2026-0001", "", "payee", "worker"], ["CF-2026-0002-A", "acceptee", "incident", "proprietaire"]]);
+  assert.equal(ev("EV-2026-0002", "Statut"), "remboursee", "statut forcé prioritaire sur le calcul");
+  assert.deepEqual(journalSans(), [["EV-2026-0001", "", "payee", "worker"], ["CF-2026-0002-A", "acceptee", "incident", "proprietaire"],
+    ["EV-2026-0002", "", "remboursee", "worker"]]);
 });
 
 test("Relance : une seule par CF, 48 h après l'envoi au fabricant, au propriétaire", async () => {

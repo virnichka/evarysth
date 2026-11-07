@@ -7,8 +7,8 @@
       fabricant, un e-mail par CF ; expediee → client), puis seulement après un envoi réussi écrit « Dernier statut
       notifié » et journalise (une ligne par CF, auteur proprietaire s'il n'est pas déjà dans le Journal) ;
       relance au propriétaire (une seule par CF) si pas d'acceptee 48 h après l'envoi ;
-   4. onglet « Commandes EV » : statut client calculé à partir des statuts de ses articles (incident, remboursee et
-      annulee mis à la main ne sont jamais écrasés) et liste de ses n° CF.
+   4. onglet « Commandes EV » : Statut et Commandes CF y sont des formules (statut calculé à partir des articles,
+      ou « Statut forcé » saisi à la main) ; la tâche n'y écrit rien et journalise seulement les changements de Statut.
    Inactive sans secrets Google ; un e-mail dont le secret manque n'est pas envoyé et la ligne attend (aucune erreur).
    Lignes retrouvées par leur clé (Commande EV + Article n°, ou n° EV), jamais par leur position. */
 import { entetes, googleConfigure, lettreColonne, lireColonnes } from "./google.js";
@@ -16,11 +16,10 @@ import { creerJeton, jetonConfigure } from "./jeton.js";
 import { liensStandards } from "./fichier.js";
 import { EVARYSTH } from "./catalogue.js";
 import { contenuExpedition, contenuFabricant, contenuRelance, envoyerEmail } from "./email.js";
-import { CF, dateParis, FABRICANTS, JOURNAL, journaliser, majArticle, majCommande, ONGLET, ONGLET_CF } from "./sheet.js";
+import { CF, dateParis, FABRICANTS, JOURNAL, journaliser, majArticle, ONGLET, ONGLET_CF } from "./sheet.js";
 
 export const STATUTS = ["payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree", "incident", "remboursee", "annulee"];
 export const STATUTS_EV = ["payee", "en_fabrication", "partiellement_expediee", "expediee", "livree", "incident", "remboursee", "annulee"];
-const MANUELS_EV = ["incident", "remboursee", "annulee"];        /* statut EV mis à la main : jamais recalculé */
 const A_ENVOYER = ["payee", "fichier_a_produire"];
 /* Article pas encore envoyé au fabricant (son n° CF peut encore changer) : statut d'avant l'envoi, ou e-mail
    fabricant pas encore parti (fabricant et envoyee_fabricant choisis d'un coup, avant le passage de la tâche) */
@@ -96,7 +95,8 @@ export function numerosCF(numeroEV, lignes) {
   return voulu;
 }
 
-/* Statut client d'une commande EV d'après les statuts de ses articles (null : aucun article) */
+/* Statut client d'une commande EV d'après les statuts de ses articles (null : aucun article).
+   Référence de la formule d'en-tête « Statut » de l'onglet Commandes EV (docs/traitement-commandes.md) : à garder identiques. */
 export function statutEV(statuts) {
   if (!statuts.length) return null;
   const s = statuts.filter(x => !["annulee", "remboursee"].includes(x));
@@ -177,15 +177,14 @@ async function journaliserSiNouveau(env, journal, numero, ancien, nouveau, auteu
 export async function tachePlanifiee(env, maintenant = Date.now()) {
   if (!googleConfigure(env)) return { inactive: true };
   const [colsCF, colsEV] = await Promise.all([entetes(env, ONGLET_CF), entetes(env, ONGLET)]);
-  const avecListe = "Commandes CF" in colsEV;
   const [v, e, fabs, journal] = await Promise.all([
     lireColonnes(env, ONGLET_CF, colsCF, COLS_CF),
-    lireColonnes(env, ONGLET, colsEV, avecListe ? [...COLS_EV, "Commandes CF"] : COLS_EV),
+    lireColonnes(env, ONGLET, colsEV, COLS_EV),
     lireFabricants(env), lireJournal(env)]);
   const bilan = { attribuees: [], notifiees: [], attente: [], erreurs: [], relances: [], commandes: [] };
 
   const evs = {};
-  e.Commande.forEach((n, i) => { n = n.trim(); if (n) evs[n] = { numero: n, statut: (e.Statut[i] || "").trim(), client: e.Client[i] || "", sid: e["Stripe session id"][i] || "", liste: avecListe ? e["Commandes CF"][i] || "" : null }; });
+  e.Commande.forEach((n, i) => { n = n.trim(); if (n) evs[n] = { numero: n, statut: (e.Statut[i] || "").trim(), client: e.Client[i] || "", sid: e["Stripe session id"][i] || "" }; });
   const lignes = v[CF.ev].map((n, i) => ({ ev: n.trim(), n: (v[CF.art][i] || "").trim(), cf: (v[CF.num][i] || "").trim(), statut: (v.Statut[i] || "").trim(),
     article: v.Article[i] || "", fabricant: v.Fabricant[i] || "", stl: v["Lien STL"][i] || "", transporteur: v.Transporteur[i] || "",
     suivi: v["N° de suivi"][i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim() })).filter(l => l.ev && l.n);
@@ -242,20 +241,13 @@ export async function tachePlanifiee(env, maintenant = Date.now()) {
     catch (x) { bilan.erreurs.push(`${cf} : ${x.message}`); }
   }
 
-  /* 4. commandes EV : statut client et liste des CF */
-  for (const [numero, ls] of Object.entries(parEV)) {
-    const c = evs[numero];
-    if (!c) continue;
-    const maj = {};
-    const s = statutEV(ls.filter(l => STATUTS.includes(l.statut)).map(l => l.statut));
-    if (s && s !== c.statut && !MANUELS_EV.includes(c.statut)) maj.Statut = s;
-    const liste = [...new Set(ls.map(l => l.cf).filter(Boolean))].sort().join("\n");
-    if (c.liste !== null && liste !== c.liste.trim()) maj["Commandes CF"] = liste;
-    if (!Object.keys(maj).length) continue;
-    try {
-      await majCommande(env, numero, maj);
-      if (maj.Statut) { await journaliserSiNouveau(env, journal, numero, c.statut, maj.Statut, "worker"); bilan.commandes.push(`${numero} : ${maj.Statut}`); }
-    } catch (x) { bilan.erreurs.push(`${numero} : ${x.message}`); }
+  /* 4. commandes EV : le statut client est une formule du Sheet (même règle que statutEV) ; on journalise ses changements */
+  for (const c of Object.values(evs)) {
+    if (!STATUTS_EV.includes(c.statut)) continue;           /* vide, erreur de formule ou valeur inconnue : rien */
+    const dernier = dernierStatut(journal[c.numero]);
+    if (dernier && dernier.nouveau === c.statut) continue;
+    try { await journaliserSiNouveau(env, journal, c.numero, "", c.statut, "worker"); bilan.commandes.push(`${c.numero} : ${c.statut}`); }
+    catch (x) { bilan.erreurs.push(`${c.numero} : ${x.message}`); }
   }
   return bilan;
 }
