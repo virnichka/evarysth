@@ -209,7 +209,7 @@ const LEGAL = [
 
 function legalPage(l) {
   const url = `${SITE}/${l.id}/`;
-  const head = `  <title>${esc(l.title)} — Evarysth</title>
+  const head = `  <title>Evarysth</title>
   <meta name="description" content="${esc(l.desc)}">
   <link rel="canonical" href="${url}">
   <meta property="og:type" content="website">
