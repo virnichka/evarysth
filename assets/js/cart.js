@@ -24,8 +24,8 @@
   const paiement = (() => {
     if (!EVARYSTH.store) return false;
     const q = new URLSearchParams(location.search).get("checkout");
-    if (q === "test") EVARYSTH.store.set(FLAG, "test");
-    if (q === "off") EVARYSTH.store.set(FLAG, "");
+    if (q === "test") { EVARYSTH.store.set(FLAG, "test"); return true; }   /* actif même si le stockage est bloqué */
+    if (q === "off") { EVARYSTH.store.set(FLAG, ""); return false; }
     return EVARYSTH.store.get(FLAG, "") === "test";
   })();
   /* Remise d'un code vérifié chez Stripe : { code, rate, amount } */
@@ -139,8 +139,8 @@
       const count = items.reduce((s, i) => s + i.qty, 0);
       $("#cart-list").innerHTML = `<li class="empty done">
         <span class="done__icon">✓</span>
-        <h3>Commande prête (${count} article${count > 1 ? "s" : ""})</h3>
-        <p>Prototype : le paiement sécurisé (Stripe / Shopify) sera branché ici.</p>
+        <h3>Les commandes ouvrent bientôt</h3>
+        <p>Votre panier (${count} article${count > 1 ? "s" : ""}) est conservé sur cet appareil : vous pourrez le finaliser dès l'ouverture de la boutique.</p>
         <button class="btn" id="cart-back">Retour au panier</button></li>`;
       $("#cart-back").onclick = render;
     });
