@@ -35,7 +35,7 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `CLAUDE.md` | Méthode pour ajouter un produit 3D à partir de fichiers STL. |
 
 ## Paiement (Stripe Checkout, mode test)
-Ventes **non ouvertes** : sans drapeau, « Commander » affiche toujours le message de prototype.
+Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes ouvrent bientôt » (panier conservé).
 - Activer sur son navigateur : ouvrir `https://www.evarysth.fr/?checkout=test` (désactiver : `?checkout=off`).
 - Parcours : panier → `worker/` (`https://evarysth-checkout.virnichka.workers.dev`) → page Stripe → `commande/merci/`.
   Le navigateur n'envoie que produit, taille ou cotes, coloris et quantité ; **les prix sont recalculés par le Worker**
