@@ -8,6 +8,8 @@ workers_dev = true
 [vars]
 # "test" : n'accepte que les clés sk_test_ / rk_test_. Passer à "live" uniquement à l'ouverture des ventes.
 CHECKOUT_MODE = "test"
+# Case « J'accepte les CGV » sur la page Stripe : essayée par défaut (repli automatique sur le texte) ; "non" pour la couper
+# CGV_STRIPE = "non"
 # Sites autorisés à créer une session (CORS + adresses de retour)
 ALLOWED_ORIGINS = "https://evarysth.fr,https://www.evarysth.fr,http://localhost:8000,http://127.0.0.1:8000"
 

@@ -8,6 +8,9 @@ const MAX_QTE = 99;
 export const LIVRAISON_CENTS = 490;          /* identique à SHIPPING dans assets/js/cart.js */
 export const PAYS_LIVRAISON = ["FR", "BE", "LU", "MC"];
 export const URL_CGV = "https://www.evarysth.fr/cgv/";
+/* Emballage cadeau : prix fixé ici, jamais lu dans la requête du navigateur (identique à GIFT dans cart.js) */
+export const CADEAU_CENTS = 300;
+export const MESSAGE_CADEAU_MAX = 200;
 
 export class ErreurPanier extends Error {}
 
@@ -55,6 +58,18 @@ function lireLigne(it, n) {
   return { p, mode: it.mode, taille, values, coloris, qty, unitCents: Math.round(prix * 100) };
 }
 
+/* Option cadeau : seuls `cadeau: true` et `message` sont lus ; tout autre champ (prix…) est ignoré */
+export function lireCadeau(corps) {
+  if (!corps || corps.cadeau !== true) return null;
+  const brut = corps.message == null ? "" : corps.message;
+  if (typeof brut !== "string") throw new ErreurPanier("Message cadeau illisible.");
+  /* Une seule ligne, sans caractères de contrôle */
+  const message = brut.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  if (message.length > MESSAGE_CADEAU_MAX)
+    throw new ErreurPanier(`Le message cadeau ne doit pas dépasser ${MESSAGE_CADEAU_MAX} caractères.`);
+  return { message };
+}
+
 /* Texte lisible par le client (page Stripe, reçu, facture) */
 export function descriptionLigne(l) {
   const parts = l.mode === "custom"
@@ -95,8 +110,19 @@ export function nouvelleReference(date = new Date()) {
   return `EV-${j}-${alea}`;
 }
 
-export function parametresSession(lignes, { base, retour, ref, promotionCode, catalogue, environnement }) {
+const LIGNE_CADEAU = {
+  quantity: 1,
+  price_data: {
+    currency: "eur",
+    unit_amount: CADEAU_CENTS,
+    product_data: { name: "Emballage cadeau", metadata: { produit: "emballage-cadeau" } }
+  }
+};
+
+export function parametresSession(lignes, { base, retour, ref, promotionCode, catalogue, environnement, cadeau = null, consentement = false }) {
   const surMesure = lignes.some(l => l.mode === "custom");
+  const cgv = `[conditions générales de vente](${URL_CGV})`;
+  const avertissement = surMesure ? " Les pièces sur-mesure sont fabriquées selon vos cotes : elles ne bénéficient pas du droit de rétractation (art. L221-28 3° du Code de la consommation)." : "";
   return {
     mode: "payment",
     locale: "fr",
@@ -114,7 +140,7 @@ export function parametresSession(lignes, { base, retour, ref, promotionCode, ca
           metadata: metaLigne(l, catalogue)
         }
       }
-    })),
+    })).concat(cadeau ? [LIGNE_CADEAU] : []),
     shipping_address_collection: { allowed_countries: PAYS_LIVRAISON },
     shipping_options: [{
       shipping_rate_data: {
@@ -126,12 +152,18 @@ export function parametresSession(lignes, { base, retour, ref, promotionCode, ca
     ...(promotionCode ? { discounts: [{ promotion_code: promotionCode }] } : { allow_promotion_codes: true }),
     invoice_creation: { enabled: true, invoice_data: { metadata: { ref } } },
     payment_intent_data: { description: `Commande ${ref}`, metadata: { ref } },
-    metadata: { ref, panier: panierCompact(lignes), catalogue, environnement },
-    custom_text: {
-      submit: {
-        message: `En validant, vous acceptez nos conditions générales de vente (${URL_CGV}).` +
-          (surMesure ? " Les pièces sur-mesure sont fabriquées selon vos cotes : elles ne bénéficient pas du droit de rétractation (art. L221-28 3° du Code de la consommation)." : "")
-      }
-    }
+    metadata: {
+      ref, panier: panierCompact(lignes), catalogue, environnement,
+      cadeau: cadeau ? "oui" : "non",
+      ...(cadeau && cadeau.message ? { message_cadeau: cadeau.message } : {})
+    },
+    /* Case « J'accepte les CGV » : seulement si l'URL des CGV est renseignée dans Stripe (sinon Stripe refuse) */
+    ...(consentement ? { consent_collection: { terms_of_service: "required" } } : {}),
+    custom_text: consentement
+      ? {
+          terms_of_service_acceptance: { message: `J'accepte les ${cgv} d'Evarysth.` },
+          ...(surMesure ? { submit: { message: avertissement.trim() } } : {})
+        }
+      : { submit: { message: `En validant, vous acceptez nos ${cgv}.` + avertissement } }
   };
 }
