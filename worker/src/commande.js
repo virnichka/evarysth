@@ -75,7 +75,8 @@ export function descriptionLigne(l) {
   const parts = l.mode === "custom"
     ? l.p.custom.params.map((prm, i) => `${LETTRES[i]} · ${prm.label} : ${l.values[prm.key]} mm`)
     : [`${l.p.variants.label} : ${l.taille.label} (${l.taille.hint})`];
-  parts.push(l.coloris ? `Coloris : ${l.coloris.label}` : "Nylon PA12 noir mat");
+  parts.push(`Matière : ${EVARYSTH.matiere(l.p).label}`);
+  if (l.coloris) parts.push(`Coloris : ${l.coloris.label}`);
   return parts.join(" · ");
 }
 
@@ -86,6 +87,7 @@ export function metaLigne(l, catalogue) {
     mode: l.mode,
     ...(l.taille ? { taille: l.taille.label } : {}),
     cotes_mm: JSON.stringify(l.values),
+    matiere: EVARYSTH.matiere(l.p).label,
     coloris: l.coloris ? l.coloris.id : "",
     prix_unitaire_cents: String(l.unitCents),
     catalogue

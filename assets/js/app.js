@@ -260,6 +260,7 @@
       color: 0
     };
     const colors = p.colors || [];
+    const mat = EVARYSTH.matiere(p);
     const LETTERS = ["A", "B", "C"];
     const photos = p.photos || [];
 
@@ -273,7 +274,7 @@
             ${p.model ? `
             <label class="stage__open mono" hidden><span>Ouvrir</span><input type="range" id="open3d" min="0" max="100" value="0" style="--p:0%" aria-label="Ouvrir pour voir l'intérieur"></label>` : ""}
             <div class="dims" id="dims"></div>
-            <span class="stage__mat mono" id="stage-mat">NYLON PA12 · NOIR MAT</span>
+            <span class="stage__mat mono" id="stage-mat">${mat.court} · NOIR MAT</span>
             ${photos.length ? `
             <div class="stage__photos" id="photos" tabindex="-1">
               ${photos.map((ph, i) => `<figure class="stage__photo"><img src="${ph.src}" alt="${ph.alt}" loading="${i ? "lazy" : "eager"}" decoding="async" style="object-position:${ph.pos || "50% 50%"}"></figure>`).join("")}
@@ -289,7 +290,7 @@
           </div>` : ""}
           <ul class="perks">
             <li><b>Sans outil</b><span>Se pose à la main</span></li>
-            <li><b>Indestructible</b><span>Nylon industriel</span></li>
+            <li><b>${mat.perk[0]}</b><span>${mat.perk[1]}</span></li>
             <li><b>Garanti 2 ans</b><span>Refait si ça ne va pas</span></li>
           </ul>
         </div>
@@ -361,7 +362,7 @@ ${colors.length ? `
           </div>
 
           <div class="accordion accordion--pdp">
-            <details open><summary>Matière &amp; entretien</summary><p>Nylon PA12 noir, imprimé en 3D industrielle : léger, très résistant aux chocs, à l'humidité et aux UV. Un coup de chiffon humide suffit.</p></details>
+            <details open><summary>Matière &amp; entretien</summary><p>${mat.desc} Un coup de chiffon humide suffit.</p></details>
             <details><summary>Livraison &amp; retours</summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut. <a href="cgv/">Voir les CGV</a>.</p></details>
             <details><summary>Garantie légale 2 ans</summary><p>Une pièce défectueuse ou non conforme à la commande (taille standard ou cotes saisies) est réparée, refabriquée ou remboursée, dans le cadre de la garantie légale de conformité.</p></details>
             <details><summary>Avis clients</summary><p>Les avis s'afficheront ici après les premières commandes. <button class="link" data-soon="Avis clients">Être prévenu</button></p></details>
@@ -390,7 +391,7 @@ ${colors.length ? `
 
       root.querySelectorAll("[data-color]").forEach(b => { const on = +b.dataset.color === state.color; b.classList.toggle("is-active", on); b.setAttribute("aria-checked", on); });
       const col = colors[state.color];
-      if (col) { $("#color-name").textContent = col.label; $("#stage-mat").textContent = `NYLON PA12 · ${col.label.toUpperCase()}`; }
+      if (col) { $("#color-name").textContent = col.label; $("#stage-mat").textContent = `${mat.court} · ${col.label.toUpperCase()}`; }
 
       const v = values();
       const unit = EVARYSTH.priceFor(p, state.mode, v);
@@ -407,7 +408,7 @@ ${colors.length ? `
         ["Produit", p.name],
         ["Version", state.mode === "custom" ? "Sur-mesure" : `Standard — ${p.variants.options[state.variant].label}`],
         ...dimRows,
-        ["Matière", col ? `Nylon PA12 · ${col.label}` : "Nylon PA12 noir mat"],
+        ["Matière", col ? `${mat.label} · ${col.label}` : `${mat.label} noir mat`],
         ["Quantité", `× ${state.qty}`]
       ];
       $("#summary").innerHTML = rows.map(r => `<li><span>${r[0]}</span><b>${r[1]}</b></li>`).join("") +
