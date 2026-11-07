@@ -163,7 +163,7 @@ générées), `produit.html` et `commande/merci/index.html`. Elle n'autorise que
 | `style-src` | `'self'` `'unsafe-inline'` `fonts.googleapis.com` | feuille du site, attributs `style`, Google Fonts |
 | `font-src` | `'self'` `fonts.gstatic.com` | fichiers de polices |
 | `img-src` | `'self'` `data:` `blob:` | photos, textures 3D |
-| `connect-src` | `'self'` `evarysth-checkout.virnichka.workers.dev` `cloud.umami.is` | STL locaux, Worker de paiement, envoi des stats (`/api/send`) |
+| `connect-src` | `'self'` `evarysth-checkout.virnichka.workers.dev` `cloud.umami.is` `gateway.umami.is` | STL locaux, Worker de paiement, envoi des stats (`gateway.umami.is/api/send`) |
 | `worker-src` | `'self'` `blob:` | — |
 | `object-src` / `base-uri` / `form-action` | `'none'` / `'self'` / `'self'` `checkout.stripe.com` | durcissement (`base-uri 'self'` laisse passer le `<base href>`) |
 
