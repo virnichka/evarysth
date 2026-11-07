@@ -66,7 +66,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   création : `creerJeton(env, { commande, action, fabricant })`, utilisée par les e-mails du bloc D). `GET /f/<jeton>` affiche
   seulement une page avec un bouton (ne modifie rien) ; `POST /f/<jeton>` revérifie le jeton et le fabricant de la ligne,
   puis applique la seule transition prévue : `accepter` (`envoyee_fabricant` → `acceptee`) ou `expedier` (`acceptee` ou
-  `envoyee_fabricant` → `expediee`, transporteur + n° de suivi obligatoires, écrits dans le Sheet), puis une ligne de
+  `envoyee_fabricant` → `expediee`, transporteur choisi dans `Listes!C` + n° de suivi obligatoires, écrits dans le Sheet), puis une ligne de
   `Journal` (auteur `fabricant`). 2e clic : « déjà confirmée », sans 2e ligne. Lien falsifié 403, expiré 410, transition
   interdite 409. **Sans `HMAC_SECRET` ou sans secrets Google : `/f/` répond 503**, le reste du Worker est inchangé.
 - **Tâche planifiée** (`worker/src/planifie.js`, cron `*/10 * * * *` dans `worker/wrangler.toml`, handler `scheduled`) :
@@ -80,6 +80,8 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   `Journal` « → `relance_48h` »). Sans secrets Google : ne fait rien ; sans `BREVO_API_KEY`/`HMAC_SECRET` ou fabricant
   sans e-mail : la ligne attend (avertissement dans les journaux) ; Brevo en erreur : colonne inchangée, nouvel essai
   10 min plus tard. La fiche « Nouvelle commande » du webhook est inchangée.
+  **Vérification manuelle** : `GET $W/maj?cle=<ADMIN_KEY>` lance la même tâche tout de suite et affiche un bilan
+  (secret `ADMIN_KEY` ; absent → 503, clé fausse → 403).
 - **STL standards** (`worker/src/fichier.js`, bucket R2 `evarysth-stl`, binding `STL` **commenté** dans `worker/wrangler.toml`
   tant que le bucket n'existe pas) : `GET /fichier/<jeton>` sert l'objet R2 en pièce jointe ; jeton
   `fichier.<clé>.<expiration>.<signature>` (HMAC_SECRET, 14 jours, même mécanique que les liens fournisseur, non
