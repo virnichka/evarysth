@@ -223,7 +223,7 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
 | B | fait | session_01GS5VpHmWue7HWoi95gWYL7 | #52 | 2026-11-07 |
 | C | fait | session_01GS5VpKRWwfCa8XJt9x4oFK | #53 | 2026-11-07 |
 | D | fait | session_01GS5VpHmWB2agPXhtWWgf37 | #54 | 2026-11-07 |
-| E | fait | session_01GS5VpKztszaCbXbHttRJK2 | #PR | 2026-11-07 |
+| E | fait | session_01GS5VpKztszaCbXbHttRJK2 | #55 | 2026-11-07 |
 
 ## À faire par le propriétaire
 
