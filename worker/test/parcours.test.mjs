@@ -26,7 +26,7 @@ const ENTETES = ["Commande", "Date", "Statut", "Type", "Action requise", "Pièce
 let sheet, emails, lignesStripe;
 beforeEach(() => {
   viderCacheJeton();
-  sheet = { Commandes: [ENTETES.slice()], Journal: [["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"]],
+  sheet = { Commandes: [ENTETES.slice()], Journal: [["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"]], Listes: [["Transporteurs"], ["Colissimo"], ["Mondial Relay"]],
     Fabricants: [["Nom", "E-mail", "Délai (jours)", "Livre le client"], [FAB, "atelier@example.com", "5", "non"]] };
   emails = [];
   globalThis.fetch = fauxFetch;
