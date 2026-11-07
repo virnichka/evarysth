@@ -8,6 +8,7 @@ import { ErreurPanier, lireCadeau, lirePanier, nouvelleReference, parametresSess
 import { appelStripe, ErreurStripe, verifierSignature } from "./stripe.js";
 import { envoyerConfirmationClient, envoyerFiche } from "./email.js";
 import { googleConfigure } from "./google.js";
+import { routeFournisseur } from "./fournisseur.js";
 import { enregistrerCommande, journaliserCreation, majCommande } from "./sheet.js";
 
 const TAILLE_MAX = 20000;
@@ -212,6 +213,10 @@ export default {
     }
     if (url.pathname === "/" && req.method === "GET")
       return json({ service: "evarysth-checkout", mode: env.CHECKOUT_MODE === "live" ? "live" : "test" });
+
+    /* Liens fournisseur (indépendants de Stripe : 503 propre sans HMAC_SECRET ou secrets Google) */
+    const lienF = /^\/f\/([^/]+)$/.exec(url.pathname);
+    if (lienF && (req.method === "GET" || req.method === "POST")) return routeFournisseur(req, env, lienF[1]);
 
     const route = `${req.method} ${url.pathname}`;
     const routesSite = ["POST /checkout", "POST /promo", "GET /session"];
