@@ -60,30 +60,42 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   « [PAIEMENT EN ATTENTE] Nouvelle commande … — ne pas fabriquer ». La commande est traitée à
   `checkout.session.async_payment_succeeded` : **cocher aussi cet événement sur le webhook Stripe** si un moyen de paiement
   différé est activé (avec les cartes seules, rien à faire).
-- **Back-office Google Sheet** (`worker/src/google.js`, `worker/src/sheet.js`, plan : `docs/traitement-commandes.md`) : à chaque
-  `checkout.session.completed`, le Worker ajoute la commande à l'onglet `Commandes` (sans doublon, clé : Stripe session id),
-  lui attribue un n° `EV-AAAA-NNNN` (méthode « écrire puis vérifier », voir le plan, bloc B), statut `payee` (standard) ou
-  `fichier_a_produire` (sur-mesure), écrit une ligne dans `Journal` et envoie au client l'e-mail Brevo « Commande EV-… reçue »
-  (une seule fois). Accès par compte de service (JWT RS256 en WebCrypto, jeton en cache 1 h). Google en erreur : la fiche
-  de fabrication part quand même, puis réponse 503 (Stripe réessaie). **Inactif tant que les secrets `GOOGLE_SA_EMAIL`,
-  `GOOGLE_SA_KEY` et `SHEET_ID` ne sont pas tous définis** (marche à suivre : plan, « À faire par le propriétaire »).
+- **Back-office Google Sheet** (`worker/src/google.js`, `worker/src/sheet.js`, plan : `docs/traitement-commandes.md`) : deux
+  niveaux, deux numérotations. **Commande client** `EV-AAAA-NNNN` (onglet `Commandes EV`, une ligne par achat, seul n° vu
+  par le client) ; **commande fournisseur** `CF-AAAA-NNNN-X` (onglet `Commandes CF`, une ligne par article, seul n° vu par
+  le fabricant ; la lettre distingue les fabricants d'une même commande). À chaque `checkout.session.completed`, le Worker
+  ajoute la commande à `Commandes EV` (sans doublon, clé : Stripe session id ; n° attribué par « écrire puis vérifier »,
+  voir le plan, bloc B), statut `payee`, puis une ligne par article dans `Commandes CF` (statut `payee` ou
+  `fichier_a_produire` si sur-mesure, **fabricant vide : choisi à la main**), écrit une ligne dans `Journal` et envoie au
+  client l'e-mail Brevo « Commande EV-… reçue » (une seule fois). Accès par compte de service (JWT RS256 en WebCrypto,
+  jeton en cache 1 h). Google en erreur : la fiche de fabrication part quand même, puis réponse 503 (Stripe réessaie).
+  **Inactif tant que les secrets `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY` et `SHEET_ID` ne sont pas tous définis** (marche à
+  suivre : plan, « À faire par le propriétaire »).
 - **Liens fournisseur** (`worker/src/jeton.js`, `worker/src/fournisseur.js`) : jeton
   `commande.action.fabricant.expiration.signature` (HMAC-SHA256, secret `HMAC_SECRET`, valable 14 jours, rien de stocké ;
-  création : `creerJeton(env, { commande, action, fabricant })`, utilisée par les e-mails du bloc D). `GET /f/<jeton>` affiche
-  seulement une page avec un bouton (ne modifie rien) ; `POST /f/<jeton>` revérifie le jeton et le fabricant de la ligne,
-  puis applique la seule transition prévue : `accepter` (`envoyee_fabricant` → `acceptee`) ou `expedier` (`acceptee` ou
-  `envoyee_fabricant` → `expediee`, transporteur choisi dans `Listes!C` + n° de suivi obligatoires, écrits dans le Sheet), puis une ligne de
-  `Journal` (auteur `fabricant`). 2e clic : « déjà confirmée », sans 2e ligne. Lien falsifié 403, expiré 410, transition
-  interdite 409. **Sans `HMAC_SECRET` ou sans secrets Google : `/f/` répond 503**, le reste du Worker est inchangé.
+  `commande` = n° **CF** obligatoire ; création : `creerJeton(env, { commande, action, fabricant })`). `GET /f/<jeton>`
+  affiche seulement une page avec un bouton et les articles de la CF (ne modifie rien) ; `POST /f/<jeton>` revérifie le
+  jeton et le fabricant de **toutes les lignes de la CF**, puis leur applique la seule transition prévue : `accepter`
+  (`envoyee_fabricant` → `acceptee`) ou `expedier` (`acceptee` ou `envoyee_fabricant` → `expediee`, transporteur choisi
+  dans `Listes!C` + n° de suivi obligatoires, écrits dans le Sheet), puis une ligne de `Journal` (n° CF, auteur
+  `fabricant`). Lignes `annulee`/`remboursee` ignorées, une ligne en `incident` bloque. 2e clic : « déjà confirmée »,
+  sans 2e ligne. Lien falsifié ou ligne confiée à un autre fabricant 403, expiré 410, transition interdite 409.
+  **Sans `HMAC_SECRET` ou sans secrets Google : `/f/` répond 503**, le reste du Worker est inchangé.
 - **Tâche planifiée** (`worker/src/planifie.js`, cron `*/10 * * * *` dans `worker/wrangler.toml`, handler `scheduled`) :
-  lit l'onglet `Commandes` ; pour chaque ligne où `Statut` ≠ `Dernier statut notifié`, envoie l'e-mail dû (Brevo), puis
-  **seulement après un envoi réussi** écrit cette colonne (ligne retrouvée par son n°) et journalise le changement
-  (auteur `proprietaire` s'il n'est pas déjà dans `Journal`). `envoyee_fabricant` → e-mail au fabricant de la ligne
-  (onglet `Fabricants` : e-mail, délai ; pièce, cotes, coloris, lien STL, boutons accepter/expédier signés `creerJeton`,
-  liens vers `WORKER_URL`) ; nom et adresse du client **seulement si `Livre le client` = oui**. `expediee` → e-mail client
-  avec transporteur et n° de suivi. Autres statuts : colonne mise à jour, sans e-mail. Relance à `ORDER_EMAIL` si pas
-  d'`acceptee` 48 h après le passage en `envoyee_fabricant` (date du `Journal`), **une seule par commande** (ligne
-  `Journal` « → `relance_48h` »). Sans secrets Google : ne fait rien ; sans `BREVO_API_KEY`/`HMAC_SECRET` ou fabricant
+  lit `Commandes CF` et `Commandes EV`, puis 1. **attribue les n° CF** : articles pas encore envoyés d'une même commande EV
+  et d'un même fabricant → même n° (lettre stable ; article déjà envoyé jamais renuméroté ; fabricant effacé → n°
+  effacé) ; 2. recopie transporteur + n° de suivi sur les lignes de la même CF qui n'en ont pas ; 3. pour les lignes où
+  `Statut` ≠ `Dernier statut notifié`, groupées par CF, envoie l'e-mail dû (Brevo), puis **seulement après un envoi
+  réussi** écrit cette colonne et journalise (une ligne par CF, auteur `proprietaire` s'il n'est pas déjà dans
+  `Journal`) : `envoyee_fabricant` → **un e-mail par CF** au fabricant (onglet `Fabricants` : e-mail, délai ; articles,
+  liens STL, boutons accepter/expédier signés `creerJeton`, liens vers `WORKER_URL` ; nom et adresse du client
+  **seulement si `Livre le client` = oui**) ; `expediee` → e-mail client par colis (n° EV, transporteur, suivi ;
+  « un colis de votre commande… », « le reste suivra » s'il y a plusieurs CF) ; fabricant non choisi → la ligne attend ;
+  autres statuts : colonne mise à jour, sans e-mail. Relance à `ORDER_EMAIL` si pas d'`acceptee` 48 h après le passage
+  en `envoyee_fabricant` (date du `Journal`), **une seule par CF** (ligne `Journal` « → `relance_48h` ») ;
+  4. **statut client** de `Commandes EV` calculé à partir de ses articles (`payee` → `en_fabrication` →
+  `partiellement_expediee` → `expediee` → `livree`, `incident` ; `incident`, `remboursee`, `annulee` mis à la main jamais
+  écrasés) et liste de ses n° CF. Sans secrets Google : ne fait rien ; sans `BREVO_API_KEY`/`HMAC_SECRET` ou fabricant
   sans e-mail : la ligne attend (avertissement dans les journaux) ; Brevo en erreur : colonne inchangée, nouvel essai
   10 min plus tard. La fiche « Nouvelle commande » du webhook est inchangée.
   **Vérification manuelle** : ouvrir `$W/maj`, saisir la clé `ADMIN_KEY` dans le formulaire (envoyée en POST, jamais dans
@@ -94,8 +106,8 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   `fichier.<clé>.<expiration>.<signature>` (HMAC_SECRET, 14 jours, même mécanique que les liens fournisseur, non
   interchangeable avec eux) ; falsifié → 403, expiré → 410, absent → 404, sans binding ou sans `HMAC_SECRET` → 503.
   Clés : `<produit>/<taille>.stl` (ou `.3mf`, `.zip`), taille en minuscules sans accents (`boite-rugged/m.stl`,
-  `…/moyenne.stl`, `Ø 12` → `12`). E-mail fabricant d'une ligne au `Lien STL` vide : un lien par ligne standard dont le
-  fichier existe ; sinon « fourni séparément » (R2 en panne : idem, l'e-mail part quand même).
+  `…/moyenne.stl`, `Ø 12` → `12`). E-mail fabricant : pour chaque article de la CF, son `Lien STL`, sinon le lien R2 du
+  fichier standard s'il existe ; aucun lien → « fourni séparément » (R2 en panne : idem, l'e-mail part quand même).
 - Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (+ `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET`) ; binding R2 `STL` facultatif. En mode test, une clé live est refusée.
 - Tests : `cd worker && node --test` (dont `test/parcours.test.mjs` : recette de bout en bout webhook → tâche planifiée → liens fournisseur → expédition).
 - Passage en production (checklist, dans l'ordre) :
