@@ -61,7 +61,15 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   (une seule fois). Accès par compte de service (JWT RS256 en WebCrypto, jeton en cache 1 h). Google en erreur : la fiche
   de fabrication part quand même, puis réponse 503 (Stripe réessaie). **Inactif tant que les secrets `GOOGLE_SA_EMAIL`,
   `GOOGLE_SA_KEY` et `SHEET_ID` ne sont pas tous définis** (marche à suivre : plan, « À faire par le propriétaire »).
-- Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (+ `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`). En mode test, une clé live est refusée.
+- **Liens fournisseur** (`worker/src/jeton.js`, `worker/src/fournisseur.js`) : jeton
+  `commande.action.fabricant.expiration.signature` (HMAC-SHA256, secret `HMAC_SECRET`, valable 14 jours, rien de stocké ;
+  création : `creerJeton(env, { commande, action, fabricant })`, utilisée par les e-mails du bloc D). `GET /f/<jeton>` affiche
+  seulement une page avec un bouton (ne modifie rien) ; `POST /f/<jeton>` revérifie le jeton et le fabricant de la ligne,
+  puis applique la seule transition prévue : `accepter` (`envoyee_fabricant` → `acceptee`) ou `expedier` (`acceptee` ou
+  `envoyee_fabricant` → `expediee`, transporteur + n° de suivi obligatoires, écrits dans le Sheet), puis une ligne de
+  `Journal` (auteur `fabricant`). 2e clic : « déjà confirmée », sans 2e ligne. Lien falsifié 403, expiré 410, transition
+  interdite 409. **Sans `HMAC_SECRET` ou sans secrets Google : `/f/` répond 503**, le reste du Worker est inchangé.
+- Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (+ `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET`). En mode test, une clé live est refusée.
 - Tests : `cd worker && node --test`.
 - Passage en production (checklist, dans l'ordre) :
   1. Pages légales sans `[À COMPLÉTER]` ; Stripe → activer le compte (identité, SIRET, IBAN) ; Paramètres → Informations
