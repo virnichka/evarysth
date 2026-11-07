@@ -203,7 +203,7 @@
     $("#cart-disc-code").textContent = promo;
     const pm = $("#promo-msg");
     pm.hidden = !disc; pm.className = "promo__msg";
-    pm.innerHTML = disc ? `Code <b>${promo}</b> appliqué (−${rate ? Math.round(rate * 100) + " %" : fmt(r.amount)}) · <button type="button" class="link" data-promo-remove>Retirer</button>` : "";
+    pm.innerHTML = disc ? `Code <b>${esc(promo)}</b> appliqué (−${rate ? Math.round(rate * 100) + " %" : fmt(r.amount)}) · <button type="button" class="link" data-promo-remove>Retirer</button>` : "";
     document.querySelectorAll("[data-cart-count]").forEach(el => { el.textContent = count; el.hidden = !count; });
     $("#cart-count-label").textContent = `(${count})`;
     $("#cart-sub").textContent = fmt(sub);
@@ -214,13 +214,13 @@
       <li class="line">
         <div class="line__thumb">${EVARYSTH.shapeSVG(i.shape)}</div>
         <div class="line__body">
-          <div class="line__top"><a href="produits/${i.id}/" data-cart-close>${esc(i.name)}</a><span>${fmt(i.unitPrice * i.qty)}</span></div>
+          <div class="line__top"><a href="produits/${encodeURIComponent(i.id)}/" data-cart-close>${esc(i.name)}</a><span>${fmt(i.unitPrice * i.qty)}</span></div>
           <span class="tag ${i.mode === "custom" ? "tag--accent" : ""}">${i.mode === "custom" ? "Sur-mesure" : "Standard"}</span>
           <ul class="line__opts">${i.details.map(d => `<li><span>${esc(d[0])}</span><span>${esc(d[1])}</span></li>`).join("")}</ul>
           <div class="line__actions">
             <div class="qty">
               <button data-qty="-1" data-key="${esc(i.key)}" aria-label="Retirer un">−</button>
-              <span>${i.qty}</span>
+              <span>${esc(i.qty)}</span>
               <button data-qty="1" data-key="${esc(i.key)}" aria-label="Ajouter un">+</button>
             </div>
             <button class="link" data-remove="${esc(i.key)}">Supprimer</button>

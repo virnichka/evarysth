@@ -129,6 +129,28 @@ Le code d'envoi est **en cours dans une autre session (pas encore dans le dépô
   les journaux) ; si Brevo refuse, le webhook répond 500 et Stripe renvoie l'événement plus tard.
 - Attention : la clé expire après **90 jours sans aucun appel** ; tant que les ventes sont fermées, la recréer si besoin.
 
+## Sécurité du site (CSP)
+
+GitHub Pages ne permet pas d'en-têtes HTTP : la Content-Security-Policy est posée en
+`<meta http-equiv="Content-Security-Policy">` dans `index.html` (reprise par toutes les pages
+générées), `produit.html` et `commande/merci/index.html`. Elle n'autorise que :
+
+| Directive | Sources | Pourquoi |
+|---|---|---|
+| `script-src` | `'self'` `'unsafe-inline'` `cdn.jsdelivr.net` `cloud.umami.is` | scripts du site + scripts inline (thème, Umami, importmap), Three.js, statistiques |
+| `style-src` | `'self'` `'unsafe-inline'` `fonts.googleapis.com` | feuille du site, attributs `style`, Google Fonts |
+| `font-src` | `'self'` `fonts.gstatic.com` | fichiers de polices |
+| `img-src` | `'self'` `data:` `blob:` | photos, textures 3D |
+| `connect-src` | `'self'` `evarysth-checkout.virnichka.workers.dev` `cloud.umami.is` | STL locaux, Worker de paiement, envoi des stats (`/api/send`) |
+| `worker-src` | `'self'` `blob:` | — |
+| `object-src` / `base-uri` / `form-action` | `'none'` / `'self'` / `'self'` `checkout.stripe.com` | durcissement (`base-uri 'self'` laisse passer le `<base href>`) |
+
+`frame-ancestors` n'est pas pris en compte en meta. **Ajout d'un service externe** (CDN,
+police, stats, API…) : ajouter son hôte à la bonne directive dans les 3 fichiers ci-dessus,
+puis `node tools/generer-pages.mjs`, et vérifier dans la console qu'aucune violation CSP
+n'apparaît. Les données venant du `localStorage` ou du Worker sont toujours échappées
+(`esc()`) avant un `innerHTML`.
+
 ## 3. Où sont rangées les données ?
 Il n'y a **pas de base de données** : tout le contenu est écrit directement dans les fichiers du site.
 
