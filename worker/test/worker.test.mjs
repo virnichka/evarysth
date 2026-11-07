@@ -77,7 +77,7 @@ test("session Stripe : lignes, cotes en métadonnées, livraison, promo, retours
   assert.equal(p["line_items[0][price_data][unit_amount]"], "4100");
   assert.equal(p["line_items[0][quantity]"], "2");
   assert.equal(p["line_items[0][price_data][product_data][metadata][cotes_mm]"], '{"a":45,"b":300}');
-  assert.match(p["line_items[0][price_data][product_data][description]"], /A · .* : 45 mm · B · Largeur de la tablette : 300 mm · Coloris : Noir mat/);
+  assert.match(p["line_items[0][price_data][product_data][description]"], /A · .* : 45 mm · B · Largeur de la tablette : 300 mm · Matière : ASA · Coloris : Noir mat/);
   assert.equal(p["shipping_options[0][shipping_rate_data][fixed_amount][amount]"], "490");
   assert.equal(p.allow_promotion_codes, "true");
   assert.equal(p.success_url, SITE + "/commande/merci/?session_id={CHECKOUT_SESSION_ID}");
