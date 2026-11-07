@@ -80,6 +80,8 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   `Journal` « → `relance_48h` »). Sans secrets Google : ne fait rien ; sans `BREVO_API_KEY`/`HMAC_SECRET` ou fabricant
   sans e-mail : la ligne attend (avertissement dans les journaux) ; Brevo en erreur : colonne inchangée, nouvel essai
   10 min plus tard. La fiche « Nouvelle commande » du webhook est inchangée.
+  **Vérification manuelle** : `GET $W/maj?cle=<ADMIN_KEY>` lance la même tâche tout de suite et affiche un bilan
+  (secret `ADMIN_KEY` ; absent → 503, clé fausse → 403).
 - **STL standards** (`worker/src/fichier.js`, bucket R2 `evarysth-stl`, binding `STL` **commenté** dans `worker/wrangler.toml`
   tant que le bucket n'existe pas) : `GET /fichier/<jeton>` sert l'objet R2 en pièce jointe ; jeton
   `fichier.<clé>.<expiration>.<signature>` (HMAC_SECRET, 14 jours, même mécanique que les liens fournisseur, non
