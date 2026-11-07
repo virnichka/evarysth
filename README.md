@@ -23,13 +23,29 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `assets/js/app.js` | **Le chef d'orchestre.** Lit le type de page (`data-product-id`, `data-universe-id`, `data-page="catalogue"` sur le `<body>`, ou `#…` sur l'accueil), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
 | `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js seulement quand une fiche en a besoin, affiche et fait tourner la pièce. |
 | `assets/js/modeles/` | **Un fichier par pièce 3D** : le « plan » qui transforme des cotes en mm en pièce 3D. Seul le fichier de la fiche ouverte est chargé. |
-| `assets/js/cart.js` | Le panier latéral : ajout, quantités, code promo de démo `BIENVENUE10`, total ; mémorisé dans le navigateur. |
+| `assets/js/cart.js` | Le panier latéral : ajout, quantités, code promo de démo `BIENVENUE10` (codes Stripe en mode test), total, envoi au paiement ; mémorisé dans le navigateur. |
 | `assets/js/ui.js` | Le confort : thème clair/sombre, recherche (touche `/`), favoris, notifications, fenêtres modales. |
 | `assets/models/<produit>/` | Fichiers STL d'origine des produits qui partent d'un modèle existant. |
 | `assets/photos/<produit>/` | Photos commerciales (`1.webp` = vignette du catalogue). |
 | `tools/` | Outils d'atelier : analyse des STL (Python), `generer-pages.mjs` (pages produit, sitemap), `captures-og.cjs` (images de partage). |
-| `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages. |
+| `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages (le dossier `worker/` n'est pas publié). |
+| `worker/` | **Le service de paiement** (Cloudflare Worker + Stripe Checkout, **mode test**) : reçoit le panier, recalcule les prix depuis `data.js`, crée la session Stripe, reçoit le webhook. Voir « Paiement » ci-dessous. |
+| `commande/merci/` | Page de retour après paiement (récapitulatif de la commande). |
+| `.github/workflows/worker.yml` | Teste puis déploie le Worker à chaque changement de `worker/` ou de `data.js`. |
 | `CLAUDE.md` | Méthode pour ajouter un produit 3D à partir de fichiers STL. |
+
+## Paiement (Stripe Checkout, mode test)
+Ventes **non ouvertes** : sans drapeau, « Commander » affiche toujours le message de prototype.
+- Activer sur son navigateur : ouvrir `https://www.evarysth.fr/?checkout=test` (désactiver : `?checkout=off`).
+- Parcours : panier → `worker/` (`https://evarysth-checkout.virnichka.workers.dev`) → page Stripe → `commande/merci/`.
+  Le navigateur n'envoie que produit, taille ou cotes, coloris et quantité ; **les prix sont recalculés par le Worker**
+  depuis `data.js`, les cotes vérifiées (min/max/pas). Codes promo : ceux créés dans Stripe.
+- Chaque ligne Stripe porte en métadonnées `produit`, `mode`, `cotes_mm` (JSON), `coloris`, `catalogue` (empreinte de `data.js`).
+- Cartes de test : `4242 4242 4242 4242` (accepté), `4000 0025 0000 3155` (3D Secure), `4000 0000 0000 9995` (refusé).
+- Commandes payées : tableau de bord Stripe, et fiche de fabrication dans les journaux du Worker (Cloudflare → Workers → Logs).
+- Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`. En mode test, une clé live est refusée.
+- Tests : `cd worker && node --test`.
+- Passage en production : `CHECKOUT_MODE = "live"` dans `worker/wrangler.toml`, clés et webhook live, recréer les codes promo en live, retirer le drapeau dans `cart.js`.
 
 ## 3. Où sont rangées les données ?
 Il n'y a **pas de base de données** : tout le contenu est écrit directement dans les fichiers du site.

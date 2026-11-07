@@ -8,6 +8,9 @@ ces pages ont un `<base href>` vers la racine.
 Viewer 3D : moteur + briques communes dans `assets/js/viewer3d.js` ; un fichier par modèle dans
 `assets/js/modeles/<modèle>.js` (chargé à la demande, `EVARYSTH.viewer3d.define`) : n'ouvre que celui utile. Icônes line-art : objet `SHAPES` dans `assets/js/app.js`.
 
+Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js`,
+tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Détails : README « Paiement ».
+
 ## Économie de tokens (toujours)
 - Ne lis jamais un fichier en entier : `grep -n` puis `sed -n a,bp` sur le passage utile.
 - Pas d'exploration générale du dépôt : ce fichier décrit ce qu'il faut savoir.

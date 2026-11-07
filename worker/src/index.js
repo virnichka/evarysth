@@ -1,0 +1,179 @@
+/* Evarysth — Worker de paiement (Cloudflare Workers + Stripe Checkout)
+   POST /checkout   panier du site → session Stripe Checkout → { url }
+   POST /promo      vérifie un code promo Stripe → { code, rate, amount }
+   GET  /session    résumé d'une commande payée (page commande/merci/)
+   POST /webhook    événements Stripe signés (checkout.session.completed → fiche de fabrication) */
+import { versionCatalogue } from "./catalogue.js";
+import { ErreurPanier, lirePanier, nouvelleReference, parametresSession } from "./commande.js";
+import { appelStripe, ErreurStripe, verifierSignature } from "./stripe.js";
+
+const TAILLE_MAX = 20000;
+
+const origines = env => (env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
+
+/* En mode test, une clé live est refusée (et inversement) : impossible d'encaisser par erreur */
+function cleConforme(env) {
+  const k = env.STRIPE_SECRET_KEY || "";
+  return env.CHECKOUT_MODE === "live" ? /^(sk|rk)_live_/.test(k) : /^(sk|rk)_test_/.test(k);
+}
+
+function json(donnees, statut = 200, origine) {
+  return new Response(JSON.stringify(donnees), {
+    status: statut,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      ...(origine ? { "Access-Control-Allow-Origin": origine, Vary: "Origin" } : {})
+    }
+  });
+}
+
+async function lireJson(req) {
+  const texte = await req.text();
+  if (texte.length > TAILLE_MAX) throw new ErreurPanier("Panier trop volumineux.");
+  try { return JSON.parse(texte); } catch { throw new ErreurPanier("Requête illisible."); }
+}
+
+/* Adresse de retour : uniquement sur le site qui a fait la demande */
+function adresseSurSite(valeur, origine, defaut) {
+  try {
+    const u = new URL(valeur);
+    return u.origin === origine ? u.origin + u.pathname : defaut;
+  } catch { return defaut; }
+}
+
+/* Code promo Stripe → { id, code, rate, amount } ou null (gère les deux formes de l'API) */
+async function trouverPromo(env, code) {
+  if (typeof code !== "string" || !/^[A-Za-z0-9_-]{2,40}$/.test(code)) return null;
+  const liste = await appelStripe(env, "GET", "promotion_codes", { code, active: "true", limit: 1 });
+  const pc = liste.data && liste.data[0];
+  if (!pc) return null;
+  let coupon = pc.coupon || (pc.promotion && pc.promotion.coupon);
+  if (typeof coupon === "string") coupon = await appelStripe(env, "GET", `coupons/${encodeURIComponent(coupon)}`);
+  if (!coupon || coupon.valid === false) return null;
+  const euros = coupon.amount_off && (!coupon.currency || coupon.currency === "eur") ? coupon.amount_off / 100 : 0;
+  return { id: pc.id, code: pc.code, rate: (coupon.percent_off || 0) / 100, amount: euros };
+}
+
+async function creerSession(req, env, origine) {
+  const corps = await lireJson(req);
+  const lignes = lirePanier(corps);
+  let promotionCode = null;
+  if (corps.promo) {
+    const promo = await trouverPromo(env, corps.promo);
+    if (!promo) return json({ error: "Code promo non valide ou expiré : retirez-le du panier." }, 400, origine);
+    promotionCode = promo.id;
+  }
+  const base = adresseSurSite(corps.base, origine, origine + "/");
+  const ref = nouvelleReference();
+  const session = await appelStripe(env, "POST", "checkout/sessions", parametresSession(lignes, {
+    base: base.endsWith("/") ? base : origine + "/",
+    retour: adresseSurSite(corps.retour, origine, base),
+    ref,
+    promotionCode,
+    catalogue: await versionCatalogue(),
+    environnement: env.CHECKOUT_MODE === "live" ? "live" : "test"
+  }));
+  return json({ url: session.url, ref }, 200, origine);
+}
+
+async function verifierPromo(req, env, origine) {
+  const { code } = await lireJson(req);
+  const promo = await trouverPromo(env, String(code || "").trim());
+  /* Réponse 200 même si le code est faux : pas d'erreur réseau dans la console du client */
+  if (!promo) return json({ valide: false, error: "Code non reconnu ou expiré." }, 200, origine);
+  return json({ valide: true, code: promo.code, rate: promo.rate, amount: promo.amount }, 200, origine);
+}
+
+async function resumeSession(url, env, origine) {
+  const id = url.searchParams.get("id") || "";
+  if (!/^cs_(test|live)_[A-Za-z0-9]{10,}$/.test(id)) return json({ error: "Commande introuvable." }, 404, origine);
+  const s = await appelStripe(env, "GET", `checkout/sessions/${id}`, { expand: ["line_items.data.price.product"] });
+  if (!s.metadata || !s.metadata.ref) return json({ error: "Commande introuvable." }, 404, origine);
+  const t = s.total_details || {};
+  return json({
+    ref: s.metadata.ref,
+    statut: s.payment_status,
+    environnement: s.livemode ? "live" : "test",
+    total: s.amount_total / 100,
+    livraison: (t.amount_shipping || 0) / 100,
+    remise: (t.amount_discount || 0) / 100,
+    email: s.customer_details && s.customer_details.email,
+    lignes: ((s.line_items && s.line_items.data) || []).map(li => ({
+      nom: li.description,
+      detail: li.price && li.price.product && li.price.product.description,
+      quantite: li.quantity,
+      total: li.amount_total / 100
+    }))
+  }, 200, origine);
+}
+
+async function recevoirWebhook(req, env) {
+  const corps = await req.text();
+  if (!(await verifierSignature(corps, req.headers.get("Stripe-Signature"), env.STRIPE_WEBHOOK_SECRET)))
+    return json({ error: "Signature invalide." }, 400);
+  const evt = JSON.parse(corps);
+  if (evt.type === "checkout.session.completed") {
+    const s = evt.data.object;
+    const li = await appelStripe(env, "GET", `checkout/sessions/${s.id}/line_items`, { limit: 100, expand: ["data.price.product"] });
+    const livraison = (s.collected_information && s.collected_information.shipping_details) || s.shipping_details || {};
+    /* Fiche de fabrication : visible dans les journaux du Worker (Cloudflare → Workers → Logs).
+       Étape suivante prévue : l'envoyer par e-mail / l'enregistrer (D1). */
+    console.log(JSON.stringify({
+      fiche: "commande",
+      ref: s.metadata && s.metadata.ref,
+      environnement: evt.livemode ? "live" : "test",
+      paiement: s.payment_status,
+      total_eur: s.amount_total / 100,
+      client: s.customer_details && { nom: s.customer_details.name, email: s.customer_details.email },
+      livraison: { nom: livraison.name, adresse: livraison.address },
+      lignes: li.data.map(l => ({ quantite: l.quantity, ...((l.price && l.price.product && l.price.product.metadata) || {}) }))
+    }));
+  }
+  return json({ recu: true });
+}
+
+export default {
+  async fetch(req, env) {
+    const url = new URL(req.url);
+    const origine = req.headers.get("Origin");
+    const autorisee = origine && origines(env).includes(origine) ? origine : null;
+
+    if (req.method === "OPTIONS") {
+      if (!autorisee) return new Response(null, { status: 403 });
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": autorisee,
+          "Access-Control-Allow-Methods": "GET, POST",
+          "Access-Control-Allow-Headers": "Content-Type",
+          "Access-Control-Max-Age": "86400",
+          Vary: "Origin"
+        }
+      });
+    }
+    if (url.pathname === "/" && req.method === "GET")
+      return json({ service: "evarysth-checkout", mode: env.CHECKOUT_MODE === "live" ? "live" : "test" });
+
+    const route = `${req.method} ${url.pathname}`;
+    const routesSite = ["POST /checkout", "POST /promo", "GET /session"];
+    if (!routesSite.includes(route) && route !== "POST /webhook") return json({ error: "Introuvable." }, 404);
+    if (routesSite.includes(route) && !autorisee) return json({ error: "Origine non autorisée." }, 403);
+    if (!cleConforme(env)) return json({ error: "Paiement indisponible (configuration)." }, 503, autorisee);
+
+    try {
+      if (route === "POST /checkout") return await creerSession(req, env, autorisee);
+      if (route === "POST /promo") return await verifierPromo(req, env, autorisee);
+      if (route === "GET /session") return await resumeSession(url, env, autorisee);
+      return await recevoirWebhook(req, env);
+    } catch (e) {
+      if (e instanceof ErreurPanier) return json({ error: e.message }, 400, autorisee);
+      if (e instanceof ErreurStripe) {
+        console.error("Stripe", e.statut, e.code, e.message);
+        return json({ error: `Le paiement n'a pas pu être préparé : ${e.message}` }, 502, autorisee);
+      }
+      console.error(e);
+      return json({ error: "Erreur interne." }, 500, autorisee);
+    }
+  }
+};

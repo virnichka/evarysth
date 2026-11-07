@@ -1,0 +1,33 @@
+name: Déployer le Worker de paiement
+
+# Le Worker recalcule les prix depuis assets/js/data.js : il est redéployé à chaque changement du catalogue.
+on:
+  push:
+    branches: [main]
+    paths: ["worker/**", "assets/js/data.js", ".github/workflows/worker.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tests du Worker
+        working-directory: worker
+        run: node --test
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          wranglerVersion: "3.114.0"

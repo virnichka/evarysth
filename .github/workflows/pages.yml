@@ -24,6 +24,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Vérifier que les pages produit sont à jour
         run: node tools/generer-pages.mjs --check
+      - name: Retirer du site les fichiers qui ne sont pas des pages (Worker de paiement)
+        run: rm -rf worker
       - uses: actions/configure-pages@v5
         with:
           enablement: true
