@@ -149,3 +149,53 @@ export async function envoyerConfirmationClient(env, f, commande) {
   });
   return true;
 }
+
+/* ——— Bloc D : e-mails envoyés par la tâche planifiée selon le statut (planifie.js) ——— */
+export const envoyerEmail = envoyerBrevo;
+const prefixe = test => (test ? "[TEST] " : "");
+const page = (titre, paragraphes) => `<!DOCTYPE html><html lang="fr"><body style="margin:0;background:#f4f1ea;font:15px/1.5 Arial,sans-serif;color:#1a1a18">
+<div style="max-width:600px;margin:0 auto;padding:24px"><h1 style="font-size:20px;margin:0 0 12px">${esc(titre)}</h1>
+${paragraphes.map(p => (p.lien ? `<p style="margin:16px 0"><a href="${esc(p.lien)}" style="display:inline-block;background:#1a1a18;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">${esc(p.texte)}</a></p>`
+    : `<p style="margin:0 0 12px;white-space:pre-line">${esc(p)}</p>`)).join("\n")}
+</div></body></html>`;
+const texteBrut = paragraphes => paragraphes.map(p => (p.lien ? `${p.texte} : ${p.lien}` : p)).join("\n\n");
+
+/* Fabricant : commande à fabriquer. `livraison` (nom + adresse) seulement s'il livre le client lui-même. */
+export function contenuFabricant({ numero, piece, lienStl, delai, livraison, liens, test }) {
+  const titre = `${prefixe(test)}Commande ${numero} à fabriquer`;
+  const p = [
+    "Bonjour,",
+    `Voici une nouvelle commande Evarysth à fabriquer : ${numero}.`,
+    `Pièce (produit · taille ou cotes en mm · coloris · quantité) :\n${piece || "—"}`,
+    `Fichier STL : ${lienStl || "fourni séparément"}`,
+    ...(delai ? [`Délai convenu : ${delai} jours.`] : []),
+    livraison ? `À expédier directement au client :\n${livraison}` : "Pièce à nous renvoyer (vous ne livrez pas le client directement).",
+    "Merci de confirmer la prise en charge, puis l'expédition, avec les boutons ci-dessous (liens valables 14 jours) :",
+    { texte: "J'accepte la commande", lien: liens.accepter },
+    { texte: "Déclarer l'expédition", lien: liens.expedier },
+    "Une question ? Répondez à cet e-mail en rappelant le n° de commande.", "Evarysth"
+  ];
+  return { sujet: titre, texte: texteBrut(p), html: page(titre, p) };
+}
+
+/* Client : commande expédiée, avec transporteur et n° de suivi */
+export function contenuExpedition({ numero, nom, transporteur, suivi, test }) {
+  const titre = `${prefixe(test)}Commande ${numero} expédiée — Evarysth`;
+  const p = [
+    `Bonjour${nom ? " " + nom : ""},`,
+    `Votre commande ${numero} vient d'être expédiée.`,
+    `Transporteur : ${transporteur || "—"}\nN° de suivi : ${suivi || "—"}`,
+    "Une question ? Répondez simplement à cet e-mail en rappelant votre n° de commande.", "Evarysth"
+  ];
+  return { sujet: titre, texte: texteBrut(p), html: page(titre, p) };
+}
+
+/* Propriétaire : pas d'acceptation du fabricant 48 h après l'envoi */
+export function contenuRelance({ numero, fabricant, depuis, test }) {
+  const titre = `${prefixe(test)}Relance : ${numero} pas encore acceptée`;
+  const p = [
+    `La commande ${numero} a été envoyée au fabricant ${fabricant || "—"} le ${depuis} (heure de Paris) et n'est toujours pas acceptée.`,
+    "À vérifier avec lui (ou changer de fabricant dans le Sheet). Cette relance n'est envoyée qu'une fois par commande."
+  ];
+  return { sujet: titre, texte: texteBrut(p), html: page(titre, p) };
+}
