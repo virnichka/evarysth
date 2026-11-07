@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cloud.umami.is; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://evarysth-checkout.virnichka.workers.dev https://cloud.umami.is; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
   <link rel="icon" href="/assets/icons/favicon.svg" type="image/svg+xml">
@@ -32,7 +33,7 @@
     (function () {
       const CHECKOUT_URL = "https://evarysth-checkout.virnichka.workers.dev";
       const id = new URLSearchParams(location.search).get("session_id") || "";
-      const fmt = n => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+      const fmt = n => Number(n).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
       const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
       const texte = document.getElementById("merci-texte"), liste = document.getElementById("merci-lignes");
       if (!id) { texte.textContent = "Aucune commande à afficher."; return; }
@@ -47,7 +48,7 @@
             (c.email ? ` Adresse de contact : <b>${esc(c.email)}</b>.` : "") +
             (c.statut === "paid" ? "" : " Paiement en cours de confirmation.") +
             (c.cadeau ? `<br>Emballage cadeau${c.message_cadeau ? ` avec le message : « ${esc(c.message_cadeau)} »` : " (sans message)"}.` : "");
-          liste.innerHTML = c.lignes.map(l => `<li><div>${esc(l.nom)} × ${l.quantite}<small>${esc(l.detail)}</small></div><span>${fmt(l.total)}</span></li>`).join("") +
+          liste.innerHTML = c.lignes.map(l => `<li><div>${esc(l.nom)} × ${esc(l.quantite)}<small>${esc(l.detail)}</small></div><span>${fmt(l.total)}</span></li>`).join("") +
             (c.remise ? `<li><div>Remise</div><span>− ${fmt(c.remise)}</span></li>` : "") +
             `<li><div>Livraison</div><span>${fmt(c.livraison)}</span></li>` +
             `<li><div><b>Total payé</b></div><span><b>${fmt(c.total)}</b></span></li>`;

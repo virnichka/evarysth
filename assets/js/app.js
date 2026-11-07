@@ -55,7 +55,7 @@
   };
   EVARYSTH.shapeSVG = (shape, cls = "") =>
     `<svg class="shape ${cls}" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2.4"
-      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SHAPES[shape] || SHAPES.tray}</svg>`;
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${Object.hasOwn(SHAPES, shape) ? SHAPES[shape] : SHAPES.tray}</svg>`;
 
   /* Vignette : photos à faire défiler au doigt (scroll-snap), points = nombre de photos */
   const cardPhotos = p => {
