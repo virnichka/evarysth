@@ -89,7 +89,8 @@ la tâche planifiée (auteur `proprietaire`) quand elle détecte `Statut` ≠ `D
 pré-remplie `À renseigner` / vide / `5` / `non`.
 
 ### Onglet `Listes`
-Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
+Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (menu de la page fabricant « Expédier », lu à chaque
+affichage ; valeur hors liste refusée ; onglet illisible → liste de secours dans `fournisseur.js`).
 
 ## Bloc A — Sheet
 

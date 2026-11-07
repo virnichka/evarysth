@@ -24,7 +24,8 @@ beforeEach(() => {
   /* Ordre volontairement « trié » : la commande visée n'est pas en ligne 2 */
   sheet = {
     Commandes: [ENTETES.slice(), ligne("EV-2026-0009", "payee"), ligne("EV-2026-0042", "envoyee_fabricant"), ligne("EV-2026-0001", "payee")],
-    Journal: [["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"]]
+    Journal: [["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"]],
+    Listes: [["Statuts", "Types", "Transporteurs"], ["payee", "standard", "Colissimo"], ["acceptee", "", "Mondial Relay"]]
   };
   ecritures = 0;
   globalThis.fetch = fauxFetch;
@@ -168,4 +169,22 @@ test("Google en panne → 503, page d'erreur sans plantage", async () => {
   const r = await appeler(await jeton("accepter"), "POST");
   assert.equal(r.status, 503);
   assert.match(await r.text(), /Réessayez/);
+});
+
+test("Expédier : menu = colonne Transporteurs de l'onglet Listes ; valeur hors liste refusée", async () => {
+  const j = await creerJeton(env, { commande: "EV-2026-0042", action: "expedier", fabricant: FAB });
+  const html = await (await appeler(j)).text();
+  assert.match(html, /<select id="transporteur"/);
+  assert.match(html, /<option value="Colissimo">/); assert.match(html, /<option value="Mondial Relay">/);
+  assert.doesNotMatch(html, /Chronopost/);
+  const r = await appeler(j, "POST", { transporteur: "Chronopost", suivi: "6A123" });
+  assert.equal(r.status, 400);
+  assert.equal(cellule("EV-2026-0042", "Statut"), "envoyee_fabricant");
+});
+
+test("Expédier : onglet Listes illisible → liste de secours", async () => {
+  delete sheet.Listes;
+  const j = await creerJeton(env, { commande: "EV-2026-0042", action: "expedier", fabricant: FAB });
+  const w = console.warn; console.warn = () => {};
+  try { assert.match(await (await appeler(j)).text(), /La Poste – Colissimo/); } finally { console.warn = w; }
 });

@@ -66,7 +66,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   création : `creerJeton(env, { commande, action, fabricant })`, utilisée par les e-mails du bloc D). `GET /f/<jeton>` affiche
   seulement une page avec un bouton (ne modifie rien) ; `POST /f/<jeton>` revérifie le jeton et le fabricant de la ligne,
   puis applique la seule transition prévue : `accepter` (`envoyee_fabricant` → `acceptee`) ou `expedier` (`acceptee` ou
-  `envoyee_fabricant` → `expediee`, transporteur + n° de suivi obligatoires, écrits dans le Sheet), puis une ligne de
+  `envoyee_fabricant` → `expediee`, transporteur choisi dans `Listes!C` + n° de suivi obligatoires, écrits dans le Sheet), puis une ligne de
   `Journal` (auteur `fabricant`). 2e clic : « déjà confirmée », sans 2e ligne. Lien falsifié 403, expiré 410, transition
   interdite 409. **Sans `HMAC_SECRET` ou sans secrets Google : `/f/` répond 503**, le reste du Worker est inchangé.
 - **Tâche planifiée** (`worker/src/planifie.js`, cron `*/10 * * * *` dans `worker/wrangler.toml`, handler `scheduled`) :

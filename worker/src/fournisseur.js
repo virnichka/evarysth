@@ -10,7 +10,20 @@ export const TRANSITIONS = {
   accepter: { depuis: ["envoyee_fabricant"], vers: "acceptee", deja: ["acceptee", "expediee", "livree"] },
   expedier: { depuis: ["acceptee", "envoyee_fabricant"], vers: "expediee", deja: ["expediee", "livree"] }
 };
-const TRANSPORTEURS = ["Colissimo", "Chronopost", "Mondial Relay", "DPD", "UPS", "La Poste (lettre suivie)"];
+/* Transporteurs : colonne « Transporteurs » de l'onglet Listes (même liste que le menu du Sheet) ; secours si illisible */
+export const LISTES = "Listes";
+export const TRANSPORTEURS_SECOURS = ["La Poste – Colissimo", "La Poste – Lettre suivie", "Mondial Relay", "Autre"];
+async function lireTransporteurs(env) {
+  try {
+    const cols = await entetes(env, LISTES);
+    const lu = await lireColonnes(env, LISTES, cols, ["Transporteurs"]);
+    const liste = [...new Set(lu.Transporteurs.map(t => t.trim()).filter(Boolean))];
+    if (liste.length) return liste;
+  } catch (e) {
+    console.warn("Transporteurs : onglet Listes illisible, liste de secours", e instanceof ErreurGoogle ? e.message : e);
+  }
+  return TRANSPORTEURS_SECOURS;
+}
 const LIBELLES = {
   accepter: { titre: "Accepter la commande", bouton: "J'accepte la commande", ok: "Commande acceptée. Merci !" },
   expedier: { titre: "Déclarer l'expédition", bouton: "Confirmer l'expédition", ok: "Expédition enregistrée. Merci !" }
@@ -29,7 +42,7 @@ main{max-width:520px;margin:0 auto;padding:40px 16px}.marque{font:600 12px/1 ui-
 h1{font-family:"Bricolage Grotesque",Inter,sans-serif;font-size:28px;letter-spacing:-.025em;line-height:1.1;margin:12px 0 20px}
 .carte{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}
 .piece{white-space:pre-line;font:14px/1.5 ui-monospace,"JetBrains Mono",monospace;background:var(--bg);border-radius:8px;padding:10px 12px;margin:0 0 16px}
-label{display:block;font-weight:600;font-size:14px;margin:0 0 6px}input{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin:0 0 14px;background:#fff;color:var(--text)}
+label{display:block;font-weight:600;font-size:14px;margin:0 0 6px}input,select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin:0 0 14px;background:#fff;color:var(--text)}
 button{width:100%;font:600 16px/1 Inter,sans-serif;padding:14px;border:0;border-radius:999px;background:var(--accent);color:#151515;cursor:pointer}button:hover{background:var(--accent-hover)}
 .erreur{color:var(--err);font-weight:600}
 </style></head><body><main><div class="marque">Evarysth · espace fabricant</div><h1>${esc(titre)}</h1><div class="carte">${corps}</div></main></body></html>`;
@@ -50,10 +63,10 @@ async function lireCommande(env, numero) {
   return { cols, ligne: i + 2, statut: (lu.Statut[i] || "").trim(), fabricant: (lu.Fabricant[i] || "").trim(), piece: lu["Pièce"][i] || "" };
 }
 
-function formulaire(jeton, action) {
+function formulaire(jeton, action, transporteurs = []) {
   const champs = action === "expedier" ? `
-<label for="transporteur">Transporteur</label><input id="transporteur" name="transporteur" list="transporteurs" required maxlength="80" autocomplete="off">
-<datalist id="transporteurs">${TRANSPORTEURS.map(t => `<option value="${esc(t)}">`).join("")}</datalist>
+<label for="transporteur">Transporteur</label><select id="transporteur" name="transporteur" required>
+<option value="">Choisir…</option>${transporteurs.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("")}</select>
 <label for="suivi">N° de suivi</label><input id="suivi" name="suivi" required maxlength="80" autocomplete="off">` : "";
   return `<form method="post" action="/f/${esc(jeton)}">${champs}<button type="submit">${esc(LIBELLES[action].bouton)}</button></form>`;
 }
@@ -86,9 +99,10 @@ export async function routeFournisseur(req, env, jeton) {
     if (t.deja.includes(c.statut)) return dejaFaite(j, c);
     if (!t.depuis.includes(c.statut)) return interdite(j, c);
 
+    const transporteurs = j.action === "expedier" ? await lireTransporteurs(env) : [];
     if (req.method === "GET") {
       return page(LIBELLES[j.action].titre, `<p>Commande <b>${esc(j.commande)}</b></p>
-${c.piece ? `<div class="piece">${esc(c.piece)}</div>` : ""}${formulaire(jeton, j.action)}
+${c.piece ? `<div class="piece">${esc(c.piece)}</div>` : ""}${formulaire(jeton, j.action, transporteurs)}
 <p class="muted" style="margin:14px 0 0">Lien valable jusqu'au ${esc(new Date(j.expiration).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" }))}.</p>`);
     }
 
@@ -98,7 +112,9 @@ ${c.piece ? `<div class="piece">${esc(c.piece)}</div>` : ""}${formulaire(jeton, 
       ecrits.Transporteur = nettoyer(f.get("transporteur"));
       ecrits["N° de suivi"] = nettoyer(f.get("suivi"));
       if (!ecrits.Transporteur || !ecrits["N° de suivi"])
-        return page(LIBELLES.expedier.titre, `<p class="erreur">Le transporteur et le n° de suivi sont obligatoires.</p>${formulaire(jeton, "expedier")}`, 400);
+        return page(LIBELLES.expedier.titre, `<p class="erreur">Le transporteur et le n° de suivi sont obligatoires.</p>${formulaire(jeton, "expedier", transporteurs)}`, 400);
+      if (!transporteurs.includes(ecrits.Transporteur))
+        return page(LIBELLES.expedier.titre, `<p class="erreur">Choisissez un transporteur dans la liste.</p>${formulaire(jeton, "expedier", transporteurs)}`, 400);
     }
     for (const [nom, v] of Object.entries(ecrits)) await ecrireCellule(env, ONGLET, c.cols, c.ligne, nom, v);
     await ecrireCellule(env, ONGLET, c.cols, c.ligne, "Statut", t.vers);
