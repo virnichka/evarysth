@@ -271,3 +271,16 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
     fiche de fabrication ; passer à `envoyee_fabricant` (sur-mesure : coller d'abord le lien Drive) → sous 10 min, e-mail
     `[TEST]` au fabricant (mettre votre propre adresse dans `Fabricants` pour l'essai) → boutons accepter puis expédier →
     sous 10 min, e-mail d'expédition au client ; Journal complet. Puis remettre l'e-mail du vrai fabricant.
+
+### Règles d'usage du Sheet
+- Ne jamais supprimer une ligne de commande : passer son statut à `annulee` (ou `remboursee` après remboursement dans Stripe).
+- Ne rien écrire dans `Action requise`, `Commande OpenSCAD` ni `Dernier statut notifié` (avertissement à la saisie).
+- Trier et filtrer librement : le Worker retrouve chaque ligne par son n° de commande.
+- Modèles OpenSCAD : `modeles/<id-produit>.scad`, paramètres nommés `a`, `b`, `c` comme dans `custom.params` de `data.js`.
+- Les onglets `Synthèse` et `Livre des recettes` lisent encore `Commandes (ancien)` : à rebrancher si tu veux les garder.
+
+## Idées gardées pour la V2
+- Envoi automatique des commandes standard au fabricant (sans validation manuelle de `payee`).
+- GitHub Action OpenSCAD : produit le STL sur-mesure à partir de la colonne « Commande OpenSCAD » et le dépose sur R2.
+- Rebrancher `Synthèse` / `Livre des recettes` sur le nouvel onglet `Commandes`.
+- Plusieurs fabricants (choix selon le coloris, le délai ou la charge).
