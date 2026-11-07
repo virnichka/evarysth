@@ -75,6 +75,9 @@ Règles d'écriture pour le Worker :
   `values.update` sur la 1re ligne dont A est vide, en envoyant `null` pour E et G (cellules ignorées) : les
   formules d'en-tête s'étendent seules. Ne pas utiliser `values.append` (les formules remplissent la colonne).
 - **Mise à jour** : retrouver la ligne en cherchant le n° de commande dans la colonne A, puis écrire la cellule.
+- Écrire avec `valueInputOption=RAW` (A et B sont au format texte ; évite qu'un texte soit converti en date).
+- Le Sheet est en locale `fr_FR`, fuseau `Europe/Paris` : une formule écrite par l'API doit utiliser `;`
+  comme séparateur d'arguments (le Worker n'écrit aucune formule en V1).
 
 ### Onglet `Journal`
 `Date` · `Commande` · `Ancien statut` · `Nouveau statut` · `Auteur` (`worker`, `fabricant`, `proprietaire`).
@@ -82,7 +85,8 @@ Ajout en fin (`values.append` autorisé ici). Les changements faits à la main d
 la tâche planifiée (auteur `proprietaire`) quand elle détecte `Statut` ≠ `Dernier statut notifié`.
 
 ### Onglet `Fabricants`
-`Nom` · `E-mail` · `Délai (jours)` · `Livre le client` (`oui`/`non`). Une seule ligne en V1 (ligne 2).
+`Nom` · `E-mail` · `Délai (jours)` · `Livre le client` (`oui`/`non`, menu). Une seule ligne en V1 (ligne 2),
+pré-remplie `À renseigner` / vide / `5` / `non`.
 
 ### Onglet `Listes`
 Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
@@ -94,6 +98,13 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
 - **Critères d'acceptation** : 4 onglets ; en-têtes exacts ; menus Statut et Fabricant ; formules Action requise
   et Commande OpenSCAD en en-tête ; colonne M protégée ; mise en forme conditionnelle sur `fichier_a_produire` ;
   ligne d'exemple vérifiée puis supprimée.
+- **Réalisé (2026-11-07)** : les anciens onglets du suivi manuel `Commandes` et `Listes` ont été renommés
+  `Commandes (ancien)` et `Listes (ancien)` (rien supprimé) ; les 4 onglets du plan sont créés. Les onglets
+  existants `Synthèse`, `Livre des recettes`, `Checklist`, `Modèles d'e-mails`, `Après-vente`, `Mode d'emploi`
+  pointent toujours sur l'ancien onglet (à rebrancher plus tard si utile). Fuseau passé à `Europe/Paris`.
+  Formules E et G testées sur une commande mixte (`openscad -D a=45 -D b=32 -o EV-2026-0001-pince-parasol.stl
+  modeles/pince-parasol.scad`), protections en mode avertissement sur E, G et M, mise en forme conditionnelle
+  (ligne orange en `fichier_a_produire`, Statut rouge en `incident`).
 
 ## Bloc B — Webhook → Sheet + e-mail « commande reçue »
 
@@ -159,7 +170,7 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
 
 | Bloc | Statut | Session | PR | Date |
 |------|--------|---------|----|------|
-| A | en cours | session_01GS5VpHVaTuCX1b9qmaJGA4 | — | 2026-11-07 |
+| A | fait | session_01GS5VpHVaTuCX1b9qmaJGA4 | — (Sheet seul) | 2026-11-07 |
 | B | à faire | — | — | — |
 | C | à faire | — | — | — |
 | D | à faire | — | — | — |
@@ -167,4 +178,15 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
 
 ## À faire par le propriétaire
 
-_(complété au fil des blocs)_
+1. **Fabricant** : remplir la ligne 2 de l'onglet `Fabricants` (nom, e-mail, délai, livre le client oui/non).
+2. **Google Cloud** (avec evarysth@gmail.com) : console.cloud.google.com → créer un projet (ex. `evarysth`)
+   → « API et services » → activer **Google Sheets API**.
+3. **Compte de service** : « IAM et administration » → « Comptes de service » → créer (ex. `worker-commandes`,
+   aucun rôle) → onglet « Clés » → « Ajouter une clé » → JSON. Garder le fichier hors du dépôt.
+4. **Partager le Sheet** en **Éditeur** avec l'e-mail du compte de service (`…@….iam.gserviceaccount.com`).
+5. **Secrets Cloudflare** (dans `worker/`) :
+   - `npx wrangler secret put GOOGLE_SA_EMAIL` → champ `client_email` du JSON ;
+   - `npx wrangler secret put GOOGLE_SA_KEY` → champ `private_key` du JSON (tout le bloc `-----BEGIN PRIVATE KEY-----…`) ;
+   - `npx wrangler secret put SHEET_ID` → l'identifiant dans l'URL du Sheet (entre `/d/` et `/edit`) ;
+   - `npx wrangler secret put HMAC_SECRET` → une valeur aléatoire longue (ex. `openssl rand -hex 32`).
+6. Supprimer le fichier JSON de la clé une fois les secrets enregistrés.
