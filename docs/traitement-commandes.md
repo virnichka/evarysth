@@ -188,7 +188,7 @@ Colonne A `Statuts` (les 9 valeurs), B `Types`, C `Transporteurs` (suggestions).
 | Bloc | Statut | Session | PR | Date |
 |------|--------|---------|----|------|
 | A | fait | session_01GS5VpHVaTuCX1b9qmaJGA4 | — (Sheet seul) | 2026-11-07 |
-| B | fait | session_01GS5VpHmWue7HWoi95gWYL7 | #PR | 2026-11-07 |
+| B | fait | session_01GS5VpHmWue7HWoi95gWYL7 | #52 | 2026-11-07 |
 | C | à faire | — | — | — |
 | D | à faire | — | — | — |
 | E | à faire | — | — | — |
