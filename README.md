@@ -80,8 +80,15 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   `Journal` « → `relance_48h` »). Sans secrets Google : ne fait rien ; sans `BREVO_API_KEY`/`HMAC_SECRET` ou fabricant
   sans e-mail : la ligne attend (avertissement dans les journaux) ; Brevo en erreur : colonne inchangée, nouvel essai
   10 min plus tard. La fiche « Nouvelle commande » du webhook est inchangée.
-- Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (+ `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET`). En mode test, une clé live est refusée.
-- Tests : `cd worker && node --test`.
+- **STL standards** (`worker/src/fichier.js`, bucket R2 `evarysth-stl`, binding `STL` **commenté** dans `worker/wrangler.toml`
+  tant que le bucket n'existe pas) : `GET /fichier/<jeton>` sert l'objet R2 en pièce jointe ; jeton
+  `fichier.<clé>.<expiration>.<signature>` (HMAC_SECRET, 14 jours, même mécanique que les liens fournisseur, non
+  interchangeable avec eux) ; falsifié → 403, expiré → 410, absent → 404, sans binding ou sans `HMAC_SECRET` → 503.
+  Clés : `<produit>/<taille>.stl` (ou `.3mf`, `.zip`), taille en minuscules sans accents (`boite-rugged/m.stl`,
+  `…/moyenne.stl`, `Ø 12` → `12`). E-mail fabricant d'une ligne au `Lien STL` vide : un lien par ligne standard dont le
+  fichier existe ; sinon « fourni séparément » (R2 en panne : idem, l'e-mail part quand même).
+- Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (+ `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET`) ; binding R2 `STL` facultatif. En mode test, une clé live est refusée.
+- Tests : `cd worker && node --test` (dont `test/parcours.test.mjs` : recette de bout en bout webhook → tâche planifiée → liens fournisseur → expédition).
 - Passage en production (checklist, dans l'ordre) :
   1. Pages légales sans `[À COMPLÉTER]` ; Stripe → activer le compte (identité, SIRET, IBAN) ; Paramètres → Informations
      publiques : URL CGV `https://www.evarysth.fr/cgv/`, confidentialité `https://www.evarysth.fr/confidentialite/`,
