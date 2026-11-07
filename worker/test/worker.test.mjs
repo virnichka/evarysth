@@ -173,6 +173,14 @@ test("webhook : e-mail « Nouvelle commande » envoyé par Brevo, nouvel essai s
   assert.match(m.corps.htmlContent, /Bon &lt;b&gt;anniversaire&lt;\/b&gt; !/, "message client échappé dans le HTML");
 });
 
+test("e-mail de commande : reply-to contact@evarysth.fr si le client n'a pas d'e-mail", async () => {
+  const { envoyerFiche } = await import("../src/email.js");
+  const f = { ref: "EV-1", environnement: "test", total_eur: 10, paiement: "paid", lignes: [], client: { nom: "Sans Mail" } };
+  const n = brevo.length; brevoStatut = 201;
+  assert.equal(await envoyerFiche({ BREVO_API_KEY: "k", ORDER_EMAIL: "a@example.com" }, f), true);
+  assert.deepEqual(brevo[n].corps.replyTo, { email: "contact@evarysth.fr", name: "Evarysth" });
+});
+
 test("emballage cadeau : ligne à 3 € ajoutée par le Worker, message en métadonnées", async () => {
   const r = await poster("/checkout", { items: [tablette], cadeau: true, message: "  Joyeux\nanniversaire !  ", base: SITE + "/" });
   assert.equal(r.status, 200);
