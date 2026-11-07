@@ -7,7 +7,7 @@ import { signer } from "../src/stripe.js";
 import { viderCacheJeton } from "../src/google.js";
 import { reglages } from "../src/sheet.js";
 import { tachePlanifiee } from "../src/planifie.js";
-import { COL_CF, COL_EV, ENTETES_CF, ENTETES_EV, objet } from "./entetes.mjs";
+import { COL_CF, COL_EV, ENTETES_CF, ENTETES_EV, objet, appliquerFormules } from "./entetes.mjs";
 
 reglages.attenteVerificationMs = 0;
 const paire = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
@@ -40,6 +40,7 @@ async function fauxFetch(url, init = {}) {
   if (u.host === "api.brevo.com") { emails.push(JSON.parse(init.body)); return rep({ messageId: "m" }, 201); }
   if (u.host !== "sheets.googleapis.com") throw new Error("Appel réseau inattendu : " + url);
   const chemin = decodeURIComponent(u.pathname.replace("/v4/spreadsheets/id-factice/", ""));
+  if (chemin === "values:batchGet") appliquerFormules(sheet);
   if (chemin === "values:batchGet") return rep({ valueRanges: u.searchParams.getAll("ranges").map(r => {
     const { onglet, ref } = plage(r), v = sheet[onglet].map(l => l[col(ref.split(":")[0])] ?? "");
     while (v.length && v[v.length - 1] === "") v.pop();
@@ -66,7 +67,7 @@ async function webhook(id) {
   return silence(() => worker.fetch(new Request("https://w.dev/webhook", { method: "POST", headers: { "Stripe-Signature": entete }, body: corps }), env));
 }
 /* Commande client par session Stripe ; ses articles (onglet Commandes CF) ; saisie à la main du propriétaire */
-const ligne = sid => objet(ENTETES_EV, sheet["Commandes EV"].find(l => l[COL_EV["Stripe session id"]] === sid));
+const ligne = sid => (appliquerFormules(sheet), 0) || objet(ENTETES_EV, sheet["Commandes EV"].find(l => l[COL_EV["Stripe session id"]] === sid));
 const articles = sid => sheet["Commandes CF"].filter(l => l[COL_CF["Commande EV"]] === ligne(sid).Commande).map(l => objet(ENTETES_CF, l));
 const ecrire = (sid, n, valeurs) => {
   const r = sheet["Commandes CF"].find(l => l[COL_CF["Commande EV"]] === ligne(sid).Commande && l[COL_CF["Article n°"]] === String(n));

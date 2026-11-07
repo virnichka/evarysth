@@ -25,7 +25,7 @@ const lignesArticles = fiche => fiche.lignes.filter(l => (l.meta || {}).produit 
 export const typeCommande = fiche => (lignesArticles(fiche).some(l => (l.meta || {}).mode === "custom") ? "sur-mesure" : "standard");
 export const statutInitial = type => (type === "sur-mesure" ? "fichier_a_produire" : "payee");
 
-/* Un article : « <produit> · <taille M | a=45 b=32> · <coloris> · ×<qté> » */
+/* Un article : « <produit> · <taille M | a=45 b=32> · <matière> · <coloris> · ×<qté> » (matière : celle du catalogue) */
 function ligneArticle(l) {
   const m = l.meta || {};
   let taille = m.taille || "";
@@ -34,7 +34,8 @@ function ligneArticle(l) {
   }
   const p = m.produit && EVARYSTH.getProduct(m.produit);
   const col = p && (p.colors || []).find(c => c.id === m.coloris);
-  return [m.produit || l.nom, taille || "—", (col && col.label) || m.coloris || "—", `×${l.quantite}`].join(" · ");
+  const matiere = m.matiere || (p && EVARYSTH.matiere ? EVARYSTH.matiere(p).label : "");
+  return [m.produit || l.nom, taille || "—", ...(matiere ? [matiere] : []), (col && col.label) || m.coloris || "—", `×${l.quantite}`].join(" · ");
 }
 
 /* Articles de la commande (hors emballage cadeau) : [{ texte, type: standard | sur-mesure }] */
@@ -74,7 +75,7 @@ export async function enregistrerCommande(env, fiche, session) {
 async function enregistrerEV(env, fiche, session) {
   const cols = await entetes(env, ONGLET);
   const type = typeCommande(fiche);
-  const statut = "payee";
+  const statut = "payee";                               /* statut initial (Journal, e-mail) ; la colonne Statut est une formule */
   const quand = session.created ? new Date(session.created * 1000) : new Date();
   const date = dateParis(quand);
   const annee = date.slice(0, 4);
@@ -91,7 +92,6 @@ async function enregistrerEV(env, fiche, session) {
     await ecrireLigne(env, ONGLET, cols, ligne, {
       Commande: numero,
       Date: date,
-      Statut: statut,
       Type: type,
       Articles: piece(fiche),
       Client: client(fiche),

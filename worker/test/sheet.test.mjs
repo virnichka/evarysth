@@ -25,7 +25,7 @@ let sheet, jetons, brevo, appelsGoogle, panneGoogle, apresEcriture, lignesStripe
 beforeEach(() => {
   viderCacheJeton();
   sheet = {
-    "Commandes EV": [ENTETES_EV.slice(), ["EV-2026-0007", "2026-01-02 10:00", "livree", "standard", "x", "", "CF-2026-0007-A", "", "livree", "cs_test_ancien", "à garder"]],
+    "Commandes EV": [ENTETES_EV.slice(), ["EV-2026-0007", "2026-01-02 10:00", "livree", "", "standard", "x", "", "CF-2026-0007-A", "", "livree", "cs_test_ancien", "à garder"]],
     "Commandes CF": [ENTETES_CF.slice(), ["CF-2026-0007-A", "EV-2026-0007", "1", "2026-01-02 10:00", "livree", "standard", undefined, "x", undefined, "MaxiCAD", "", "", "", "livree", ""]],
     Journal: [["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"]],
     Fabricants: [["Nom", "E-mail", "Délai (jours)", "Livre le client"], ["À renseigner", "", "5", "non"]]
@@ -131,13 +131,13 @@ test("webhook : commande sur-mesure ajoutée (format du contrat), e-mail client,
   assert.equal(r.Commande, "EV-2026-0008");
   assert.equal(sheet["Commandes EV"].indexOf(sheet["Commandes EV"].find(l => l[SID] === "cs_test_nouveau")), 2, "1re ligne vide");
   assert.match(r.Date, /^2026-\d\d-\d\d \d\d:\d\d$/);
-  assert.equal(r.Statut, "payee", "statut client : payée");
+  assert.equal(r.Statut, undefined, "Statut : formule du Sheet, jamais écrite par le Worker");
   assert.equal(r.Type, "sur-mesure");
-  assert.equal(r.Articles, "tablette-rambarde · a=45 b=300 · Rose poudré · ×2");
+  assert.equal(r.Articles, "tablette-rambarde · a=45 b=300 · ASA · Rose poudré · ×2");
   assert.equal(r.Client, "Camille Test\nclient@example.com\n1 rue des Lilas, 75011 Paris, FR");
   assert.equal(r["Dernier statut notifié"], "payee", "noté après l'e-mail client");
   assert.equal(r["Cadeau / message"], "");
-  for (const n of ["Commandes CF", "Notes"]) assert.equal(r[n], undefined, `${n} pas écrite par le webhook`);
+  for (const n of ["Statut forcé", "Commandes CF", "Notes"]) assert.equal(r[n], undefined, `${n} pas écrite par le webhook`);
 
   const a = articles("EV-2026-0008");
   assert.equal(a.length, 1, "une ligne par article dans Commandes CF");
@@ -146,7 +146,7 @@ test("webhook : commande sur-mesure ajoutée (format du contrat), e-mail client,
   assert.equal(a[0].Date, r.Date);
   assert.equal(a[0].Statut, "fichier_a_produire");
   assert.equal(a[0].Type, "sur-mesure");
-  assert.equal(a[0].Article, "tablette-rambarde · a=45 b=300 · Rose poudré · ×2");
+  assert.equal(a[0].Article, "tablette-rambarde · a=45 b=300 · ASA · Rose poudré · ×2");
   assert.equal(a[0]["Dernier statut notifié"], "fichier_a_produire", "état initial : rien à notifier");
   for (const n of ["Commande CF", "Action requise", "Commande OpenSCAD", "Fabricant", "Lien STL", "Notes"])
     assert.equal(a[0][n], undefined, `${n} jamais écrite par le webhook`);
@@ -176,7 +176,7 @@ test("webhook : articles déjà en partie écrits (écriture interrompue) → se
     { description: "A", quantity: 1, amount_total: 3500, price: { product: { metadata: { produit: "tablette-rambarde", mode: "standard", taille: "M", coloris: "noir" } } } },
     { description: "B", quantity: 1, amount_total: 3500, price: { product: { metadata: { produit: "tablette-rambarde", mode: "custom", cotes_mm: '{"a":50}', coloris: "noir" } } } }
   ];
-  sheet["Commandes EV"].push(["EV-2026-0008", "2026-11-07 10:00", "payee", "sur-mesure", "x", "", "", "", "payee", "cs_test_nouveau", ""]);
+  sheet["Commandes EV"].push(["EV-2026-0008", "2026-11-07 10:00", "payee", "", "sur-mesure", "x", "", "", "", "payee", "cs_test_nouveau", ""]);
   sheet["Commandes CF"].push(["", "EV-2026-0008", "1", "2026-11-07 10:00", "payee", "standard", undefined, "tablette-rambarde · M · x · ×1"]);
   assert.equal((await webhook(envGoogle)).status, 200);
   const a = articles("EV-2026-0008");
@@ -190,9 +190,8 @@ test("webhook : commande standard → payee, emballage cadeau dans « Cadeau / m
   ];
   assert.equal((await webhook(envGoogle, "cs_test_std", { metadata: { ref: "EV-1", cadeau: "oui", message_cadeau: "Joyeux anniversaire" } })).status, 200);
   const r = ligneCommande("cs_test_std");
-  assert.equal(r.Statut, "payee");
   assert.equal(r.Type, "standard");
-  assert.match(r.Articles, /^tablette-rambarde · M · [^·]+ · ×1$/);
+  assert.match(r.Articles, /^tablette-rambarde · M · ASA · [^·]+ · ×1$/);
   const a = articles(r.Commande);
   assert.equal(a.length, 1, "emballage cadeau : pas de ligne fournisseur");
   assert.equal(a[0].Statut, "payee");
@@ -202,7 +201,7 @@ test("webhook : commande standard → payee, emballage cadeau dans « Cadeau / m
 
 test("webhook : deux commandes simultanées sur la même ligne → n° distincts, aucune perdue", async () => {
   /* Juste après notre écriture, une autre commande (même état lu) écrit la même ligne avec le même n° */
-  apresEcriture = ligne => { sheet["Commandes EV"][ligne] = ["EV-2026-0008", "2026-11-07 10:00", "payee", "standard", "autre", "", "", "", "", "cs_test_concurrent", ""]; };
+  apresEcriture = ligne => { sheet["Commandes EV"][ligne] = ["EV-2026-0008", "2026-11-07 10:00", "payee", "", "standard", "autre", "", "", "", "", "cs_test_concurrent", ""]; };
   assert.equal((await webhook(envGoogle)).status, 200);
   assert.equal(ligneCommande("cs_test_concurrent").Commande, "EV-2026-0008");
   assert.equal(ligneCommande("cs_test_nouveau").Commande, "EV-2026-0009");

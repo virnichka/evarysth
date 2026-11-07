@@ -65,7 +65,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   par le client) ; **commande fournisseur** `CF-AAAA-NNNN-X` (onglet `Commandes CF`, une ligne par article, seul n° vu par
   le fabricant ; la lettre distingue les fabricants d'une même commande). À chaque `checkout.session.completed`, le Worker
   ajoute la commande à `Commandes EV` (sans doublon, clé : Stripe session id ; n° attribué par « écrire puis vérifier »,
-  voir le plan, bloc B), statut `payee`, puis une ligne par article dans `Commandes CF` (statut `payee` ou
+  voir le plan, bloc B), puis une ligne par article (produit · taille ou cotes · matière · coloris · quantité) dans `Commandes CF` (statut `payee` ou
   `fichier_a_produire` si sur-mesure, **fabricant vide : choisi à la main**), écrit une ligne dans `Journal` et envoie au
   client l'e-mail Brevo « Commande EV-… reçue » (une seule fois). Accès par compte de service (JWT RS256 en WebCrypto,
   jeton en cache 1 h). Google en erreur : la fiche de fabrication part quand même, puis réponse 503 (Stripe réessaie).
@@ -93,9 +93,10 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   « un colis de votre commande… », « le reste suivra » s'il y a plusieurs CF) ; fabricant non choisi → la ligne attend ;
   autres statuts : colonne mise à jour, sans e-mail. Relance à `ORDER_EMAIL` si pas d'`acceptee` 48 h après le passage
   en `envoyee_fabricant` (date du `Journal`), **une seule par CF** (ligne `Journal` « → `relance_48h` ») ;
-  4. **statut client** de `Commandes EV` calculé à partir de ses articles (`payee` → `en_fabrication` →
-  `partiellement_expediee` → `expediee` → `livree`, `incident` ; `incident`, `remboursee`, `annulee` mis à la main jamais
-  écrasés) et liste de ses n° CF. Sans secrets Google : ne fait rien ; sans `BREVO_API_KEY`/`HMAC_SECRET` ou fabricant
+  4. journalise les changements du **statut client** de `Commandes EV`, qui est une **formule du Sheet** calculée à
+  partir des articles (`payee` → `en_fabrication` → `partiellement_expediee` → `expediee` → `livree`, `incident`),
+  sauf si `Statut forcé` est rempli (`incident`, `remboursee`, `annulee`) ; la liste des n° CF est aussi une formule.
+  Le Worker n'écrit dans aucune de ces colonnes. Sans secrets Google : ne fait rien ; sans `BREVO_API_KEY`/`HMAC_SECRET` ou fabricant
   sans e-mail : la ligne attend (avertissement dans les journaux) ; Brevo en erreur : colonne inchangée, nouvel essai
   10 min plus tard. La fiche « Nouvelle commande » du webhook est inchangée.
   **Vérification manuelle** : ouvrir `$W/maj`, saisir la clé `ADMIN_KEY` dans le formulaire (envoyée en POST, jamais dans
