@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <base href="../../">
+  <title>Commande confirmée — Evarysth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("evarysth.theme") || "light"; } catch (e) { document.documentElement.dataset.theme = "light"; }</script>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="logo" href="./" aria-label="Evarysth, accueil"><svg class="logo__mark" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="15" height="15" rx="4" class="logo__a"/><rect x="11" y="11" width="15" height="15" rx="4" class="logo__b"/></svg>evarysth</a>
+  </header>
+  <main class="merci done" id="merci">
+    <span class="done__icon">✓</span>
+    <h1>Merci pour votre commande</h1>
+    <p id="merci-texte">Récupération du récapitulatif…</p>
+    <ul class="merci__lignes" id="merci-lignes" hidden></ul>
+    <a class="btn" href="./">Retour à la boutique</a>
+  </main>
+  <script>
+    /* Page de retour après paiement Stripe. Même adresse de service que CHECKOUT_URL dans assets/js/cart.js */
+    (function () {
+      const CHECKOUT_URL = "https://evarysth-checkout.virnichka.workers.dev";
+      const id = new URLSearchParams(location.search).get("session_id") || "";
+      const fmt = n => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+      const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const texte = document.getElementById("merci-texte"), liste = document.getElementById("merci-lignes");
+      if (!id) { texte.textContent = "Aucune commande à afficher."; return; }
+      fetch(CHECKOUT_URL + "/session?id=" + encodeURIComponent(id))
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(c => {
+          if (c.statut === "paid") {
+            /* Commande payée : le panier est vidé */
+            try { ["evarysth.cart.v1", "evarysth.promo", "evarysth.promo.remise"].forEach(k => localStorage.removeItem(k)); } catch (e) { /* indisponible */ }
+          }
+          texte.innerHTML = `Commande <b class="mono">${esc(c.ref)}</b>${c.environnement === "test" ? " (mode test, aucun paiement réel)" : ""}.` +
+            (c.email ? ` Adresse de contact : <b>${esc(c.email)}</b>.` : "") +
+            (c.statut === "paid" ? "" : " Paiement en cours de confirmation.");
+          liste.innerHTML = c.lignes.map(l => `<li><div>${esc(l.nom)} × ${l.quantite}<small>${esc(l.detail)}</small></div><span>${fmt(l.total)}</span></li>`).join("") +
+            (c.remise ? `<li><div>Remise</div><span>− ${fmt(c.remise)}</span></li>` : "") +
+            `<li><div>Livraison</div><span>${fmt(c.livraison)}</span></li>` +
+            `<li><div><b>Total payé</b></div><span><b>${fmt(c.total)}</b></span></li>`;
+          liste.hidden = false;
+        })
+        .catch(() => { texte.textContent = "Votre paiement a bien été transmis. Le récapitulatif n'a pas pu être affiché pour le moment."; });
+    })();
+  </script>
+</body>
+</html>

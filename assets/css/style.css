@@ -492,7 +492,15 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .promo__msg { font-size: 13px; color: var(--soft); margin-bottom: 10px; }
 .promo__msg.is-err { color: #b42318; }
 [data-theme="dark"] .promo__msg.is-err { color: #ff8a6b; }
+.promo__msg.checkout-test { margin: 10px 0 0; text-align: center; }
+.merci { max-width: 640px; margin: 0 auto; padding: 48px 20px 80px; }
+.merci .done__icon { margin-bottom: 12px; }
+.merci__lignes { list-style: none; padding: 0; margin: 20px 0; border-top: 1px solid var(--line); }
+.merci__lignes li { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.merci__lignes small { display: block; color: var(--soft); font-size: 13px; }
+.merci__lignes span:last-child { font-family: var(--mono); white-space: nowrap; }
 .gift { display: flex; align-items: center; gap: 10px; font-size: 14px; margin-bottom: 12px; cursor: pointer; min-height: 32px; }
+.gift[hidden] { display: none; }
 .gift input { accent-color: var(--accent); width: 18px; height: 18px; }
 
 /* ---------- Notifications ---------- */

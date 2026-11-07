@@ -472,6 +472,7 @@ ${colors.length ? `
       EVARYSTH.cart.add({
         key: [p.id, state.mode, variantLabel, JSON.stringify(v), col ? col.id : ""].join("|"),
         id: p.id, name: p.name, shape: p.shape, mode: state.mode,
+        variant: state.mode === "custom" ? null : state.variant, color: col ? col.id : null,
         values: { ...v }, details,
         summary: details.map(d => `${d[0]} : ${d[1]}`).join(", "),
         unitPrice: state._unit, qty: state.qty

@@ -1,0 +1,15 @@
+# Worker de paiement Evarysth — déployé par .github/workflows/worker.yml (ou `npx wrangler deploy`)
+# Secrets (jamais ici) : `wrangler secret put STRIPE_SECRET_KEY` et `wrangler secret put STRIPE_WEBHOOK_SECRET`
+name = "evarysth-checkout"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+[vars]
+# "test" : n'accepte que les clés sk_test_ / rk_test_. Passer à "live" uniquement à l'ouverture des ventes.
+CHECKOUT_MODE = "test"
+# Sites autorisés à créer une session (CORS + adresses de retour)
+ALLOWED_ORIGINS = "https://evarysth.fr,https://www.evarysth.fr,http://localhost:8000,http://127.0.0.1:8000"
+
+[observability]
+enabled = true

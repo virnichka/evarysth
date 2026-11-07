@@ -1,0 +1,10 @@
+{
+  "name": "evarysth-checkout",
+  "private": true,
+  "type": "module",
+  "description": "Worker Cloudflare : sessions Stripe Checkout et webhook du site Evarysth",
+  "scripts": {
+    "test": "node --test",
+    "deploy": "wrangler deploy"
+  }
+}
