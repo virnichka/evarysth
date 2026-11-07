@@ -1,6 +1,6 @@
 # Worker de paiement Evarysth — déployé par .github/workflows/worker.yml (ou `npx wrangler deploy`)
 # Secrets (jamais ici) : `wrangler secret put STRIPE_SECRET_KEY` et `wrangler secret put STRIPE_WEBHOOK_SECRET`
-# Back-office (facultatif, inactif sans eux) : GOOGLE_SA_EMAIL, GOOGLE_SA_KEY, SHEET_ID — voir docs/traitement-commandes.md
+# Back-office (facultatif, inactif sans eux) : GOOGLE_SA_EMAIL, GOOGLE_SA_KEY, SHEET_ID, HMAC_SECRET — voir docs/traitement-commandes.md
 name = "evarysth-checkout"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
@@ -19,6 +19,13 @@ ALLOWED_ORIGINS = "https://evarysth.fr,https://www.evarysth.fr,http://localhost:
 EMAIL_FROM = "commandes@evarysth.fr"
 # Reply-to quand le client n'a pas laissé d'e-mail (sinon : l'e-mail du client)
 REPLY_TO = "contact@evarysth.fr"
+
+# Liens fournisseur des e-mails fabricant (bloc D) : adresse publique de ce Worker
+WORKER_URL = "https://evarysth-checkout.virnichka.workers.dev"
+
+# Tâche planifiée (bloc D) : e-mails selon le statut du Sheet ; sans secrets Google, elle ne fait rien
+[triggers]
+crons = ["*/10 * * * *"]
 
 [observability]
 enabled = true
