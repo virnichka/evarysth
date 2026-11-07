@@ -13,5 +13,9 @@ CHECKOUT_MODE = "test"
 # Sites autorisés à créer une session (CORS + adresses de retour)
 ALLOWED_ORIGINS = "https://evarysth.fr,https://www.evarysth.fr,http://localhost:8000,http://127.0.0.1:8000"
 
+# Expéditeur des e-mails de commande (domaine authentifié dans Brevo).
+# Destinataire : secret ORDER_EMAIL (jamais ici, le dépôt est public) ; clé : secret BREVO_API_KEY.
+EMAIL_FROM = "commandes@evarysth.fr"
+
 [observability]
 enabled = true

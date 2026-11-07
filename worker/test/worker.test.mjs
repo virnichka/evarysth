@@ -14,10 +14,10 @@ const env = {
 };
 
 /* Faux Stripe : enregistre les appels, répond selon le chemin */
-let appels = [];
+let appels = [], brevo = [], brevoStatut = 201;
 const vraiFetch = globalThis.fetch;
 beforeEach(() => {
-  appels = [];
+  appels = []; brevo = []; brevoStatut = 201;
   globalThis.fetch = async (url, init = {}) => {
     const u = new URL(url);
     appels.push({ chemin: u.pathname, methode: init.method, corps: init.body || u.search.slice(1) });
@@ -29,7 +29,9 @@ beforeEach(() => {
         : rep({ data: [] });
     }
     if (u.pathname === "/v1/coupons/72RlPcIT") return rep({ id: "72RlPcIT", percent_off: 10, valid: true });
-    if (u.pathname.endsWith("/line_items")) return rep({ data: [{ quantity: 1, price: { product: { metadata: { produit: "x" } } } }] });
+    if (u.pathname.endsWith("/line_items")) return rep({ data: [{ description: "Tablette café de balcon — Sur-mesure", quantity: 2, amount_total: 8200,
+      price: { product: { metadata: { produit: "tablette-rambarde", mode: "custom", cotes_mm: '{"a":45,"b":300}', coloris: "rose" } } } }] });
+    if (u.host === "api.brevo.com") { brevo.push({ cle: init.headers["api-key"], corps: JSON.parse(init.body) }); return new Response('{"messageId":"m1"}', { status: brevoStatut }); }
     return vraiFetch(url, init);
   };
 });
@@ -134,10 +136,41 @@ test("webhook : signature vérifiée (valide, falsifiée, périmée)", async () 
 
   const envoyer = entete => worker.fetch(new Request("https://w.dev/webhook", { method: "POST", headers: { "Stripe-Signature": entete }, body: corps }), env);
   assert.equal((await envoyer(`t=${t},v1=${"0".repeat(64)}`)).status, 400);
-  const log = console.log; let fiche; console.log = s => { fiche = JSON.parse(s); };
-  try { assert.equal((await envoyer(`t=${t},v1=${sig}`)).status, 200); } finally { console.log = log; }
+  const log = console.log, warn = console.warn; let fiche; console.log = s => { fiche = JSON.parse(s); }; console.warn = () => {};
+  try { assert.equal((await envoyer(`t=${t},v1=${sig}`)).status, 200, "sans secrets Brevo : pas d'e-mail, pas d'échec"); }
+  finally { console.log = log; console.warn = warn; }
   assert.equal(fiche.ref, "EV-1");
-  assert.deepEqual(fiche.lignes, [{ quantite: 1, produit: "x" }]);
+  assert.equal(fiche.lignes[0].meta.cotes_mm, '{"a":45,"b":300}');
+  assert.equal(brevo.length, 0);
+});
+
+test("webhook : e-mail « Nouvelle commande » envoyé par Brevo, nouvel essai si Brevo échoue", async () => {
+  const envMail = { ...env, BREVO_API_KEY: "xkeysib-factice", ORDER_EMAIL: "atelier@example.com", EMAIL_FROM: "commandes@evarysth.fr" };
+  const session = { id: "cs_test_abc", payment_status: "paid", payment_intent: "pi_123", amount_total: 9690,
+    metadata: { ref: "EV-261107-ABCD", cadeau: "oui", message_cadeau: "Bon <b>anniversaire</b> !" },
+    customer_details: { name: "Camille Test", email: "client@example.com" },
+    collected_information: { shipping_details: { name: "Camille Test", address: { line1: "1 rue des Lilas", postal_code: "75011", city: "Paris", country: "FR" } } } };
+  const corps = JSON.stringify({ type: "checkout.session.completed", livemode: false, data: { object: session } });
+  const t = Math.floor(Date.now() / 1000);
+  const entete = `t=${t},v1=${await signer(env.STRIPE_WEBHOOK_SECRET, `${t}.${corps}`)}`;
+  const envoyer = () => worker.fetch(new Request("https://w.dev/webhook", { method: "POST", headers: { "Stripe-Signature": entete }, body: corps }), envMail);
+  const log = console.log, err = console.error; console.log = () => {}; console.error = () => {};
+  try {
+    assert.equal((await envoyer()).status, 200);
+    brevoStatut = 401;
+    assert.equal((await envoyer()).status, 500, "Brevo refuse : Stripe renverra l'événement");
+  } finally { console.log = log; console.error = err; }
+  const m = brevo[0];
+  assert.equal(m.cle, "xkeysib-factice");
+  assert.deepEqual(m.corps.to, [{ email: "atelier@example.com" }]);
+  assert.deepEqual(m.corps.sender, { name: "Evarysth", email: "commandes@evarysth.fr" });
+  assert.deepEqual(m.corps.replyTo, { email: "client@example.com", name: "Camille Test" });
+  assert.match(m.corps.subject, /^\[TEST\] Nouvelle commande EV-261107-ABCD — 96,90/);
+  assert.match(m.corps.textContent, /B · Largeur de la tablette : 300 mm/);
+  assert.match(m.corps.textContent, /Coloris : Rose poudré/);
+  assert.match(m.corps.textContent, /75011 Paris/);
+  assert.match(m.corps.textContent, /dashboard\.stripe\.com\/test\/payments\/pi_123/);
+  assert.match(m.corps.htmlContent, /Bon &lt;b&gt;anniversaire&lt;\/b&gt; !/, "message client échappé dans le HTML");
 });
 
 test("emballage cadeau : ligne à 3 € ajoutée par le Worker, message en métadonnées", async () => {

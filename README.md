@@ -71,7 +71,13 @@ Le code d'envoi est **en cours dans une autre session (pas encore dans le dépô
   **`BREVO_API_KEY`** du Worker `evarysth-checkout`. Blocage des IP non autorisées **désactivé** pour les clés API
   (le Worker appelle depuis des IP Cloudflare variables).
 - Reste à faire : redirection OVH `commandes@evarysth.fr` → boîte perso (créée, pas encore reçue au test) puis choix du
-  reply-to ; contrôle SPF/DKIM/DMARC « pass » dans les en-têtes du mail de test (reçu) ; brancher l'envoi dans le Worker.
+  reply-to ; contrôle SPF/DKIM/DMARC « pass » dans les en-têtes du mail de test (reçu).
+- **Envoi branché** (`worker/src/email.js`) : à chaque `checkout.session.completed`, e-mail « Nouvelle commande EV-… »
+  (« [TEST] » en mode test) avec la fiche de fabrication (cotes en mm avec leurs libellés, coloris, emballage cadeau et
+  message, adresse, lien Stripe). Répondre à l'e-mail écrit au client (reply-to). Expéditeur : `EMAIL_FROM` dans
+  `worker/wrangler.toml`. **Destinataire : secret Cloudflare `ORDER_EMAIL`** (une ou plusieurs adresses séparées par des
+  virgules), jamais dans le dépôt, qui est public. Sans `ORDER_EMAIL` ou `BREVO_API_KEY`, aucun e-mail (avertissement dans
+  les journaux) ; si Brevo refuse, le webhook répond 500 et Stripe renvoie l'événement plus tard.
 - Attention : la clé expire après **90 jours sans aucun appel** ; tant que les ventes sont fermées, la recréer si besoin.
 
 ## 3. Où sont rangées les données ?
