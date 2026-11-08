@@ -1,5 +1,9 @@
 # Traitement des commandes V1
 
+> **État actuel (8 novembre 2026)** : résumé dans le README, « Paiement et commandes ». Le circuit en vigueur est celui
+> du **bloc G** (point de verrou + page `/admin`) ; les blocs A à F sont l'historique de construction (certains détails,
+> comme « fourni séparément » ou le choix du fabricant dans le Sheet, ont été remplacés par le bloc G).
+
 Chantier piloté par la session `session_01GS5VpHVaTuCX1b9qmaJGA4` (chef de projet). Chaque bloc de code
 (B à E) est réalisé dans une session séparée, un par un, dans l'ordre.
 
