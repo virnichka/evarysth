@@ -16,11 +16,11 @@ import { creerJeton, jetonConfigure } from "./jeton.js";
 import { liensStandards } from "./fichier.js";
 import { EVARYSTH } from "./catalogue.js";
 import { contenuExpedition, contenuFabricant, contenuRelance, envoyerEmail } from "./email.js";
-import { CF, dateParis, FABRICANTS, JOURNAL, journaliser, majArticle, ONGLET, ONGLET_CF } from "./sheet.js";
+import { A_VALIDER, CF, dateParis, FABRICANTS, STL_A_INDIQUER, JOURNAL, journaliser, majArticle, ONGLET, ONGLET_CF } from "./sheet.js";
 
-export const STATUTS = ["payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree", "incident", "remboursee", "annulee"];
+export const STATUTS = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree", "incident", "remboursee", "annulee"];
 export const STATUTS_EV = ["payee", "en_fabrication", "partiellement_expediee", "expediee", "livree", "incident", "remboursee", "annulee"];
-const A_ENVOYER = ["payee", "fichier_a_produire"];
+export const A_ENVOYER = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire"];   /* avant l'envoi au fabricant */
 /* Article pas encore envoyé au fabricant (son n° CF peut encore changer) : statut d'avant l'envoi, ou e-mail
    fabricant pas encore parti (fabricant et envoyee_fabricant choisis d'un coup, avant le passage de la tâche) */
 const pasEnvoye = l => A_ENVOYER.includes(l.statut) || !l.notifie || A_ENVOYER.includes(l.notifie);
@@ -28,7 +28,7 @@ export const RELANCE = "relance_48h";               /* valeur « Nouveau statut 
 export const DELAI_RELANCE_MS = 48 * 3600_000;
 const URL_WORKER = "https://evarysth-checkout.virnichka.workers.dev";
 const COLS_CF = [CF.num, CF.ev, CF.art, "Statut", "Article", "Fabricant", "Lien STL", "Transporteur", "N° de suivi", "Dernier statut notifié"];
-const COLS_EV = ["Commande", "Statut", "Client", "Stripe session id"];
+const COLS_EV = ["Commande", "Date", "Statut", "Type", "Client", "Cadeau / message", "Stripe session id"];
 const oui = v => /^oui$/i.test(String(v || "").trim());
 const repondreA = env => ({ email: env.REPLY_TO || "contact@evarysth.fr", name: "Evarysth" });
 /* Article tel que le client le lit : nom du produit à la place de son identifiant */
@@ -111,18 +111,20 @@ export function statutEV(statuts) {
 }
 
 /* Liens STL d'un groupe d'articles : Lien STL saisi sur la ligne, sinon fichier standard de R2 (bloc E) ;
-   un seul lien → l'URL seule, sinon « produit taille : URL » par article ; aucun → "" (« fourni séparément ») */
+   un seul lien → l'URL seule, sinon « produit taille : URL » par article. Renvoie { texte, manquants } :
+   manquants = articles sans aucun lien (l'e-mail fabricant ne part jamais sans fichier). */
 async function liensGroupe(env, lignes, base) {
-  const liens = [];
+  const liens = [], manquants = [];
   for (const l of lignes) {
     const url = l.stl.trim() || await liensStandards(env, l.article, base).catch(e => { console.warn("R2", e.message); return ""; });
-    if (url) liens.push({ nom: l.article.split(" · ").slice(0, 2).join(" "), url });
+    const nom = l.article.split(" · ").slice(0, 2).join(" ");
+    if (url) liens.push({ nom, url }); else manquants.push(nom);
   }
-  return liens.length === 1 ? liens[0].url : liens.map(x => `${x.nom} : ${x.url}`).join("\n");
+  return { texte: liens.length === 1 ? liens[0].url : liens.map(x => `${x.nom} : ${x.url}`).join("\n"), manquants };
 }
 
 /* E-mail dû pour un groupe (même CF, même statut). Renvoie true (envoyé ou aucun e-mail prévu), ou une raison si le groupe attend. */
-async function envoyerSelonStatut(env, g, ev, tous, fabs) {
+export async function envoyerSelonStatut(env, g, ev, tous, fabs) {
   const test = estTest(env, ev.sid);
   if (g.statut === "envoyee_fabricant") {
     if (!g.cf) return "fabricant à choisir";
@@ -130,9 +132,11 @@ async function envoyerSelonStatut(env, g, ev, tous, fabs) {
     const nom = g.lignes[0].fabricant.trim(), f = fabs[nom];
     if (!f || !/@/.test(f.email)) return `fabricant « ${nom || "—"} » sans e-mail dans l'onglet Fabricants`;
     const base = (env.WORKER_URL || URL_WORKER).replace(/\/+$/, "");
+    const stl = await liensGroupe(env, g.lignes, base);
+    if (stl.manquants.length) return `lien STL manquant (${stl.manquants.join(", ")})`;
     const lien = async action => `${base}/f/${await creerJeton(env, { commande: g.cf, action, fabricant: nom })}`;
     const [nomClient = "", , adresse = ""] = ev.client.split("\n");
-    const m = contenuFabricant({ numero: g.cf, piece: g.lignes.map(l => l.article).join("\n"), lienStl: await liensGroupe(env, g.lignes, base),
+    const m = contenuFabricant({ numero: g.cf, piece: g.lignes.map(l => l.article).join("\n"), lienStl: stl.texte,
       delai: f.delai, test, livraison: f.livre ? [nomClient, adresse].filter(Boolean).join("\n") : null,
       liens: { accepter: await lien("accepter"), expedier: await lien("expedier") } });
     await envoyerEmail(env, { to: [{ email: f.email.trim(), name: nom }], replyTo: repondreA(env), subject: m.sujet, htmlContent: m.html, textContent: m.texte, tags: ["fabricant", test ? "test" : "live"] });
@@ -166,30 +170,44 @@ async function relancer(env, cf, fabricant, sid, journal, maintenant) {
 }
 
 /* Journalise un changement de statut s'il n'est pas déjà la dernière ligne de ce n° dans le Journal */
-async function journaliserSiNouveau(env, journal, numero, ancien, nouveau, auteur) {
+export async function journaliserSiNouveau(env, journal, numero, ancien, nouveau, auteur) {
   const dernier = dernierStatut(journal[numero]);
   if (dernier && dernier.nouveau === nouveau) return;
   await journaliser(env, { numero, ancien: dernier ? dernier.nouveau : ancien, nouveau, auteur });
   (journal[numero] ||= []).push({ date: dateParis(), ancien, nouveau });
 }
 
-/* Un passage. Renvoie un bilan { attribuees, notifiees, attente, erreurs, relances, commandes } (ou { inactive: true }). */
-export async function tachePlanifiee(env, maintenant = Date.now()) {
-  if (!googleConfigure(env)) return { inactive: true };
+/* État du Sheet utile à la tâche et à la page /admin : commandes EV, articles CF (avec leur n° de ligne), fabricants, Journal */
+export async function lireEtat(env) {
   const [colsCF, colsEV] = await Promise.all([entetes(env, ONGLET_CF), entetes(env, ONGLET)]);
   const [v, e, fabs, journal] = await Promise.all([
     lireColonnes(env, ONGLET_CF, colsCF, COLS_CF),
     lireColonnes(env, ONGLET, colsEV, COLS_EV),
     lireFabricants(env), lireJournal(env)]);
-  const bilan = { attribuees: [], notifiees: [], attente: [], erreurs: [], relances: [], commandes: [] };
 
   const evs = {};
-  e.Commande.forEach((n, i) => { n = n.trim(); if (n) evs[n] = { numero: n, statut: (e.Statut[i] || "").trim(), client: e.Client[i] || "", sid: e["Stripe session id"][i] || "" }; });
+  e.Commande.forEach((n, i) => { n = n.trim(); if (n) evs[n] = { numero: n, statut: (e.Statut[i] || "").trim(), client: e.Client[i] || "", sid: e["Stripe session id"][i] || "",
+    date: e.Date[i] || "", type: e.Type[i] || "", cadeau: e["Cadeau / message"][i] || "" }; });
   const lignes = v[CF.ev].map((n, i) => ({ ev: n.trim(), n: (v[CF.art][i] || "").trim(), cf: (v[CF.num][i] || "").trim(), statut: (v.Statut[i] || "").trim(),
     article: v.Article[i] || "", fabricant: v.Fabricant[i] || "", stl: v["Lien STL"][i] || "", transporteur: v.Transporteur[i] || "",
-    suivi: v["N° de suivi"][i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim() })).filter(l => l.ev && l.n);
+    suivi: v["N° de suivi"][i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim(), ligne: i + 2 })).filter(l => l.ev && l.n);
   const parEV = {};
   for (const l of lignes) (parEV[l.ev] ||= []).push(l);
+  return { evs, lignes, parEV, fabs, journal };
+}
+
+/* Un passage. Renvoie un bilan { attribuees, notifiees, attente, erreurs, relances, commandes } (ou { inactive: true }). */
+export async function tachePlanifiee(env, maintenant = Date.now()) {
+  if (!googleConfigure(env)) return { inactive: true };
+  const { evs, lignes, parEV, fabs, journal } = await lireEtat(env);
+  const bilan = { attribuees: [], notifiees: [], attente: [], erreurs: [], relances: [], commandes: [] };
+
+  /* 0. lien STL collé à la main dans le Sheet : lien_stl_a_indiquer → a_valider (aucun e-mail, l'envoi reste à valider) */
+  for (const l of lignes) {
+    if (l.statut !== STL_A_INDIQUER || !l.stl.trim() || l.notifie !== STL_A_INDIQUER) continue;
+    try { await majArticle(env, l.ev, l.n, { Statut: A_VALIDER, "Dernier statut notifié": A_VALIDER }); l.statut = l.notifie = A_VALIDER; }
+    catch (x) { bilan.erreurs.push(`${l.ev} n° ${l.n} : ${x.message}`); }
+  }
 
   /* 1. n° CF */
   for (const [numero, ls] of Object.entries(parEV)) {

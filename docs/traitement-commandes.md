@@ -282,6 +282,7 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
 | D | fait | session_01GS5VpHmWB2agPXhtWWgf37 | #54 | 2026-11-07 |
 | E | fait | session_01GS5VpKztszaCbXbHttRJK2 | #55 | 2026-11-07 |
 | F | fait | session_01GS5VpLFnaQ2PVEEt3DgtCA | — | 2026-11-07 |
+| G | fait | session_01GS5VpK81EPrmtM231yNafH | — | 2026-11-08 |
 
 ## À faire par le propriétaire
 
@@ -345,8 +346,47 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
 - Modèles OpenSCAD : `modeles/<id-produit>.scad`, paramètres nommés `a`, `b`, `c` comme dans `custom.params` de `data.js`.
 - Les onglets `Synthèse` et `Livre des recettes` lisent encore `Commandes (ancien)` : à rebrancher si tu veux les garder.
 
+## Bloc G — Point de verrou + page d'administration (« télécommande »)
+
+Décision (8 novembre 2026, propriétaire) : **aucun article ne part chez un fabricant sans validation**, faite depuis une
+page mobile plutôt que dans l'appli Google Sheets.
+- **Statuts de départ** (`sheet.js`, `statutInitial`) : `a_valider` si le fichier STL est connu (article standard présent
+  dans R2), sinon `lien_stl_a_indiquer` (sur-mesure, ou standard sans R2). `payee` / `fichier_a_produire` restent
+  reconnus pour les commandes antérieures. Statut client inchangé (`payee` tant que rien n'est parti).
+- **Lien STL obligatoire** : l'e-mail fabricant ne part jamais sans lien (ni saisi ni dans R2) ; la tâche planifiée met la
+  CF en attente « lien STL manquant » (fin du « fourni séparément »). Lien collé à la main dans le Sheet sur une ligne
+  `lien_stl_a_indiquer` → la tâche la passe à `a_valider` (aucun e-mail).
+- **Worker d'administration** `evarysth-admin` (`wrangler.toml` `[env.admin]`, même code, `ROLE = "admin"` : il ne sert
+  que `/admin` ; le Worker public répond 404 sur `/admin`). Adresse : `https://evarysth-admin.virnichka.workers.dev/admin`
+  (domaine `evarysth.fr` chez OVH : pas de sous-domaine Cloudflare ; `ADMIN_HOST` à changer si le DNS passe chez Cloudflare).
+  - **Accès** : Cloudflare Access sur l'adresse workers.dev du Worker d'administration ; le Worker revérifie le JWT
+    `Cf-Access-Jwt-Assertion` (`acces.js` : signature RS256 avec les clés de l'équipe, émetteur, audience `ACCESS_AUD`,
+    expiration, e-mail dans `ADMIN_EMAILS` = `evarysth@gmail.com`). Variables vides → 403 pour tous.
+  - **`GET /admin`** (`admin.js`, HTML sans script, CSP `default-src 'none'`) : commandes ayant un article avant envoi
+    (fabricant au choix, « — plus tard — » possible, champ lien STL) ; commandes bloquées ; CF en cours (lecture seule).
+  - **`POST /admin/valider`** : Origin = la page, jeton anti-falsification (HMAC lié à l'e-mail Access, 12 h), relecture
+    du Sheet ; tout est contrôlé avant d'écrire (fabricant avec e-mail, lien https ou fichier R2) ; puis fabricant, lien,
+    n° CF (`numerosCF`) et `envoyee_fabricant`, e-mail fabricant envoyé tout de suite, `Dernier statut notifié`, Journal
+    (auteur `proprietaire`) ; redirection 303. Double clic → « déjà validée ». E-mail en échec → la tâche planifiée le
+    renvoie (le statut est écrit, pas `Dernier statut notifié`).
+  - **`POST /admin/bloquer`** (articles avant envoi → `incident`) et **`/admin/debloquer`** (articles bloqués jamais
+    envoyés → `a_valider` / `lien_stl_a_indiquer`).
+- Sheet : `Listes!A` (11 statuts, menu de `Commandes CF!E`), formule « Action requise », couleurs, `Mode d'emploi` mis à jour.
+- Tests : `test/admin.test.mjs` (accès, page, validation, double clic, requêtes étrangères, panne Brevo, blocage).
+- Reporté à l'itération suivante : livre des recettes et `charge.refunded`.
+
+### À faire par le propriétaire (bloc G)
+13. **Cloudflare Zero Trust** (gratuit) : one.dash.cloudflare.com → créer l'équipe (nom → `<équipe>.cloudflareaccess.com`).
+14. **Déployer le Worker d'administration** : fusion sur `main` (le workflow lance aussi `wrangler deploy --env admin`).
+15. **Secrets du Worker d'administration** (`cd worker`, puis `npx wrangler secret put <NOM> --env admin`) :
+    `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `BREVO_API_KEY`, `HMAC_SECRET` (**même valeur** que le Worker public).
+16. **Activer Access** : tableau de bord Cloudflare → Workers → `evarysth-admin` → Paramètres → Domaines et routes →
+    `workers.dev` → activer Cloudflare Access ; politique : e-mail = `evarysth@gmail.com`. Relever le **tag AUD** et
+    le domaine de l'équipe, les reporter dans `[env.admin.vars]` (`ACCESS_AUD`, `ACCESS_TEAM_DOMAIN`) et pousser.
+17. Contrôle : `https://evarysth-admin.virnichka.workers.dev/admin` demande un code envoyé à evarysth@gmail.com, puis
+    affiche EV-2026-0006 « à valider » ; sans connexion (navigation privée, autre e-mail) : refus.
+
 ## Idées gardées pour la V2
-- Envoi automatique des commandes standard au fabricant (sans validation manuelle de `payee`).
 - GitHub Action OpenSCAD : produit le STL sur-mesure à partir de la colonne « Commande OpenSCAD » et le dépose sur R2.
 - Rebrancher `Synthèse` / `Livre des recettes` sur le nouvel onglet `Commandes EV`.
 - Proposition automatique du fabricant (capacités dans `Fabricants` : matières, coloris, taille max, priorité).

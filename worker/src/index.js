@@ -2,7 +2,8 @@
    POST /checkout   panier du site → session Stripe Checkout → { url }
    POST /promo      vérifie un code promo Stripe → { code, rate, amount }
    GET  /session    résumé d'une commande payée (page commande/merci/)
-   POST /webhook    événements Stripe signés (checkout.session.completed → Sheet back-office, e-mail client, fiche de fabrication) */
+   POST /webhook    événements Stripe signés (checkout.session.completed → Sheet back-office, e-mail client, fiche de fabrication)
+   Déployé aussi en Worker d'administration (ROLE = "admin", voir admin.js) : il ne sert alors que /admin. */
 import { lancerTache } from "./planifie.js";
 import { versionCatalogue } from "./catalogue.js";
 import { ErreurPanier, lireCadeau, lirePanier, nouvelleReference, parametresSession } from "./commande.js";
@@ -12,6 +13,7 @@ import { googleConfigure } from "./google.js";
 import { routeFournisseur } from "./fournisseur.js";
 import { routeFichier } from "./fichier.js";
 import { routeMaj } from "./maj.js";
+import { routeAdmin } from "./admin.js";
 import { enregistrerCommande, journaliserCreation, majCommande } from "./sheet.js";
 
 const TAILLE_MAX = 20000;
@@ -217,11 +219,15 @@ async function recevoirWebhook(req, env) {
 export default {
   /* Tâche planifiée (wrangler.toml [triggers] crons) : e-mails selon le statut du Sheet, inactive sans secrets Google */
   async scheduled(evenement, env, ctx) {
+    if (env.ROLE === "admin") return;                         /* le Worker d'administration n'a pas de tâche planifiée */
     ctx.waitUntil(lancerTache(env));
   },
 
   async fetch(req, env) {
     const url = new URL(req.url);
+    /* Worker d'administration (wrangler.toml [env.admin], derrière Cloudflare Access) : il ne sert que /admin.
+       Le Worker public ne sert jamais /admin (404 plus bas, route inconnue). */
+    if (env.ROLE === "admin") return routeAdmin(req, env, url);
     const origine = req.headers.get("Origin");
     const autorisee = origine && origines(env).includes(origine) ? origine : null;
 

@@ -65,12 +65,16 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   par le client) ; **commande fournisseur** `CF-AAAA-NNNN-X` (onglet `Commandes CF`, une ligne par article, seul n° vu par
   le fabricant ; la lettre distingue les fabricants d'une même commande). À chaque `checkout.session.completed`, le Worker
   ajoute la commande à `Commandes EV` (sans doublon, clé : Stripe session id ; n° attribué par « écrire puis vérifier »,
-  voir le plan, bloc B), puis une ligne par article (produit · taille ou cotes · matière · coloris · quantité) dans `Commandes CF` (statut `payee` ou
-  `fichier_a_produire` si sur-mesure, **fabricant vide : choisi à la main**), écrit une ligne dans `Journal` et envoie au
+  voir le plan, bloc B), puis une ligne par article (produit · taille ou cotes · matière · coloris · quantité) dans `Commandes CF` (statut `a_valider` si le
+  STL standard est dans R2, sinon `lien_stl_a_indiquer` ; **rien ne part chez le fabricant sans validation**), écrit une ligne dans `Journal` et envoie au
   client l'e-mail Brevo « Commande EV-… reçue » (une seule fois). Accès par compte de service (JWT RS256 en WebCrypto,
   jeton en cache 1 h). Google en erreur : la fiche de fabrication part quand même, puis réponse 503 (Stripe réessaie).
   **Inactif tant que les secrets `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY` et `SHEET_ID` ne sont pas tous définis** (marche à
   suivre : plan, « À faire par le propriétaire »).
+- **Page d'administration** (`worker/src/admin.js`, `worker/src/acces.js`, plan : bloc G) : Worker séparé
+  `evarysth-admin` (`wrangler.toml` `[env.admin]`, même code), `https://evarysth-admin.virnichka.workers.dev/admin`, derrière
+  Cloudflare Access (JWT revérifié par le Worker). Par article : fabricant + lien STL (obligatoire) → « Valider et envoyer »
+  → `envoyee_fabricant` et e-mail fabricant immédiat ; « Bloquer » / « Débloquer ».
 - **Liens fournisseur** (`worker/src/jeton.js`, `worker/src/fournisseur.js`) : jeton
   `commande.action.fabricant.expiration.signature` (HMAC-SHA256, secret `HMAC_SECRET`, valable 14 jours, rien de stocké ;
   `commande` = n° **CF** obligatoire ; création : `creerJeton(env, { commande, action, fabricant })`). `GET /f/<jeton>`

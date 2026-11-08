@@ -134,7 +134,7 @@ test("Attribution : n° CF écrits dans Commandes CF, liste des CF dans Commande
 test("envoyee_fabricant : un seul e-mail par CF avec tous ses articles, n° CF seul, liens signés ; statut client en_fabrication", async () => {
   commande("EV-2026-0042");
   article("EV-2026-0042", 1, "envoyee_fabricant", "payee", { Fabricant: FAB, "Commande CF": "CF-2026-0042-A" });
-  article("EV-2026-0042", 2, "envoyee_fabricant", "fichier_a_produire", { Fabricant: FAB, "Commande CF": "CF-2026-0042-A", Article: "tablette-rambarde · M · Noir mat · ×2", "Lien STL": "" });
+  article("EV-2026-0042", 2, "envoyee_fabricant", "fichier_a_produire", { Fabricant: FAB, "Commande CF": "CF-2026-0042-A", Article: "tablette-rambarde · M · Noir mat · ×2", "Lien STL": "https://drive.google.com/y" });
   article("EV-2026-0042", 3, "payee", "payee", { Fabricant: FAB2 });
   const b1 = await tachePlanifiee(env);
   const b2 = await tachePlanifiee(env);
@@ -163,6 +163,26 @@ test("envoyee_fabricant sans fabricant choisi : la ligne attend", async () => {
   assert.deepEqual(b.attente, ["EV-2026-0042 : fabricant à choisir"]);
   assert.equal(emails.length, 0);
   assert.equal(cf("EV-2026-0042", 1, "Dernier statut notifié"), "payee");
+});
+
+test("envoyee_fabricant sans lien STL (ni saisi ni dans R2) : la CF attend, aucun e-mail", async () => {
+  commande("EV-2026-0042");
+  article("EV-2026-0042", 1, "envoyee_fabricant", "a_valider", { Fabricant: FAB, "Commande CF": "CF-2026-0042-A", Article: "tablette-rambarde · M · Noir mat · ×1", "Lien STL": "" });
+  const b = await tachePlanifiee(env);
+  assert.deepEqual(b.attente, ["CF-2026-0042-A : lien STL manquant (tablette-rambarde M)"]);
+  assert.equal(emails.length, 0);
+  assert.equal(cf("EV-2026-0042", 1, "Dernier statut notifié"), "a_valider");
+});
+
+test("lien STL collé dans le Sheet : lien_stl_a_indiquer → a_valider, sans aucun e-mail", async () => {
+  commande("EV-2026-0042");
+  article("EV-2026-0042", 1, "lien_stl_a_indiquer", "lien_stl_a_indiquer", { "Lien STL": "https://drive.google.com/z" });
+  article("EV-2026-0042", 2, "lien_stl_a_indiquer", "lien_stl_a_indiquer", { "Lien STL": "" });
+  await tachePlanifiee(env);
+  assert.deepEqual([1, 2].map(n => cf("EV-2026-0042", n, "Statut")), ["a_valider", "lien_stl_a_indiquer"]);
+  assert.equal(cf("EV-2026-0042", 1, "Dernier statut notifié"), "a_valider");
+  assert.equal(emails.length, 0);
+  assert.deepEqual((await tachePlanifiee(env)).notifiees, [], "point de verrou : rien ne part sans validation");
 });
 
 test("Fabricant qui livre le client : nom et adresse de la commande EV transmis (sans l'e-mail du client)", async () => {

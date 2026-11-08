@@ -144,10 +144,10 @@ test("webhook : commande sur-mesure ajoutée (format du contrat), e-mail client,
   assert.equal(sheet["Commandes CF"].indexOf(sheet["Commandes CF"].find(l => l[1] === "EV-2026-0008")), 2, "1re ligne vide");
   assert.equal(a[0]["Article n°"], "1");
   assert.equal(a[0].Date, r.Date);
-  assert.equal(a[0].Statut, "fichier_a_produire");
+  assert.equal(a[0].Statut, "lien_stl_a_indiquer", "point de verrou : sur-mesure en attente du lien STL");
   assert.equal(a[0].Type, "sur-mesure");
   assert.equal(a[0].Article, "tablette-rambarde · a=45 b=300 · ASA · Rose poudré · ×2");
-  assert.equal(a[0]["Dernier statut notifié"], "fichier_a_produire", "état initial : rien à notifier");
+  assert.equal(a[0]["Dernier statut notifié"], "lien_stl_a_indiquer", "état initial : rien à notifier");
   for (const n of ["Commande CF", "Action requise", "Commande OpenSCAD", "Fabricant", "Lien STL", "Notes"])
     assert.equal(a[0][n], undefined, `${n} jamais écrite par le webhook`);
   assert.equal(appelsGoogle.filter(x => x.chemin.includes(":append") && x.chemin.includes("Commandes")).length, 0, "pas d'append sur les onglets de commandes");
@@ -180,10 +180,10 @@ test("webhook : articles déjà en partie écrits (écriture interrompue) → se
   sheet["Commandes CF"].push(["", "EV-2026-0008", "1", "2026-11-07 10:00", "payee", "standard", undefined, "tablette-rambarde · M · x · ×1"]);
   assert.equal((await webhook(envGoogle)).status, 200);
   const a = articles("EV-2026-0008");
-  assert.deepEqual(a.map(x => [x["Article n°"], x.Statut, x.Type]), [["1", "payee", "standard"], ["2", "fichier_a_produire", "sur-mesure"]]);
+  assert.deepEqual(a.map(x => [x["Article n°"], x.Statut, x.Type]), [["1", "payee", "standard"], ["2", "lien_stl_a_indiquer", "sur-mesure"]]);
 });
 
-test("webhook : commande standard → payee, emballage cadeau dans « Cadeau / message », pas dans les articles", async () => {
+test("webhook : commande standard → lien_stl_a_indiquer (sans R2), emballage cadeau dans « Cadeau / message », pas dans les articles", async () => {
   lignesStripe = [
     { description: "Tablette — Standard", quantity: 1, amount_total: 3500, price: { product: { metadata: { produit: "tablette-rambarde", mode: "standard", taille: "M", cotes_mm: '{"a":45,"b":300}', coloris: "noir" } } } },
     { description: "Emballage cadeau", quantity: 1, amount_total: 300, price: { product: { metadata: { produit: "emballage-cadeau" } } } }
@@ -194,7 +194,7 @@ test("webhook : commande standard → payee, emballage cadeau dans « Cadeau / m
   assert.match(r.Articles, /^tablette-rambarde · M · ASA · [^·]+ · ×1$/);
   const a = articles(r.Commande);
   assert.equal(a.length, 1, "emballage cadeau : pas de ligne fournisseur");
-  assert.equal(a[0].Statut, "payee");
+  assert.equal(a[0].Statut, "lien_stl_a_indiquer", "sans R2 : fichier standard inconnu, lien à indiquer");
   assert.equal(r["Cadeau / message"], "oui · Joyeux anniversaire");
   assert.match(brevo.find(m => m.tags[0] === "commande-recue").textContent, /part en fabrication/);
 });
@@ -229,4 +229,13 @@ test("sans GOOGLE_SA_EMAIL / GOOGLE_SA_KEY / SHEET_ID : rien ne change, la fiche
     assert.doesNotMatch(brevo[0].textContent, /Back-office/);
   }
   assert.equal(appelsGoogle.length + jetons, 0, "aucun appel à Google");
+});
+
+test("webhook : commande standard dont le fichier est dans R2 → a_valider (jamais d'envoi automatique)", async () => {
+  lignesStripe = [{ description: "Tablette — Standard", quantity: 1, amount_total: 3500, price: { product: { metadata: { produit: "tablette-rambarde", mode: "standard", taille: "M", coloris: "noir" } } } }];
+  const r2 = { async head(k) { return k === "tablette-rambarde/m.stl" ? { size: 1 } : null; }, async get() { return null; } };
+  assert.equal((await webhook({ ...envGoogle, STL: r2 }, "cs_test_r2")).status, 200);
+  const a = articles(ligneCommande("cs_test_r2").Commande);
+  assert.deepEqual([a[0].Statut, a[0]["Dernier statut notifié"]], ["a_valider", "a_valider"]);
+  assert.ok(!brevo.some(m => m.tags[0] === "fabricant"), "rien au fabricant avant validation");
 });

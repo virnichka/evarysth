@@ -57,7 +57,7 @@ const message = (titre, texte, statut, classe = "") => page(titre, `<p class="${
 
 /* Lignes de la commande fournisseur (par n° CF) : { cols, lignes: [{ ligne, statut }], statut, fabricants, piece } ;
    statut = le moins avancé des lignes (celui qui décide si l'action est possible) */
-const ORDRE = ["payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree"];
+const ORDRE = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree"];
 async function lireCommande(env, numero) {
   const cols = await entetes(env, ONGLET_CF);
   const lu = await lireColonnes(env, ONGLET_CF, cols, [CF.num, "Statut", "Fabricant", "Article"]);

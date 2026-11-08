@@ -21,6 +21,7 @@ EMAIL_FROM = "commandes@evarysth.fr"
 REPLY_TO = "contact@evarysth.fr"
 
 # Liens fournisseur des e-mails fabricant (bloc D) : adresse publique de ce Worker
+# (reprise telle quelle dans [env.admin.vars] : les liens pointent toujours vers ce Worker public)
 WORKER_URL = "https://evarysth-checkout.virnichka.workers.dev"
 
 # Tâche planifiée (bloc D) : e-mails selon le statut du Sheet ; sans secrets Google, elle ne fait rien
@@ -31,8 +32,37 @@ crons = ["*/10 * * * *"]
 enabled = true
 
 # STL standards (bloc E), servis par GET /fichier/<jeton>. Sans ce binding : /fichier/ répond 503 et les e-mails
-# fabricant gardent « fourni séparément ». Ne décommenter qu'APRÈS `npx wrangler r2 bucket create evarysth-stl`
+# fabricant des articles standard attendent un lien STL saisi à la main. Ne décommenter qu'APRÈS `npx wrangler r2 bucket create evarysth-stl`
 # (un binding vers un bucket inexistant fait échouer le déploiement). Clés : <produit>/<taille>.stl (ex. boite-rugged/m.stl).
 # [[r2_buckets]]
 # binding = "STL"
 # bucket_name = "evarysth-stl"
+# (le même bloc est à ajouter sous [env.admin] : les bindings ne sont pas hérités par les environnements)
+
+# ─── Worker d'administration (page /admin, « télécommande ») ───────────────────────────────────────────────────
+# Déployé par `npx wrangler deploy --env admin` (et par le workflow). Même code, ROLE = "admin" : il ne sert que /admin.
+# Protégé par Cloudflare Access (Zero Trust) sur son adresse workers.dev ; le Worker revérifie le jeton Access.
+# Secrets à poser AUSSI sur ce Worker (`npx wrangler secret put <NOM> --env admin`) : GOOGLE_SA_EMAIL, GOOGLE_SA_KEY,
+# SHEET_ID, BREVO_API_KEY et HMAC_SECRET (la MÊME valeur que le Worker public, qui vérifie les liens fournisseur signés ici).
+# Tant que ACCESS_TEAM_DOMAIN et ACCESS_AUD sont vides, /admin répond 403 à tout le monde.
+[env.admin]
+name = "evarysth-admin"
+workers_dev = true
+
+[env.admin.vars]
+ROLE = "admin"
+ADMIN_HOST = "evarysth-admin.virnichka.workers.dev"
+# Cloudflare Zero Trust → Access : domaine de l'équipe (ex. evarysth.cloudflareaccess.com) et tag AUD de l'application
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+ADMIN_EMAILS = "evarysth@gmail.com"
+CHECKOUT_MODE = "test"
+EMAIL_FROM = "commandes@evarysth.fr"
+REPLY_TO = "contact@evarysth.fr"
+WORKER_URL = "https://evarysth-checkout.virnichka.workers.dev"
+
+[env.admin.triggers]
+crons = []
+
+[env.admin.observability]
+enabled = true
