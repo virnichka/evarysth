@@ -174,3 +174,43 @@ export async function journaliserCreation(env, numero, statut) {
   await ajouterLigne(env, JOURNAL, cols, { Date: dateParis(), Commande: numero, "Ancien statut": "", "Nouveau statut": statut, Auteur: "worker" });
   return true;
 }
+
+/* Commande fournisseur rendue : refusée par le fabricant (lien « Je ne peux pas la fabriquer ») ou retirée par le
+   propriétaire (/admin). Ses articles pas encore expédiés repartent à valider (ou lien STL à indiquer) sans fabricant
+   ni n° CF : les liens de l'ancien fabricant deviennent sans effet et la tâche ne lui écrit plus. Note datée ajoutée à
+   « Notes » (fabricant, motif), une ligne de Journal « refusee_fabricant » (n° CF jamais réattribué, voir numerosCF).
+   Lignes relues juste avant l'écriture, une écriture par ligne. Renvoie { lignes, fabricant, ancien } ou null (rien à rendre). */
+export const REFUSEE = "refusee_fabricant";
+export const RETIRABLES = ["envoyee_fabricant", "acceptee"];
+export async function rendreCF(env, cf, { auteur, motif = "" }) {
+  const cols = await entetes(env, ONGLET_CF);
+  const notes = "Notes" in cols;
+  const lu = await lireColonnes(env, ONGLET_CF, cols, [CF.num, "Statut", "Fabricant", "Lien STL", "Article", ...(notes ? ["Notes"] : [])]);
+  const lignes = [];
+  lu[CF.num].forEach((n, i) => {
+    const statut = (lu.Statut[i] || "").trim();
+    if (n.trim() === cf && RETIRABLES.includes(statut)) lignes.push({ ligne: i + 2, statut, fabricant: (lu.Fabricant[i] || "").trim(),
+      stl: (lu["Lien STL"][i] || "").trim(), article: lu.Article[i] || "", notes: notes ? (lu.Notes[i] || "").trim() : "" });
+  });
+  if (!lignes.length) return null;
+  const fabricant = lignes[0].fabricant, ancien = lignes.some(l => l.statut === "envoyee_fabricant") ? "envoyee_fabricant" : "acceptee";
+  const note = `${dateParis()} · ${cf} ${auteur === "fabricant" ? "refusée par" : "retirée à"} ${fabricant || "—"}${motif ? ` : ${motif}` : ""}`;
+  for (const l of lignes) {
+    const s = l.stl || await fichierStandardDispo(env, l.article) ? A_VALIDER : STL_A_INDIQUER;
+    await ecrireLigne(env, ONGLET_CF, cols, l.ligne, { Statut: s, "Dernier statut notifié": s, Fabricant: "", [CF.num]: "",
+      ...(notes ? { Notes: l.notes ? `${l.notes}\n${note}` : note } : {}) });
+  }
+  /* Double envoi quasi simultané : une seule ligne de Journal */
+  const cj = await entetes(env, JOURNAL);
+  const j = await lireColonnes(env, JOURNAL, cj, ["Commande", "Nouveau statut"]);
+  if (!j.Commande.some((n, i) => n === cf && j["Nouveau statut"][i] === REFUSEE)) await journaliser(env, { numero: cf, ancien, nouveau: REFUSEE, auteur });
+  return { lignes, fabricant, ancien };
+}
+
+/* Refus ou retrait déjà enregistré pour ce n° CF : { auteur } ou null */
+export async function refusDe(env, cf) {
+  const cj = await entetes(env, JOURNAL);
+  const j = await lireColonnes(env, JOURNAL, cj, ["Commande", "Nouveau statut", "Auteur"]);
+  const i = j.Commande.findIndex((n, k) => n === cf && j["Nouveau statut"][k] === REFUSEE);
+  return i < 0 ? null : { auteur: (j.Auteur[i] || "").trim() };
+}

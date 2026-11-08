@@ -175,6 +175,8 @@ export function contenuFabricant({ numero, piece, lienStl, delai, livraison, lie
     "Merci de confirmer la prise en charge, puis l'expédition, avec les boutons ci-dessous (liens valables 14 jours) :",
     { texte: "J'accepte la commande", lien: liens.accepter },
     { texte: "Déclarer l'expédition", lien: liens.expedier },
+    ...(liens.refuser ? ["Vous ne pouvez pas la fabriquer (délai, matière, machine indisponible…) ? Dites-le-nous, nous la confierons à un autre atelier :",
+      { texte: "Je ne peux pas la fabriquer", lien: liens.refuser }] : []),
     "Une question ? Répondez à cet e-mail en rappelant le n° de commande.", "Evarysth"
   ];
   return { sujet: titre, texte: texteBrut(p), html: page(titre, p) };
@@ -204,7 +206,33 @@ export function contenuRelance({ numero, fabricant, depuis, test }) {
   const titre = `${prefixe(test)}Relance : ${numero} pas encore acceptée`;
   const p = [
     `La commande ${numero} a été envoyée au fabricant ${fabricant || "—"} le ${depuis} (heure de Paris) et n'est toujours pas acceptée.`,
-    "À vérifier avec lui. Pour changer de fabricant : dans l'onglet Commandes CF, remettre ses lignes à payee, choisir le nouveau fabricant, puis repasser à envoyee_fabricant (l'ancien fabricant ne pourra plus utiliser ses liens). Cette relance n'est envoyée qu'une fois par commande fournisseur."
+    "À vérifier avec lui. Pour changer de fabricant : dans /admin, ouvrir la commande, pli de cette commande fournisseur, « Retirer au fabricant » (il est prévenu, ses liens ne fonctionnent plus), puis valider avec un autre fabricant. Cette relance n'est envoyée qu'une fois par commande fournisseur."
+  ];
+  return { sujet: titre, texte: texteBrut(p), html: page(titre, p) };
+}
+
+/* Propriétaire : le fabricant a refusé une commande fournisseur ; ses articles sont de nouveau à valider */
+export function contenuRefus({ numero, fabricant, motif, piece, lien, test }) {
+  const titre = `${prefixe(test)}Refus : ${numero} à confier à un autre fabricant`;
+  const p = [
+    `Le fabricant ${fabricant || "—"} ne peut pas fabriquer la commande ${numero}.`,
+    `Motif : ${motif || "non précisé"}`,
+    `Pièces :\n${piece || "—"}`,
+    "Les articles sont de nouveau « à valider » : choisissez un autre fabricant (ses anciens liens ne fonctionnent plus).",
+    ...(lien ? [{ texte: "Ouvrir la commande", lien }] : [])
+  ];
+  return { sujet: titre, texte: texteBrut(p), html: page(titre, p) };
+}
+
+/* Fabricant : commande fournisseur retirée par le propriétaire */
+export function contenuRetrait({ numero, piece, motif, test }) {
+  const titre = `${prefixe(test)}Commande ${numero} annulée de votre côté`;
+  const p = [
+    "Bonjour,",
+    `La commande ${numero} ne vous est plus confiée : merci de ne pas la fabriquer ni l'expédier. Les liens de l'e-mail de commande ne fonctionnent plus.`,
+    `Pièces concernées :\n${piece || "—"}`,
+    ...(motif ? [`Motif : ${motif}`] : []),
+    "Si vous l'aviez déjà commencée, répondez à cet e-mail en rappelant le n° de commande.", "Evarysth"
   ];
   return { sujet: titre, texte: texteBrut(p), html: page(titre, p) };
 }

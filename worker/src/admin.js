@@ -13,6 +13,8 @@
    POST /admin/debloquer  articles bloqués jamais envoyés → retour à a_valider / lien_stl_a_indiquer
    POST /admin/cloturer   articles cochés de la commande → annulee (pas encore expédiés) ou remboursee (après remboursement fait
                           dans Stripe) ; case « Je confirme » obligatoire, aucun e-mail, liens fabricant devenus sans effet
+   POST /admin/retirer    CF envoyée ou acceptée → articles de nouveau à valider sans fabricant ni n° CF (rendreCF), e-mail
+                          au fabricant ; case « Je confirme » obligatoire. Le fabricant peut aussi refuser lui-même (/f/ refuser).
    POST /admin/renvoyer   renvoie l'e-mail dû pour une CF (fabricant si envoyée/acceptée, client si expédiée), sans changer de statut
    POST /admin/tache      lance tout de suite la tâche planifiée (même code que le cron des 10 minutes)
    POST : Origin = celle de la page, jeton anti-falsification (HMAC lié à l'e-mail Access, 12 h), relecture du Sheet
@@ -23,8 +25,9 @@ import { verifierAcces } from "./acces.js";
 import { ErreurGoogle, googleConfigure } from "./google.js";
 import { egal, jetonConfigure, signature } from "./jeton.js";
 import { EXTENSIONS, fichierStandardDispo, segmentTaille } from "./fichier.js";
-import { A_ENVOYER, STATUTS, statutEV, DELAI_RELANCE_MS, envoyerSelonStatut, journaliserSiNouveau, lancerTache, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
-import { A_VALIDER, dateParis, majArticle, STL_A_INDIQUER } from "./sheet.js";
+import { A_ENVOYER, STATUTS, statutEV, cfsRendues, DELAI_RELANCE_MS, envoyerSelonStatut, estTest, journaliserSiNouveau, lancerTache, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
+import { A_VALIDER, dateParis, majArticle, REFUSEE, rendreCF, RETIRABLES, STL_A_INDIQUER } from "./sheet.js";
+import { contenuRetrait, envoyerEmail } from "./email.js";
 import { EVARYSTH } from "./catalogue.js";
 import { ICONES } from "./icones.js";
 
@@ -33,8 +36,11 @@ const EN_COURS = [ENVOYE, "acceptee", "expediee"];
 const LIBELLES = {
   lien_stl_a_indiquer: "Lien STL à indiquer", a_valider: "À valider", payee: "Payée (ancien circuit)",
   fichier_a_produire: "Fichier à produire (ancien circuit)", envoyee_fabricant: "Envoyée au fabricant", acceptee: "Acceptée",
-  expediee: "Expédiée", livree: "Livrée", incident: "Bloquée", remboursee: "Remboursée", annulee: "Annulée"
+  expediee: "Expédiée", livree: "Livrée", incident: "Bloquée", remboursee: "Remboursée", annulee: "Annulée",
+  [REFUSEE]: "Rendue par le fabricant"
 };
+/* Refus (auteur fabricant) ou retrait (propriétaire) d'une CF, au Journal */
+const libelleRendu = j => (j.auteur === "fabricant" ? "Refusée par le fabricant" : "Retirée au fabricant");
 const LIBELLES_EV = { payee: "Payée", en_fabrication: "En fabrication", partiellement_expediee: "Partiellement expédiée", expediee: "Expédiée",
   livree: "Livrée", incident: "Bloquée", remboursee: "Remboursée", annulee: "Annulée" };
 const ATTENTE_EV = "attente_fabricant";
@@ -125,7 +131,8 @@ nav a[aria-current]{background:var(--text);border-color:var(--text);color:#fff}
 .grille{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}.grille .carte{margin:0;text-decoration:none;display:block}.nombre{font:600 32px/1.1 "Bricolage Grotesque",Inter,sans-serif;letter-spacing:-.02em}
 .grille .alerte{border-color:var(--accent)}.ligne{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-top:1px solid var(--line);padding:9px 0}.ligne:first-child{border-top:0;padding-top:0}
 .voyant{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;background:var(--muted)}.v-ok{background:var(--ok)}.v-err{background:var(--err)}.v-att{background:#c98a00}
-.recherche{display:flex;margin:8px 0 10px}.recherche input{flex:1;min-width:0;margin:0;border-radius:8px 0 0 8px}.recherche button{flex:none;width:44px;margin:0;padding:0;border-radius:0 8px 8px 0;border:1px solid var(--line);border-left:0;background:var(--card);color:var(--muted);display:grid;place-items:center}.recherche button:hover{background:var(--bg)}
+.note{white-space:pre-line;font-size:13px;color:#7a5600;background:#fff7dc;border-radius:8px;padding:6px 10px;margin:-4px 0 10px}
+form.retirer{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}.recherche{display:flex;margin:8px 0 10px}.recherche input{flex:1;min-width:0;margin:0;border-radius:8px 0 0 8px}.recherche button{flex:none;width:44px;margin:0;padding:0;border-radius:0 8px 8px 0;border:1px solid var(--line);border-left:0;background:var(--card);color:var(--muted);display:grid;place-items:center}.recherche button:hover{background:var(--bg)}
 .vh{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.journal{font-size:14px}
 details{border-top:1px solid var(--line)}details:first-child{border-top:0}summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 0}
 summary::-webkit-details-marker{display:none}summary::after{content:"";flex:none;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);margin:0 4px 0 2px;transition:transform .15s}
@@ -164,12 +171,19 @@ export function chercher(etat, q) {
   const tous = [...new Set([...Object.keys(evs), ...Object.keys(parEV)])];
   const cf = lignes.find(l => l.cf && l.cf.toLowerCase() === t);
   if (cf) return [cf.ev];
+  const rendue = Object.keys(etat.journal || {}).find(k => k.startsWith("CF-") && k.toLowerCase() === t);
+  if (rendue) return [evDeCF(rendue)];
   const exact = tous.find(n => n.toLowerCase() === t);
   if (exact) return [exact];
   const parNumero = new Set([...tous.filter(n => n.toLowerCase().includes(t)), ...lignes.filter(l => l.cf && l.cf.toLowerCase().includes(t)).map(l => l.ev)]);
   const parNom = tous.filter(n => t.length >= 2 && sansAccents(String((evs[n] || {}).client || "").split("\n")[0]).includes(t));
   return [...new Set([...parNumero, ...parNom])].sort().reverse().slice(0, 30);
 }
+
+const evDeCF = cf => cf.replace(/^CF-/, "EV-").replace(/-[A-Z]+$/, "");
+/* CF de cette commande refusées ou retirées (Journal) : [{ cf, auteur, date }] */
+const rendues = (etat, numero) => Object.entries(etat.journal).filter(([k]) => k.startsWith("CF-") && evDeCF(k) === numero)
+  .flatMap(([cf, js]) => js.filter(x => x.nouveau === REFUSEE).slice(-1).map(x => ({ cf, auteur: x.auteur, date: x.date })));
 
 /* Actions de la fiche : clôture (annulée / remboursée) et renvoi d'e-mail */
 const CLOS = ["annulee", "remboursee"], PARTIS = ["expediee", "livree"], RENVOYABLES = [ENVOYE, "acceptee", "expediee"];
@@ -210,7 +224,8 @@ function resumeEV(etat, numero) {
   const statut = calcule === "en_fabrication" && !arts.some(l => ["acceptee", "expediee", "livree"].includes(l.statut)) ? ATTENTE_EV : calcule;
   return { numero, ev, arts, statut,
     aValider: arts.filter(l => A_ENVOYER.includes(l.statut)).length, bloques: arts.filter(l => l.statut === INCIDENT).length,
-    attentes: [...new Set(arts.filter(l => l.cf && l.statut === ENVOYE).map(l => l.cf))].map(cf => attente(etat, cf)) };
+    attentes: [...new Set(arts.filter(l => l.cf && l.statut === ENVOYE).map(l => l.cf))].map(cf => attente(etat, cf)),
+    rendues: rendues(etat, numero) };
 }
 
 /* Liste des commandes client : filtres ?f=… (« À traiter » par défaut), ou résultats d'une recherche */
@@ -225,7 +240,7 @@ const DANS = {
 const MAX_LISTE = 50;
 function ligneCommande(r) {
   const info = [nomVille(r.ev) || "Client inconnu", dateCourte(r.ev.date), pluriel(r.arts.length, "article")].filter(Boolean).join(" · ");
-  const alerte = [r.aValider ? `${r.aValider} à valider` : "", r.bloques ? pluriel(r.bloques, "bloqué") : ""].filter(Boolean).join(" · ");
+  const alerte = [r.aValider ? `${r.aValider} à valider${r.rendues.length ? " (fabricant à changer)" : ""}` : "", r.bloques ? pluriel(r.bloques, "bloqué") : ""].filter(Boolean).join(" · ");
   const retard = r.attentes.filter(a => a.retard), att = r.attentes.length;
   const signal = att ? `<span class="attend${retard.length ? " retard" : ""}">${esc(retard.length
     ? `${pluriel(retard.length, "envoi")} sans réponse ${depuis(retard.reduce((m, a) => (a.jours > m.jours ? a : m)))}`
@@ -280,13 +295,14 @@ ${stripe ? `<p class="muted"><a href="${esc(stripe)}" target="_blank" rel="noope
       const r2 = !l.stl.trim() && await fichierStandardDispo(env, l.article);
       const fab = cache(l.n, "fab", l.fabricant.trim()), id = `${numero}-${l.n}`;
       lignes.push(`<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${badge(l.statut)}</div>
-<div class="piece">${esc(l.article)}</div>
+<div class="piece">${esc(l.article)}</div>${l.notes.trim() ? `<p class="note">${esc(l.notes.trim())}</p>` : ""}
 <label for="fab-${esc(id)}">Fabricant</label><select id="fab-${esc(id)}" name="fab_${esc(l.n)}">
 <option value="">— plus tard —</option>${noms.map(f => `<option value="${esc(f)}"${f === fab ? " selected" : ""}>${esc(f)}</option>`).join("")}</select>
 <label for="stl-${esc(id)}">Lien STL${r2 ? " <span class=\"muted\">(fichier standard disponible, facultatif)</span>" : ""}</label>
 <input id="stl-${esc(id)}" name="stl_${esc(l.n)}" type="url" inputmode="url" autocomplete="off" placeholder="https://drive.google.com/…" value="${esc(cache(l.n, "stl", l.stl.trim()))}"></div>`);
     }
-    blocs.push(`<h2>À valider <span class="compte">${aValider.length}</span></h2><div class="carte bord t-att">
+    const rendus = r.rendues.map(x => `<p class="a-faire">${esc(x.cf)} ${x.auteur === "fabricant" ? "refusée par le fabricant" : "retirée au fabricant"}${x.date ? " le " + esc(dateCourte(x.date)) : ""} : choisissez un autre fabricant.</p>`).join("");
+    blocs.push(`<h2>À valider <span class="compte">${aValider.length}</span></h2><div class="carte bord t-att">${rendus}
 <form class="valider" method="post" action="/admin/valider">${champs}${lignes.join("")}<button type="submit">Valider et envoyer au fabricant</button></form></div>`);
   }
 
@@ -313,7 +329,12 @@ ${bloques.map(l => `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>`).jo
       return `<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${memes ? "" : badge(l.statut)}</div><div class="piece">${esc(l.article)}</div>
 <p class="muted">Lien STL : ${lien ? `<a href="${esc(lien)}" target="_blank" rel="noopener noreferrer">ouvrir ↗</a>` : esc(l.stl.trim() || "—")}</p></div>`;
     }).join("")}${g ? `<form method="post" action="/admin/renvoyer">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
-<button class="second" type="submit">Renvoyer l'e-mail ${g.statut === ENVOYE ? "au fabricant" : "d'expédition au client"}</button></form>` : ""}</div></details>`;
+<button class="second" type="submit">Renvoyer l'e-mail ${g.statut === ENVOYE ? "au fabricant" : "d'expédition au client"}</button></form>` : ""}${ls.some(l => RETIRABLES.includes(l.statut)) ? `
+<form class="retirer" method="post" action="/admin/retirer">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
+<label for="motif-${esc(cf)}">Retirer au fabricant <span class="muted">(refus par e-mail, pas de réponse…)</span></label>
+<input id="motif-${esc(cf)}" name="motif" maxlength="200" autocomplete="off" placeholder="Motif pour le fabricant (facultatif)">
+<label class="confirme"><input type="checkbox" name="confirmer" value="oui" required> <span>Je confirme : il est prévenu par e-mail, ses liens ne fonctionnent plus, les articles reviennent « à valider »</span></label>
+<button class="danger" type="submit">Retirer au fabricant</button></form>` : ""}</div></details>`;
   }).join("")}`);
 
   /* 4. Articles sans envoi ni action (ex. annulés avant l'envoi) */
@@ -323,10 +344,10 @@ ${bloques.map(l => `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>`).jo
   if (!arts.length) blocs.push('<div class="carte"><p class="muted">Aucun article dans Commandes CF.</p></div>');
 
   /* 5. Historique et actions définitives, repliés */
-  const histo = [numero, ...cfs].flatMap(n => (etat.journal[n] || []).map(j => ({ ...j, n }))).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const histo = [...new Set([numero, ...cfs, ...r.rendues.map(x => x.cf)])].flatMap(n => (etat.journal[n] || []).map(j => ({ ...j, n }))).sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const lib = n => (n.startsWith("EV") ? libelleEV : libelle);
   blocs.push(`<details class="carte pli journal"><summary><span class="nom">Historique</span><span class="resume">${pluriel(histo.length, "ligne")}</span></summary><div class="detail">
-${histo.map(j => `<div class="ligne"><span><b>${esc(j.n)}</b> · ${esc(j.ancien ? `${lib(j.n)(j.ancien)} → ` : "")}${esc(lib(j.n)(j.nouveau))}<br><span class="muted">${esc(j.date)}${j.auteur ? " · " + esc(j.auteur) : ""}</span></span></div>`).join("") || '<p class="muted">Rien au Journal.</p>'}</div></details>`);
+${histo.map(j => `<div class="ligne"><span><b>${esc(j.n)}</b> · ${esc(j.ancien ? `${lib(j.n)(j.ancien)} → ` : "")}${esc(j.nouveau === REFUSEE ? libelleRendu(j) : lib(j.n)(j.nouveau))}<br><span class="muted">${esc(j.date)}${j.auteur ? " · " + esc(j.auteur) : ""}</span></span></div>`).join("") || '<p class="muted">Rien au Journal.</p>'}</div></details>`);
   const a = annulables(arts).length, rb = remboursables(arts).length;
   if (aValider.length || a || rb) blocs.push(`<details class="carte pli zone"><summary><span class="nom">Bloquer, annuler ou rembourser</span></summary><div class="detail">
 ${aValider.length ? `<form method="post" action="/admin/bloquer">${champs}<p class="muted">Met de côté les articles à valider (réversible).</p><button class="second" type="submit">Bloquer cette commande</button></form>` : ""}
@@ -557,7 +578,7 @@ async function valider(env, email, f) {
 
   /* N° CF (même règle que la tâche planifiée), puis écriture : fabricant, lien, n° CF, statut envoyee_fabricant */
   for (const c of choisis) c.l.fabricant = c.fab;
-  const voulu = numerosCF(numero, toutes);
+  const voulu = numerosCF(numero, toutes, cfsRendues(etat.journal));
   for (const c of choisis) {
     c.ancien = c.l.notifie || c.l.statut;
     c.l.cf = voulu[toutes.indexOf(c.l)];
@@ -653,6 +674,25 @@ async function renvoyer(env, f) {
   return redirection(env, `${cf} : e-mail ${g.statut === ENVOYE ? "renvoyé au fabricant" : "d'expédition renvoyé au client"} ✓`, "ok", "", numero);
 }
 
+/* POST /admin/retirer : CF envoyée ou acceptée retirée au fabricant (articles de nouveau à valider), fabricant prévenu */
+async function retirer(env, f) {
+  const numero = nettoyer(f.get("ev")), cf = nettoyer(f.get("cf")), motif = nettoyer(f.get("motif"), 200);
+  if (f.get("confirmer") !== "oui") return redirection(env, "Rien n'a été retiré : cochez « Je confirme ».", "err", "", numero);
+  if (!/^CF-\d{4}-\d+-[A-Z]+$/.test(cf) || evDeCF(cf) !== numero) return redirection(env, "Commande fournisseur inconnue.", "err", "", numero);
+  const etat = await lireEtat(env);
+  const rendu = await rendreCF(env, cf, { auteur: "proprietaire", motif });
+  if (!rendu) return redirection(env, `${cf} : rien à retirer (déjà expédiée, retirée ou annulée).`, "err", "", numero);
+  const fiche = etat.fabs[rendu.fabricant], test = estTest(env, (etat.evs[numero] || {}).sid);
+  let souci = "";
+  if (!env.BREVO_API_KEY || !fiche || !/@/.test(fiche.email)) souci = "fabricant non prévenu (pas d'e-mail ou Brevo non configuré) : prévenez-le";
+  else {
+    const m = contenuRetrait({ numero: cf, motif, test, piece: rendu.lignes.map(l => l.article).join("\n") });
+    try { await envoyerEmail(env, { to: [{ email: fiche.email.trim(), name: rendu.fabricant }], replyTo: { email: env.REPLY_TO || "contact@evarysth.fr", name: "Evarysth" }, subject: m.sujet, htmlContent: m.html, textContent: m.texte, tags: ["retrait", test ? "test" : "live"] }); }
+    catch (e) { console.error("Admin : retrait", cf, e.message); souci = "e-mail au fabricant non parti : prévenez-le"; }
+  }
+  return redirection(env, `${cf} retirée à ${rendu.fabricant || "—"} : ${pluriel(rendu.lignes.length, "article")} de nouveau à valider${souci ? ` ; ${souci}.` : " ; fabricant prévenu ✓"}`, souci ? "err" : "ok", "", numero);
+}
+
 /* POST venu de la page elle-même : Origin = celle de la page ; ou, si le navigateur envoie « null » / rien
    (certaines politiques de référent sous Safari), Sec-Fetch-Site = same-origin. Toute autre valeur est refusée. */
 function memeOrigine(req, url) {
@@ -669,7 +709,7 @@ export async function routeAdmin(req, env, url) {
   const icone = /^\/admin\/([a-z0-9-]+\.(?:svg|png|webmanifest))$/.exec(url.pathname);
   if (icone && req.method === "GET") { const r = ressource(icone[1]); if (r) return r; }
   const route = `${req.method} ${url.pathname}`;
-  const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/cloturer", "POST /admin/renvoyer", "POST /admin/tache"];
+  const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/cloturer", "POST /admin/renvoyer", "POST /admin/retirer", "POST /admin/tache"];
   if (!routes.includes(route)) return simple("Introuvable", "Page introuvable.", 404);
 
   let email;
@@ -702,6 +742,7 @@ export async function routeAdmin(req, env, url) {
     if (url.pathname === "/admin/bloquer") return await bloquer(env, f);
     if (url.pathname === "/admin/cloturer") return await cloturer(env, f);
     if (url.pathname === "/admin/renvoyer") return await renvoyer(env, f);
+    if (url.pathname === "/admin/retirer") return await retirer(env, f);
     if (url.pathname === "/admin/tache") return await tacheMaintenant(env);
     return await debloquer(env, f);
   } catch (e) {

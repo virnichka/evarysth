@@ -94,6 +94,7 @@ test("n° CF : regroupement par commande et fabricant, lettre stable, article d�
     ["CF-2026-0002-A", "CF-2026-0002-B"]);
   /* fabricant changé sur une ligne d'une CF pas encore envoyée : la ligne change de CF */
   assert.deepEqual(numerosCF("EV-2026-0002", [l("payee", FAB, "CF-2026-0002-A"), l("payee", FAB2, "CF-2026-0002-A")]), ["CF-2026-0002-A", "CF-2026-0002-B"]);
+  assert.deepEqual(numerosCF("EV-2026-0002", [l("payee", FAB), l("payee", FAB2)], new Set(["CF-2026-0002-A"])), ["CF-2026-0002-B", "CF-2026-0002-C"], "n° rendu (refus) jamais réattribué");
   /* fabricant et envoyee_fabricant choisis d'un coup (e-mail pas encore parti) : n° attribué */
   assert.deepEqual(numerosCF("EV-2026-0002", [l("envoyee_fabricant", FAB, "", "payee")]), ["CF-2026-0002-A"]);
   /* article déjà accepté ou expédié dont « Dernier statut notifié » a du retard : jamais renuméroté */
@@ -154,7 +155,7 @@ test("envoyee_fabricant : un seul e-mail par CF avec tous ses articles, n° CF s
   assert.doesNotMatch(m.textContent + m.htmlContent, /EV-2026|Lilas|75011|Camille|c@example\.com/, "ni n° client ni coordonnées");
   const jetons = [...m.textContent.matchAll(/workers\.dev\/f\/(\S+)/g)].map(x => x[1]);
   const lus = await Promise.all(jetons.map(j => verifierJeton(env, j)));
-  assert.deepEqual(lus.map(j => [j.action, j.commande, j.fabricant]), [["accepter", "CF-2026-0042-A", FAB], ["expedier", "CF-2026-0042-A", FAB]]);
+  assert.deepEqual(lus.map(j => [j.action, j.commande, j.fabricant]), [["accepter", "CF-2026-0042-A", FAB], ["expedier", "CF-2026-0042-A", FAB], ["refuser", "CF-2026-0042-A", FAB]]);
   assert.equal(cf("EV-2026-0042", 1, "Dernier statut notifié"), "envoyee_fabricant");
   assert.equal(cf("EV-2026-0042", 2, "Dernier statut notifié"), "envoyee_fabricant");
   assert.equal(ev("EV-2026-0042", "Statut"), "en_fabrication");

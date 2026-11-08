@@ -121,13 +121,14 @@ export async function lireColonnes(env, onglet, cols, noms) {
 }
 
 /* Plusieurs onglets en 2 appels (en-têtes, puis colonnes) au lieu de 2 par onglet.
-   demandes : [{ onglet, noms, facultatif? }] (facultatif : colonnes absentes ignorées) → [{ cols, v }] dans le même ordre */
+   demandes : [{ onglet, noms, facultatif?, options? }] (facultatif : colonnes absentes ignorées ; options : colonnes
+   lues si elles existent) → [{ cols, v }] dans le même ordre */
 export async function lireOnglets(env, demandes) {
   const t = await appelSheets(env, "GET", "values:batchGet", { ranges: demandes.map(d => plage(d.onglet, "1:1")), majorDimension: "ROWS" });
   const parOnglet = demandes.map((d, i) => {
     const noms = ((t.valueRanges && t.valueRanges[i] && t.valueRanges[i].values && t.valueRanges[i].values[0]) || []);
     const cols = Object.fromEntries(noms.map((n, k) => [String(n).trim(), k]).filter(([n]) => n));
-    return { cols, noms: d.facultatif ? d.noms.filter(n => n in cols) : d.noms };
+    return { cols, noms: [...(d.facultatif ? d.noms.filter(n => n in cols) : d.noms), ...(d.options || []).filter(n => n in cols)] };
   });
   const ranges = parOnglet.flatMap(({ cols, noms }, i) => noms.map(n => { const l = lettreColonne(index(cols, n)); return plage(demandes[i].onglet, `${l}:${l}`); }));
   const d = ranges.length ? await appelSheets(env, "GET", "values:batchGet", { ranges, majorDimension: "COLUMNS" }) : {};

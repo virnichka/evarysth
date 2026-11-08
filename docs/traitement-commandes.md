@@ -40,8 +40,12 @@ Sheet (back-office) : son identifiant n'est **pas** écrit ici (dépôt public) 
     (protection contre les robots de messagerie qui ouvrent les liens).
   - L'appui sur le bouton (`POST /f/<jeton>`) revérifie le jeton, n'accepte que la transition prévue,
     écrit le statut puis une ligne dans le Journal. Un 2e clic affiche « déjà confirmée ».
-  - Deux actions : `accepter` (`envoyee_fabricant` → `acceptee`) et `expedier` (formulaire
-    transporteur + n° de suivi → `expediee`).
+  - Trois actions : `accepter` (`envoyee_fabricant` → `acceptee`), `expedier` (formulaire
+    transporteur + n° de suivi → `expediee`) et `refuser` (motif facultatif, depuis `envoyee_fabricant` ou `acceptee`) :
+    les lignes de la CF repassent à `a_valider` (ou `lien_stl_a_indiquer`) avec `Fabricant` et `Commande CF` vidés,
+    une note datée est ajoutée à `Notes`, Journal `refusee_fabricant` (auteur `fabricant`), e-mail au propriétaire.
+    Le même effet s'obtient depuis /admin (« Retirer au fabricant », auteur `proprietaire`, e-mail au fabricant).
+    Un n° CF rendu n'est jamais réattribué ; ses anciens liens affichent « Commande retirée ».
 - **Fichiers** : STL standards sur R2, servis par `GET /fichier/<jeton>` (lien temporaire) ;
   sur-mesure = lien Drive collé à la main.
 - **RGPD** : mentionner Google (Sheets/Drive) comme sous-traitant dans `confidentialite/`
@@ -343,8 +347,9 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
   `Commande OpenSCAD` et `Dernier statut notifié` (Commandes CF).
 - Au quotidien, on travaille dans `Commandes CF` : choisir le fabricant, puis passer **toutes les lignes d'une même CF**
   à `envoyee_fabricant`. Le statut de `Commandes EV` se met à jour seul.
-- Changer de fabricant après l'envoi : remettre les lignes à `payee`, choisir le nouveau fabricant, repasser à
-  `envoyee_fabricant` (l'ancien fabricant reçoit un refus s'il utilise encore ses liens).
+- Changer de fabricant après l'envoi : dans /admin, « Retirer au fabricant » sur le pli de la CF, puis valider avec
+  un autre fabricant (à défaut, dans le Sheet : remettre les lignes à `payee`, choisir le nouveau fabricant, repasser à
+  `envoyee_fabricant` ; l'ancien fabricant reçoit un refus s'il utilise encore ses liens).
 - Trier et filtrer librement : le Worker retrouve chaque ligne par sa clé, jamais par sa position.
 - Modèles OpenSCAD : `modeles/<id-produit>.scad`, paramètres nommés `a`, `b`, `c` comme dans `custom.params` de `data.js`.
 - Les onglets `Synthèse` et `Livre des recettes` lisent encore `Commandes (ancien)` : à rebrancher si tu veux les garder.

@@ -526,3 +526,41 @@ test("Google : une écriture en échec n'est jamais retentée (pas de doublon)",
   assert.equal(ecritures.length, 1, JSON.stringify(ecritures));
   assert.ok(r.status === 503 || r.status === 303, String(r.status));
 });
+
+test("Retirer au fabricant : confirmation obligatoire ; articles à valider, fabricant prévenu, historique ; nouvel envoi sous un autre n° CF", async () => {
+  await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/file/d/sm/view", fab_2: "" });
+  assert.equal(art(1)["Commande CF"], "CF-2026-0010-A");
+  const fiche = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.match(fiche, /action="\/admin\/retirer"[\s\S]*name="cf" value="CF-2026-0010-A"[\s\S]*name="confirmer" value="oui" required/);
+
+  let r = await envoyer("/admin/retirer", { cf: "CF-2026-0010-A", motif: "pas de réponse" });
+  assert.match(bandeau(r), /Rien n'a été retiré/);
+  assert.equal(art(1).Statut, "envoyee_fabricant");
+  r = await envoyer("/admin/retirer", { cf: "CF-2026-0099-A", confirmer: "oui" });
+  assert.match(bandeau(r), /inconnue/, "n° CF d'une autre commande refusé");
+
+  const avant = emails.length;
+  r = await envoyer("/admin/retirer", { cf: "CF-2026-0010-A", motif: "pas de réponse", confirmer: "oui" });
+  assert.match(bandeau(r), /CF-2026-0010-A retirée à Atelier Dupont : 1 article de nouveau à valider ; fabricant prévenu ✓/);
+  assert.deepEqual([art(1).Statut, art(1)["Dernier statut notifié"], art(1)["Commande CF"], art(1).Fabricant], ["a_valider", "a_valider", "", ""]);
+  assert.match(art(1).Notes, /CF-2026-0010-A retirée à Atelier Dupont : pas de réponse$/);
+  assert.equal(emails.length, avant + 1);
+  assert.match(emails.at(-1).subject, /CF-2026-0010-A annulée de votre côté/);
+  assert.match(emails.at(-1).textContent, /ne pas la fabriquer[\s\S]*Motif : pas de réponse/);
+  assert.match(bandeau(await envoyer("/admin/retirer", { cf: "CF-2026-0010-A", confirmer: "oui" })), /rien à retirer/, "2e envoi sans effet");
+  assert.equal(emails.length, avant + 1);
+
+  const liste = await (await get("/admin")).text();
+  assert.match(liste, /à valider \(fabricant à changer\)/);
+  for (const q of ["EV-2026-0010", "cf-2026-0010-a"]) {
+    const html = await (await get(`/admin?q=${encodeURIComponent(q)}`)).text();
+    assert.match(html, /<h1>EV-2026-0010<\/h1>/, q);
+    assert.match(html, /CF-2026-0010-A retirée au fabricant le \d+ [a-zé.]+ \d{4} : choisissez un autre fabricant/);
+    assert.match(html, /class="note">[^<]*retirée à Atelier Dupont : pas de réponse/);
+    assert.match(html, /CF-2026-0010-A<\/b> · Envoyée au fabricant → Retirée au fabricant/);
+  }
+
+  r = await envoyer("/admin/valider", { fab_1: FAB, stl_1: "", fab_2: "" });
+  assert.match(bandeau(r), /CF-2026-0010-B envoyée à Atelier Dupont ✓/, "n° rendu jamais réattribué");
+  assert.equal(art(1)["Commande CF"], "CF-2026-0010-B");
+});

@@ -16,7 +16,7 @@ import { creerJeton, jetonConfigure } from "./jeton.js";
 import { liensStandards } from "./fichier.js";
 import { EVARYSTH } from "./catalogue.js";
 import { contenuExpedition, contenuFabricant, contenuRelance, envoyerEmail } from "./email.js";
-import { A_VALIDER, CF, dateParis, FABRICANTS, STL_A_INDIQUER, JOURNAL, journaliser, majArticle, ONGLET, ONGLET_CF } from "./sheet.js";
+import { A_VALIDER, CF, dateParis, FABRICANTS, REFUSEE, STL_A_INDIQUER, JOURNAL, journaliser, majArticle, ONGLET, ONGLET_CF } from "./sheet.js";
 
 export const STATUTS = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree", "incident", "remboursee", "annulee"];
 export const STATUTS_EV = ["payee", "en_fabrication", "partiellement_expediee", "expediee", "livree", "incident", "remboursee", "annulee"];
@@ -35,7 +35,7 @@ const oui = v => /^oui$/i.test(String(v || "").trim());
 const repondreA = env => ({ email: env.REPLY_TO || "contact@evarysth.fr", name: "Evarysth" });
 /* Article tel que le client le lit : nom du produit à la place de son identifiant */
 const pourClient = a => { const [id, ...reste] = a.split(" · "); const p = EVARYSTH.getProduct(id.trim()); return [p ? p.name : id, ...reste].join(" · "); };
-const estTest = (env, sid) => String(sid || "").startsWith("cs_test_") || env.CHECKOUT_MODE !== "live";
+export const estTest = (env, sid) => String(sid || "").startsWith("cs_test_") || env.CHECKOUT_MODE !== "live";
 
 /* « AAAA-MM-JJ HH:MM » heure de Paris → ms (NaN si illisible) */
 export function parisVersMs(s) {
@@ -66,10 +66,12 @@ function journalDe(v) {
 const dernierStatut = lignes => [...(lignes || [])].reverse().find(l => STATUTS.includes(l.nouveau) || STATUTS_EV.includes(l.nouveau));
 
 /* N° CF voulus pour les articles d'une commande EV (même ordre que `lignes`) */
-export function numerosCF(numeroEV, lignes) {
+/* N° CF refusés ou retirés (Journal) : jamais réattribués, pour qu'un n° désigne toujours le même envoi */
+export const cfsRendues = journal => new Set(Object.keys(journal).filter(k => (journal[k] || []).some(x => x.nouveau === REFUSEE)));
+export function numerosCF(numeroEV, lignes, exclus = new Set()) {
   const base = numeroEV.replace(/^EV-/, "CF-");
   const voulu = lignes.map(l => l.cf);
-  const pris = new Set(lignes.filter(l => !pasEnvoye(l) && l.cf).map(l => l.cf));
+  const pris = new Set([...exclus, ...lignes.filter(l => !pasEnvoye(l) && l.cf).map(l => l.cf)]);
   const groupes = new Map();
   lignes.forEach((l, i) => {
     if (!pasEnvoye(l)) return;
@@ -137,7 +139,7 @@ export async function envoyerSelonStatut(env, g, ev, tous, fabs) {
     const [nomClient = "", , adresse = ""] = ev.client.split("\n");
     const m = contenuFabricant({ numero: g.cf, piece: g.lignes.map(l => l.article).join("\n"), lienStl: stl.texte,
       delai: f.delai, test, livraison: f.livre ? [nomClient, adresse].filter(Boolean).join("\n") : null,
-      liens: { accepter: await lien("accepter"), expedier: await lien("expedier") } });
+      liens: { accepter: await lien("accepter"), expedier: await lien("expedier"), refuser: await lien("refuser") } });
     await envoyerEmail(env, { to: [{ email: f.email.trim(), name: nom }], replyTo: repondreA(env), subject: m.sujet, htmlContent: m.html, textContent: m.texte, tags: ["fabricant", test ? "test" : "live"] });
   } else if (g.statut === "expediee") {
     const [nom = "", email = ""] = ev.client.split("\n");
@@ -180,7 +182,7 @@ export async function journaliserSiNouveau(env, journal, numero, ancien, nouveau
 export async function lireEtat(env) {
   /* 2 appels au Sheet en tout (en-têtes des 4 onglets, puis leurs colonnes) : moins de quota, moins de ratés */
   const [{ v }, { v: e }, { v: vFab }, { v: vJournal }] = await lireOnglets(env, [
-    { onglet: ONGLET_CF, noms: COLS_CF }, { onglet: ONGLET, noms: COLS_EV },
+    { onglet: ONGLET_CF, noms: COLS_CF, options: ["Notes"] }, { onglet: ONGLET, noms: COLS_EV },
     { onglet: FABRICANTS, noms: COLS_FAB, facultatif: true }, { onglet: JOURNAL, noms: COLS_JOURNAL }]);
   const fabs = fabricantsDe(vFab), journal = journalDe(vJournal);
 
@@ -189,7 +191,7 @@ export async function lireEtat(env) {
     date: e.Date[i] || "", type: e.Type[i] || "", cadeau: e["Cadeau / message"][i] || "" }; });
   const lignes = v[CF.ev].map((n, i) => ({ ev: n.trim(), n: (v[CF.art][i] || "").trim(), cf: (v[CF.num][i] || "").trim(), statut: (v.Statut[i] || "").trim(),
     article: v.Article[i] || "", fabricant: v.Fabricant[i] || "", stl: v["Lien STL"][i] || "", transporteur: v.Transporteur[i] || "",
-    suivi: v["N° de suivi"][i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim(), ligne: i + 2 })).filter(l => l.ev && l.n);
+    suivi: v["N° de suivi"][i] || "", notes: (v.Notes || [])[i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim(), ligne: i + 2 })).filter(l => l.ev && l.n);
   const parEV = {};
   for (const l of lignes) (parEV[l.ev] ||= []).push(l);
   return { evs, lignes, parEV, fabs, journal };
@@ -209,8 +211,9 @@ export async function tachePlanifiee(env, maintenant = Date.now()) {
   }
 
   /* 1. n° CF */
+  const rendues = cfsRendues(journal);
   for (const [numero, ls] of Object.entries(parEV)) {
-    const voulu = numerosCF(numero, ls);
+    const voulu = numerosCF(numero, ls, rendues);
     for (const [i, l] of ls.entries()) {
       if (voulu[i] === l.cf) continue;
       try { await majArticle(env, numero, l.n, { [CF.num]: voulu[i] }); bilan.attribuees.push(`${numero} n° ${l.n} : ${voulu[i] || "—"}`); l.cf = voulu[i]; }
