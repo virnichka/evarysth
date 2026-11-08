@@ -94,16 +94,22 @@
       </div>
       <div class="hero__visual">
         <div class="hero__stage" data-u="balcon">
-          <svg viewBox="0 0 560 448" role="img" aria-label="Support jardinière clipsé sur une rambarde de 47 millimètres">
-            <rect x="0" y="236" width="560" height="10" class="hv-ground"/>
-            <rect x="196" y="176" width="66" height="66" rx="6" class="hv-rail"/>
-            <path d="M182 290V160h94v130h144v-44" class="hv-part"/>
+          <svg viewBox="0 0 560 448" role="img" aria-label="Support jardinière clipsé sur une rambarde de 47 millimètres" id="hero-svg">
+            <rect x="0" y="281" width="560" height="10" class="hv-ground"/>
+            <g transform="translate(115 45)">
+            <rect x="196" y="176" width="66" height="66" rx="6" class="hv-rail" id="hv-rail"/>
+            <path d="M182 290V160h94v130h144v-44" class="hv-part" id="hv-part"/>
             <rect x="296" y="182" width="112" height="96" rx="10" class="hv-pot"/>
             <path d="M330 182c0-42 22-70 38-78M352 182c4-32 26-56 46-60" class="hv-plant"/>
-            <path d="M196 112h66M196 102v20M262 102v20" class="hv-dim"/>
+            <path d="M196 112h66M196 102v20M262 102v20" class="hv-dim" id="hv-dim"/>
+            </g>
           </svg>
         </div>
-        <div class="hero__chip hero__chip--dim" aria-live="polite"><small id="hero-dim-label">Votre rambarde</small><b id="hero-dim-val">47 mm</b></div>
+        <div class="hero__chip hero__chip--dim">
+          <label for="hero-range"><small id="hero-dim-label">Votre rambarde</small><b id="hero-dim-val" aria-live="polite">47 mm</b></label>
+          <input type="range" id="hero-range" min="15" max="120" step="1" value="47" aria-describedby="hero-mode-note">
+          <a class="hero__chip-link" href="produits/jardiniere-clip/">Voir ce support <span aria-hidden="true">→</span></a>
+        </div>
         <div class="hero__chip hero__chip--mode" role="group" aria-label="Deux façons de commander">
           <div class="hero__switch">
             <button type="button" data-hero-mode="standard" aria-pressed="false">Standard</button>

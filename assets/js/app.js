@@ -566,18 +566,60 @@ ${colors.length ? `
     const header = $(".site-header");
     if (header && window.ResizeObserver) new ResizeObserver(() =>
       document.documentElement.style.setProperty("--header-h", header.offsetHeight + "px")).observe(header);
-    /* Accueil : bascule Standard / Sur-mesure du visuel */
-    const heroModes = {
-      standard: ["Taille M", "40–50 mm", "3 tailles prêtes · prix affiché"],
-      custom: ["Votre rambarde", "47 mm", "Imprimé à vos cotes · de +2 à +10 €"]
-    };
-    document.addEventListener("click", e => {
-      const b = e.target.closest("[data-hero-mode]");
-      if (!b) return;
-      const [label, val, note] = heroModes[b.dataset.heroMode];
-      document.querySelectorAll("[data-hero-mode]").forEach(x => { const on = x === b; x.classList.toggle("is-on", on); x.setAttribute("aria-pressed", on); });
-      $("#hero-dim-label").textContent = label; $("#hero-dim-val").textContent = val; $("#hero-mode-note").textContent = note;
-    });
+    /* Accueil : schéma du hero piloté par un curseur (cote de rambarde, en mm) */
+    const range = $("#hero-range");
+    if (range) {
+      const sizes = [[30, "Fine", "20–40 mm"], [50, "Moyenne", "40–60 mm"], [70, "Large", "60–80 mm"]];
+      const notes = { standard: "3 tailles prêtes · prix affiché", custom: "Imprimé à vos cotes · de +2 à +10 €" };
+      const rail = $("#hv-rail"), part = $("#hv-part"), dim = $("#hv-dim"), svg = $("#hero-svg");
+      let mode = "custom", shown = 47, target = 47, raf = 0;
+      /* La rambarde s'agrandit vers la gauche et le haut ; le bord côté pot reste fixe */
+      const draw = a => {
+        const w = 30 + a * .6, x = 262 - w, y = 242 - w, L = x - 14, T = y - 16, d = T - 48;
+        rail.setAttribute("x", x); rail.setAttribute("y", y); rail.setAttribute("width", w); rail.setAttribute("height", w);
+        part.setAttribute("d", `M${L} 290V${T}H276V290H420V246`);
+        dim.setAttribute("d", `M${x} ${d}H262M${x} ${d - 10}v20M262 ${d - 10}v20`);
+      };
+      const tick = () => {
+        shown += (target - shown) * .25;
+        if (Math.abs(target - shown) < .2) shown = target;
+        draw(shown);
+        raf = shown === target ? 0 : requestAnimationFrame(tick);
+      };
+      const set = (a, animate = true) => {
+        const size = mode === "standard" ? sizes.reduce((b, s) => Math.abs(s[0] - a) < Math.abs(b[0] - a) ? s : b) : null;
+        if (size) a = size[0];
+        target = a; range.value = a;
+        range.style.setProperty("--p", (a - range.min) / (range.max - range.min) * 100 + "%");
+        $("#hero-dim-label").textContent = size ? "Taille " + size[1] : "Votre rambarde";
+        $("#hero-dim-val").textContent = size ? size[2] : a + " mm";
+        range.setAttribute("aria-valuetext", size ? `Taille ${size[1]}, ${size[2]}` : a + " millimètres");
+        svg.setAttribute("aria-label", `Support jardinière clipsé sur une rambarde de ${size ? size[2] : a + " millimètres"}`);
+        if (!animate) { shown = a; draw(a); } else if (!raf) raf = requestAnimationFrame(tick);
+      };
+      range.addEventListener("input", () => set(+range.value));
+      document.addEventListener("click", e => {
+        const b = e.target.closest("[data-hero-mode]");
+        if (!b) return;
+        mode = b.dataset.heroMode;
+        document.querySelectorAll("[data-hero-mode]").forEach(x => { const on = x === b; x.classList.toggle("is-on", on); x.setAttribute("aria-pressed", on); });
+        $("#hero-mode-note").textContent = notes[mode];
+        set(+range.value);
+      });
+      set(47, false);
+      /* Invitation : un aller-retour unique quand le hero est visible, tant qu'on n'y a pas touché */
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches && window.IntersectionObserver) {
+        let touched = false;
+        range.addEventListener("pointerdown", () => touched = true, { once: true });
+        const io = new IntersectionObserver(([en]) => {
+          if (!en.isIntersecting) return;
+          io.disconnect();
+          setTimeout(() => { if (!touched) set(72); }, 900);
+          setTimeout(() => { if (!touched) set(47); }, 1900);
+        }, { threshold: .6 });
+        io.observe(svg);
+      }
+    }
     /* Page fiche produit : <body data-product-id="…"> */
     const pid = document.body.dataset.productId;
     if (pid) {
