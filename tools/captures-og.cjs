@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /* Evarysth — images d'aperçu de partage (og:image, 1200 × 630) : assets/og/<id>.jpg + accueil.jpg.
    Visuel = 1re photo du produit, sinon capture de la vue 3D (ou de l'icône) de sa fiche.
+   Produits 3D sans photo : aussi 2 vignettes de catalogue (fond transparent, 2 angles) :
+   assets/vignettes/<id>-1.webp (vue de face) et <id>-2.webp (affichée au survol).
    Usage : node tools/captures-og.cjs [id-produit …]   (sans argument : tous les produits + l'accueil ;
            avec argument : seulement ces produits). Puis relancer node tools/generer-pages.mjs.
    Nécessite Playwright + Chromium (déjà installés dans l'environnement de travail). */
@@ -12,6 +14,7 @@ const vm = require("vm");
 
 const ROOT = path.resolve(__dirname, "..");
 const OUT = path.join(ROOT, "assets/og");
+const VIG = path.join(ROOT, "assets/vignettes");
 const PORT = 8765, BASE = `http://localhost:${PORT}/`;
 
 const sandbox = {}; sandbox.window = sandbox; vm.createContext(sandbox);
@@ -52,6 +55,41 @@ async function visual(page, p) {
   return `url(${dataURL(shot, "image/png")}) center/cover`;
 }
 
+/* Vignettes de catalogue : vue 3D seule (décor masqué, fond transparent), recadrée en 4:3, en WebP */
+const VIG_W = 640, VIG_H = 480;
+const toWebp = async (page, png) => Buffer.from(await page.evaluate(async ({ src, w, h }) => {
+  const img = new Image(); img.src = src; await img.decode();
+  /* Cadre = contour de la pièce (pixels non transparents) + marge, centré dans le 4:3 */
+  const t = document.createElement("canvas"); t.width = img.width; t.height = img.height;
+  const tx = t.getContext("2d"); tx.drawImage(img, 0, 0);
+  const a = tx.getImageData(0, 0, t.width, t.height).data;
+  let x0 = t.width, y0 = t.height, x1 = 0, y1 = 0;
+  for (let y = 0; y < t.height; y++) for (let x = 0; x < t.width; x++) if (a[(y * t.width + x) * 4 + 3] > 8) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < x0) { x0 = 0; y0 = 0; x1 = t.width - 1; y1 = t.height - 1; }
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1, s = Math.min(w * 0.86 / bw, h * 0.86 / bh, 1.6);
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  c.getContext("2d").drawImage(t, x0, y0, bw, bh, (w - bw * s) / 2, (h - bh * s) / 2, bw * s, bh * s);
+  return c.toDataURL("image/webp", 0.82).split(",")[1];
+}, { src: dataURL(png, "image/png"), w: VIG_W, h: VIG_H }), "base64");
+
+async function vignettes(page, p) {
+  const v = page.locator("#viewer3d canvas");
+  if (!(await v.count())) return;
+  await page.addStyleTag({ content: `html,body,body *{background:transparent!important} #stage::before{display:none!important}
+    #stage > :not(#viewer3d){visibility:hidden!important}` });
+  await page.waitForTimeout(200);
+  const shoot = async n => fs.writeFileSync(path.join(VIG, `${p.id}-${n}.webp`), await toWebp(page, await page.locator("#viewer3d").screenshot({ omitBackground: true })));
+  await shoot(1);
+  /* 2e angle : glisser horizontalement sur la vue (≈ 130° autour de la pièce) */
+  const b = await v.boundingBox(), y = b.y + b.height / 2;
+  await page.mouse.move(b.x + b.width * 0.3, y); await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(b.x + b.width * (0.3 + 0.036 * i), y);
+  await page.mouse.up(); await page.waitForTimeout(1500);
+  await shoot(2);
+}
+
 async function compose(page, html, file) {
   await page.setViewportSize({ width: 1200, height: 630 });
   await page.setContent(`<!DOCTYPE html><html><head><meta charset="utf-8">${FONTS}<style>${CSS}</style></head><body>${html}</body></html>`, { waitUntil: "networkidle" });
@@ -59,7 +97,7 @@ async function compose(page, html, file) {
 }
 
 (async () => {
-  fs.mkdirSync(OUT, { recursive: true });
+  fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(VIG, { recursive: true });
   const server = spawn("python3", ["-m", "http.server", String(PORT), "--bind", "127.0.0.1"], { cwd: ROOT, stdio: "ignore" });
   await new Promise(r => setTimeout(r, 800));
   const browser = await chromium.launch({ args: ["--use-gl=angle", "--use-angle=swiftshader"] });
@@ -71,6 +109,7 @@ async function compose(page, html, file) {
     const vis = {};
     for (const p of list) {
       vis[p.id] = await visual(shotPage, p);
+      if (p.model && !(p.photos || []).length) await vignettes(shotPage, p);
       const u = E.getUniverse(p.universe);
       await compose(out, `<div class="vis" style="background:${vis[p.id]}"></div>
         <div class="txt"><div class="logo"><i></i>evarysth</div>

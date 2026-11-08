@@ -60,12 +60,19 @@
   /* Vignette : photos à faire défiler au doigt (scroll-snap), points = nombre de photos */
   const cardPhotos = p => {
     const ph = p.photos || [];
-    if (!ph.length) return "";
+    /* Sans photo : 2 rendus 3D (tools/captures-og.cjs), le 2e angle apparaît au survol */
+    if (!ph.length) return p.model ? `<div class="card__renders">${[1, 2].map(n =>
+      `<img class="card__render" src="assets/vignettes/${p.id}-${n}.webp" alt="${n > 1 ? "" : `Aperçu 3D de ${p.name}`}" loading="lazy" decoding="async" draggable="false">`).join("")}</div>` : "";
     return `<div class="card__photos" data-href="produits/${p.id}/">${ph.map((x, i) =>
       `<img class="card__photo" src="${x.src}" alt="${i ? "" : x.alt}" loading="lazy" decoding="async" draggable="false" style="object-position:${x.pos || "50% 50%"}">`).join("")}</div>${ph.length > 1 ? `
       <button class="card__step card__step--prev" data-step="-1" aria-label="Photo précédente" hidden>‹</button><button class="card__step card__step--next" data-step="1" aria-label="Photo suivante">›</button>
       <div class="card__dots" aria-hidden="true">${ph.map((_, i) => `<i${i ? "" : ' class="is-on"'}></i>`).join("")}</div>` : ""}`;
   };
+  /* Rendu 3D manquant : on revient à l'icône */
+  document.addEventListener("error", e => {
+    const r = e.target instanceof Element && e.target.closest(".card__renders");
+    if (r) { r.parentElement.classList.remove("has-photo"); r.remove(); }
+  }, true);
   /* Défilement des photos dans les vignettes (délégué : marche pour toutes les grilles) */
   const photoIndex = t => Math.round(t.scrollLeft / Math.max(1, t.clientWidth));
   document.addEventListener("scroll", e => {
@@ -92,7 +99,7 @@
   const card = p => `
     <article class="card">
       <a class="card__link" href="produits/${p.id}/" aria-label="${p.name}"></a>
-      <div class="card__media${p.photos && p.photos.length ? " has-photo" : ""}" data-u="${p.universe}">${EVARYSTH.shapeSVG(p.shape)}${cardPhotos(p)}<span class="card__badge">Sur-mesure possible</span>
+      <div class="card__media${(p.photos && p.photos.length) || p.model ? " has-photo" : ""}" data-u="${p.universe}">${EVARYSTH.shapeSVG(p.shape)}${cardPhotos(p)}<span class="card__badge">Sur-mesure possible</span>
         <button class="fav ${EVARYSTH.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${EVARYSTH.favs.has(p.id)}" aria-label="Ajouter ${p.name} aux favoris">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button></div>
       <div class="card__body">
