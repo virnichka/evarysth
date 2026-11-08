@@ -74,6 +74,8 @@ pas un gabarit de forme.
 `photos: [{ src, alt, pos? }]` (pos = object-position du recadrage) + `photosNote` facultatif.
 La 1re photo sert de vignette au catalogue (2e au survol) ; sur la fiche, la 3D reste la vue 1.
 Après ajout/changement de photo : `node tools/captures-og.cjs <id>` puis `node tools/generer-pages.mjs`.
+Sans photo, la vignette du catalogue = 2 rendus 3D (`assets/vignettes/<id>-1.webp`, `-2.webp` au survol),
+produits par ce même `captures-og.cjs` : à relancer après toute modif d'un modèle 3D. Ne pas les ouvrir pour vérifier.
 
 ## Mise en ligne (autorisée par le propriétaire, sans redemander)
 Chaque push sur `main` republie le site (GitHub Pages, `.github/workflows/pages.yml`).
