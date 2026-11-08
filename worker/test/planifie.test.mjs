@@ -2,7 +2,8 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
-import { viderCacheJeton } from "../src/google.js";
+import { viderCacheJeton, reglerAttentes } from "../src/google.js";
+reglerAttentes([0, 0]); /* nouveaux essais sans attente dans les tests */
 import { verifierJeton } from "../src/jeton.js";
 import { dateParis } from "../src/sheet.js";
 import { lancerTache, numerosCF, parisVersMs, RELANCE, statutEV, tachePlanifiee } from "../src/planifie.js";
@@ -61,7 +62,7 @@ async function fauxFetch(url, init = {}) {
   const chemin = decodeURIComponent(u.pathname.replace("/v4/spreadsheets/id-factice/", ""));
   if (chemin === "values:batchGet") appliquerFormules(sheet);
   if (chemin === "values:batchGet") return rep({ valueRanges: u.searchParams.getAll("ranges").map(r => {
-    const { onglet, ref } = lirePlage(r); const c = col(ref.split(":")[0]);
+    const { onglet, ref } = lirePlage(r); if (ref === "1:1") return { range: r, values: [sheet[onglet][0]] }; const c = col(ref.split(":")[0]);
     return { range: r, values: [sheet[onglet].map(l => l[c] ?? "")] };
   }) });
   const [, a1, action] = /^values\/(.+?)(:append)?$/.exec(chemin);

@@ -20,7 +20,7 @@
    Si l'e-mail fabricant échoue après l'écriture du statut, « Dernier statut notifié » n'est pas mis à jour : la tâche
    planifiée du Worker public le renvoie au passage suivant (10 min). Aucun script dans la page. */
 import { verifierAcces } from "./acces.js";
-import { googleConfigure } from "./google.js";
+import { ErreurGoogle, googleConfigure } from "./google.js";
 import { egal, jetonConfigure, signature } from "./jeton.js";
 import { EXTENSIONS, fichierStandardDispo, segmentTaille } from "./fichier.js";
 import { A_ENVOYER, STATUTS, statutEV, DELAI_RELANCE_MS, envoyerSelonStatut, journaliserSiNouveau, lancerTache, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
@@ -705,7 +705,12 @@ export async function routeAdmin(req, env, url) {
     if (url.pathname === "/admin/tache") return await tacheMaintenant(env);
     return await debloquer(env, f);
   } catch (e) {
-    console.error("Admin", e.message);
-    return simple("Erreur temporaire", "Le Sheet n'a pas répondu. Actualisez la page pour voir ce qui a été enregistré avant de recommencer.", 503);
+    /* Journal : code Google (429 = quota, 5xx = raté de Google, 0 = réseau) ou erreur de programme */
+    console.error("Admin", req.method, url.pathname, e instanceof ErreurGoogle ? `Google ${e.statut ?? "-"}` : "erreur interne", e.message);
+    if (req.method !== "GET") return simple("Erreur temporaire", "Le Sheet n'a pas répondu. Actualisez la page pour voir ce qui a été enregistré avant de recommencer.", 503);
+    if (!(e instanceof ErreurGoogle)) return simple("Erreur inattendue", "La page n'a pas pu être construite. Actualisez ; si l'erreur persiste, elle est dans le journal du Worker.", 500);
+    return simple("Erreur temporaire", e.statut === 429
+      ? "Trop de lectures du Sheet en une minute. Patientez une minute, puis actualisez la page."
+      : "Google Sheets n'a pas répondu. Actualisez la page dans un instant.", 503);
   }
 }
