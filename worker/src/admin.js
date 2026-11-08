@@ -51,7 +51,7 @@ async function csrfValide(env, email, jeton, maintenant = Date.now()) {
 
 const ENTETES = {
   "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow",
-  "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "same-origin", "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff",
   "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
 };
 function page(titre, corps, statut = 200) {
@@ -229,6 +229,15 @@ async function debloquer(env, f) {
   return redirection(`Commande ${numero} débloquée : à valider.`);
 }
 
+/* POST venu de la page elle-même : Origin = celle de la page ; ou, si le navigateur envoie « null » / rien
+   (certaines politiques de référent sous Safari), Sec-Fetch-Site = same-origin. Toute autre valeur est refusée. */
+function memeOrigine(req, url) {
+  const origine = req.headers.get("Origin"), site = req.headers.get("Sec-Fetch-Site");
+  if (site && site !== "same-origin") return false;
+  if (origine === url.origin) return true;
+  return (origine === null || origine === "null") && site === "same-origin";
+}
+
 export async function routeAdmin(req, env, url) {
   if (env.ADMIN_HOST && url.host !== env.ADMIN_HOST) return simple("Introuvable", "Page introuvable.", 404);
   if (url.pathname === "/" && req.method === "GET") return new Response(null, { status: 302, headers: { Location: "/admin" } });
@@ -247,9 +256,7 @@ export async function routeAdmin(req, env, url) {
       return await rendre(env, email, await lireEtat(env), { message: nettoyer(url.searchParams.get("m")).slice(0, 300), type: t === "err" ? "err" : "ok" });
     }
     /* POST : même origine (Origin obligatoire), jeton anti-falsification */
-    if (req.headers.get("Origin") !== url.origin) return simple("Requête refusée", "Origine de la requête non reconnue.", 403);
-    const site = req.headers.get("Sec-Fetch-Site");
-    if (site && site !== "same-origin") return simple("Requête refusée", "Origine de la requête non reconnue.", 403);
+    if (!memeOrigine(req, url)) return simple("Requête refusée", "Origine de la requête non reconnue.", 403);
     const f = await req.formData().catch(() => null);
     if (!f || !await csrfValide(env, email, f.get("csrf"))) return redirection("Page expirée : action non faite. Recommencez.", "err");
     if (url.pathname === "/admin/valider") return await valider(env, email, f);

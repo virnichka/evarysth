@@ -75,10 +75,10 @@ async function ouvrir({ jeton, hote = HOTE, e = env } = {}) {
   return silence(() => worker.fetch(new Request(`https://${hote}/admin`, { headers }), e));
 }
 const csrfDe = html => /name="csrf" value="([^"]+)"/.exec(html)[1];
-async function envoyer(chemin, champs, { origine = ORIGINE, csrf } = {}) {
+async function envoyer(chemin, champs, { origine = ORIGINE, csrf, site } = {}) {
   const html = await (await ouvrir()).text();
   const corps = new URLSearchParams({ csrf: csrf ?? csrfDe(html), ev: "EV-2026-0010", ...champs });
-  const headers = { "Cf-Access-Jwt-Assertion": await jwt(), "Content-Type": "application/x-www-form-urlencoded", ...(origine ? { Origin: origine } : {}) };
+  const headers = { "Cf-Access-Jwt-Assertion": await jwt(), "Content-Type": "application/x-www-form-urlencoded", ...(origine ? { Origin: origine } : {}), ...(site ? { "Sec-Fetch-Site": site } : {}) };
   return silence(() => worker.fetch(new Request(`${ORIGINE}${chemin}`, { method: "POST", headers, body: corps }), env));
 }
 const bandeau = r => decodeURIComponent(new URL(r.headers.get("Location"), ORIGINE).searchParams.get("m") || "");
@@ -168,10 +168,18 @@ test("Requêtes étrangères : sans Origin, autre Origin, jeton anti-falsificati
   const champs = { fab_1: FAB, stl_1: "https://drive.google.com/x" };
   assert.equal((await envoyer("/admin/valider", champs, { origine: null })).status, 403);
   assert.equal((await envoyer("/admin/valider", champs, { origine: "https://pirate.example" })).status, 403);
+  assert.equal((await envoyer("/admin/valider", champs, { origine: "null" })).status, 403, "Origin null sans Sec-Fetch-Site");
+  assert.equal((await envoyer("/admin/valider", champs, { site: "cross-site" })).status, 403);
   const r = await envoyer("/admin/valider", champs, { csrf: "9999999999.faux" });
   assert.match(bandeau(r), /Page expirée/);
   assert.equal(art(1).Statut, "lien_stl_a_indiquer");
   assert.equal(emails.length, 0);
+});
+
+test("Safari : Origin « null » mais Sec-Fetch-Site same-origin → accepté", async () => {
+  const r = await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/x" }, { origine: "null", site: "same-origin" });
+  assert.equal(r.status, 303);
+  assert.equal(art(1).Statut, "envoyee_fabricant");
 });
 
 test("Brevo en panne : validée, e-mail en attente, la tâche planifiée l'envoie ensuite", async () => {
