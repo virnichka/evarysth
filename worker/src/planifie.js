@@ -11,7 +11,7 @@
       ou « Statut forcé » saisi à la main) ; la tâche n'y écrit rien et journalise seulement les changements de Statut.
    Inactive sans secrets Google ; un e-mail dont le secret manque n'est pas envoyé et la ligne attend (aucune erreur).
    Lignes retrouvées par leur clé (Commande EV + Article n°, ou n° EV), jamais par leur position. */
-import { appelSheets, entetes, googleConfigure, lettreColonne, lireColonnes } from "./google.js";
+import { appelSheets, googleConfigure, lettreColonne, lireOnglets } from "./google.js";
 import { creerJeton, jetonConfigure } from "./jeton.js";
 import { liensStandards } from "./fichier.js";
 import { EVARYSTH } from "./catalogue.js";
@@ -48,19 +48,16 @@ export function parisVersMs(s) {
 }
 
 /* Fiche du fabricant par son nom (onglet Fabricants) */
-async function lireFabricants(env) {
-  const cols = await entetes(env, FABRICANTS);
-  const noms = ["Nom", "E-mail", "Délai (jours)", "Livre le client"].filter(n => n in cols);
-  const v = await lireColonnes(env, FABRICANTS, cols, noms);
+const COLS_FAB = ["Nom", "E-mail", "Délai (jours)", "Livre le client"];
+const COLS_JOURNAL = ["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"];
+function fabricantsDe(v) {
   const fabs = {};
   (v.Nom || []).forEach((n, i) => { if (n.trim()) fabs[n.trim()] = { email: (v["E-mail"] || [])[i] || "", delai: (v["Délai (jours)"] || [])[i] || "", livre: oui((v["Livre le client"] || [])[i]) }; });
   return fabs;
 }
 
 /* Journal → par commande : lignes dans l'ordre { date, ancien, nouveau, auteur } */
-async function lireJournal(env) {
-  const cols = await entetes(env, JOURNAL);
-  const v = await lireColonnes(env, JOURNAL, cols, ["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"]);
+function journalDe(v) {
   const parCommande = {};
   v.Commande.forEach((n, i) => { if (n) (parCommande[n] ||= []).push({ date: v.Date[i] || "", ancien: v["Ancien statut"][i] || "", nouveau: (v["Nouveau statut"][i] || "").trim(), auteur: (v.Auteur[i] || "").trim() }); });
   return parCommande;
@@ -181,11 +178,11 @@ export async function journaliserSiNouveau(env, journal, numero, ancien, nouveau
 
 /* État du Sheet utile à la tâche et à la page /admin : commandes EV, articles CF (avec leur n° de ligne), fabricants, Journal */
 export async function lireEtat(env) {
-  const [colsCF, colsEV] = await Promise.all([entetes(env, ONGLET_CF), entetes(env, ONGLET)]);
-  const [v, e, fabs, journal] = await Promise.all([
-    lireColonnes(env, ONGLET_CF, colsCF, COLS_CF),
-    lireColonnes(env, ONGLET, colsEV, COLS_EV),
-    lireFabricants(env), lireJournal(env)]);
+  /* 2 appels au Sheet en tout (en-têtes des 4 onglets, puis leurs colonnes) : moins de quota, moins de ratés */
+  const [{ v }, { v: e }, { v: vFab }, { v: vJournal }] = await lireOnglets(env, [
+    { onglet: ONGLET_CF, noms: COLS_CF }, { onglet: ONGLET, noms: COLS_EV },
+    { onglet: FABRICANTS, noms: COLS_FAB, facultatif: true }, { onglet: JOURNAL, noms: COLS_JOURNAL }]);
+  const fabs = fabricantsDe(vFab), journal = journalDe(vJournal);
 
   const evs = {};
   e.Commande.forEach((n, i) => { n = n.trim(); if (n) evs[n] = { numero: n, statut: (e.Statut[i] || "").trim(), client: e.Client[i] || "", sid: e["Stripe session id"][i] || "",

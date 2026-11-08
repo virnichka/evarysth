@@ -3,7 +3,8 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
-import { viderCacheJeton } from "../src/google.js";
+import { viderCacheJeton, reglerAttentes } from "../src/google.js";
+reglerAttentes([0, 0]); /* nouveaux essais sans attente dans les tests */
 import { viderCacheAcces } from "../src/acces.js";
 import { lienValide } from "../src/admin.js";
 import { tachePlanifiee } from "../src/planifie.js";
@@ -61,7 +62,9 @@ async function fauxFetch(url, init = {}) {
   const chemin = decodeURIComponent(u.pathname.replace("/v4/spreadsheets/id-factice/", ""));
   if (chemin.startsWith("developerMetadata/")) return meta ? rep({ metadataValue: meta }) : rep({ error: { message: "introuvable" } }, 404);
   if (chemin === "values:batchGet") { appliquerFormules(sheet); return rep({ valueRanges: u.searchParams.getAll("ranges").map(r => {
-    const { onglet, ref } = plage(r), v = sheet[onglet].map(l => l[col(ref.split(":")[0])] ?? "");
+    const { onglet, ref } = plage(r);
+    if (ref === "1:1") return { range: r, values: [sheet[onglet][0]] };
+    const v = sheet[onglet].map(l => l[col(ref.split(":")[0])] ?? "");
     while (v.length && v[v.length - 1] === "") v.pop();
     return { range: r, values: [v] };
   }) }); }
@@ -469,4 +472,57 @@ test("Attente du fabricant : signalée dans la liste, la fiche et le tableau de 
   liste = await (await get("/admin?f=fabricant")).text();
   assert.doesNotMatch(liste, /class="attend/, "acceptée : plus de signal");
   assert.match(liste, /<span class="badge t-fab">En fabrication<\/span>/, "acceptée : « En fabrication »");
+});
+
+/* Robustesse face à Google : lectures groupées, nouveaux essais sur les lectures seulement, messages selon la cause */
+const espion = (panne = () => null) => {
+  const appels = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const u = new URL(url);
+    if (u.host === "sheets.googleapis.com") {
+      const a = { methode: init.method || "GET", chemin: decodeURIComponent(u.pathname) };
+      appels.push(a);
+      const s = panne(a, appels);
+      if (s) return new Response(JSON.stringify({ error: { message: "panne" } }), { status: s });
+    }
+    return fauxFetch(url, init);
+  };
+  return appels;
+};
+
+test("Google : la liste des commandes lit le Sheet en 2 appels (4 onglets groupés)", async () => {
+  const appels = espion();
+  assert.equal((await ouvrir()).status, 200);
+  assert.equal(appels.length, 2, JSON.stringify(appels));
+});
+
+test("Google : lecture en 503 puis rétablie → nouvel essai, page affichée", async () => {
+  const appels = espion((a, t) => t.length === 1 ? 503 : null);
+  const r = await ouvrir();
+  assert.equal(r.status, 200);
+  assert.match(await r.text(), /EV-2026-0010/);
+  assert.equal(appels.length, 3);
+});
+
+test("Google : quota (429) → pas de nouvel essai, message dédié ; panne durable → message de lecture", async () => {
+  let appels = espion(() => 429);
+  let r = await ouvrir();
+  assert.equal(r.status, 503);
+  assert.match(await r.text(), /Trop de lectures du Sheet/);
+  assert.equal(appels.length, 1, "429 : un seul appel");
+  appels = espion(() => 500);
+  r = await ouvrir();
+  assert.equal(r.status, 503);
+  const html = await r.text();
+  assert.match(html, /Google Sheets n(&#39;|')a pas répondu\. Actualisez la page dans un instant/);
+  assert.doesNotMatch(html, /ce qui a été enregistré/, "affichage : rien n'a été enregistré");
+  assert.equal(appels.length, 3, "1 appel + 2 nouveaux essais");
+});
+
+test("Google : une écriture en échec n'est jamais retentée (pas de doublon)", async () => {
+  const appels = espion(a => a.methode !== "GET" ? 503 : null);
+  const r = await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/file/d/sm/view", fab_2: FAB, stl_2: "https://drive.google.com/file/d/sm/view" });
+  const ecritures = appels.filter(a => a.methode !== "GET");
+  assert.equal(ecritures.length, 1, JSON.stringify(ecritures));
+  assert.ok(r.status === 503 || r.status === 303, String(r.status));
 });

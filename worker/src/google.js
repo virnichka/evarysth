@@ -11,6 +11,26 @@ export class ErreurGoogle extends Error {
   constructor(message, statut) { super(message); this.statut = statut; }
 }
 
+/* Nouveaux essais (lectures et jeton seulement : sans effet de bord) après une coupure réseau ou une erreur
+   passagère de Google (5xx). Jamais sur 429 (quota à la minute : réessayer aussitôt l'aggraverait), jamais sur une écriture. */
+let attentes = [500, 1500];
+export const reglerAttentes = ms => { attentes = ms; };
+const PASSAGER = new Set([500, 502, 503, 504]);
+async function avecEssais(nom, appel) {
+  for (let essai = 0; ; essai++) {
+    let r;
+    try { r = await appel(); } catch (e) {
+      if (essai >= attentes.length) throw new ErreurGoogle(`${nom} : réseau (${e.message})`, 0);
+      console.warn(`${nom} : réseau (${e.message}), nouvel essai ${essai + 1}`);
+      await new Promise(f => setTimeout(f, attentes[essai]));
+      continue;
+    }
+    if (!PASSAGER.has(r.status) || essai >= attentes.length) return r;
+    console.warn(`${nom} : ${r.status}, nouvel essai ${essai + 1}`);
+    await new Promise(f => setTimeout(f, attentes[essai]));
+  }
+}
+
 /* Les trois secrets sont présents : sinon toute la partie Sheet reste inactive */
 export const googleConfigure = env => Boolean(env.GOOGLE_SA_EMAIL && env.GOOGLE_SA_KEY && env.SHEET_ID);
 
@@ -39,14 +59,11 @@ export const viderCacheJeton = () => { cache = null; };
 
 export async function jetonAcces(env, maintenant = Date.now()) {
   if (cache && cache.email === env.GOOGLE_SA_EMAIL && cache.expire > maintenant) return cache.jeton;
-  const r = await fetch(URL_JETON, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: await jwtCompteService(env.GOOGLE_SA_EMAIL, env.GOOGLE_SA_KEY, maintenant)
-    }).toString()
-  });
+  const body = new URLSearchParams({
+    grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    assertion: await jwtCompteService(env.GOOGLE_SA_EMAIL, env.GOOGLE_SA_KEY, maintenant)
+  }).toString();
+  const r = await avecEssais("Jeton Google", () => fetch(URL_JETON, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body }));
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d.access_token) throw new ErreurGoogle(`Jeton Google refusé (${r.status}) : ${d.error_description || d.error || ""}`, r.status);
   const duree = Math.min(Number(d.expires_in) || 3600, 3600);
@@ -58,11 +75,12 @@ export async function jetonAcces(env, maintenant = Date.now()) {
 export async function appelSheets(env, methode, chemin, params = {}, corps) {
   const url = new URL(URL_SHEETS + encodeURIComponent(env.SHEET_ID) + (chemin.startsWith(":") ? "" : "/") + chemin);
   for (const [k, v] of Object.entries(params)) for (const x of [].concat(v)) url.searchParams.append(k, x);
-  const r = await fetch(url.toString(), {
+  const init = {
     method: methode,
     headers: { Authorization: `Bearer ${await jetonAcces(env)}`, ...(corps ? { "Content-Type": "application/json" } : {}) },
     ...(corps ? { body: JSON.stringify(corps) } : {})
-  });
+  };
+  const r = methode === "GET" ? await avecEssais("Sheets", () => fetch(url.toString(), init)) : await fetch(url.toString(), init);
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new ErreurGoogle(`Sheets ${r.status} : ${(d.error && d.error.message) || ""}`.slice(0, 300), r.status);
   return d;
@@ -100,6 +118,25 @@ export async function lireColonnes(env, onglet, cols, noms) {
     const v = (d.valueRanges && d.valueRanges[i] && d.valueRanges[i].values && d.valueRanges[i].values[0]) || [];
     return [n, v.slice(1).map(x => (x == null ? "" : String(x)))];
   }));
+}
+
+/* Plusieurs onglets en 2 appels (en-têtes, puis colonnes) au lieu de 2 par onglet.
+   demandes : [{ onglet, noms, facultatif? }] (facultatif : colonnes absentes ignorées) → [{ cols, v }] dans le même ordre */
+export async function lireOnglets(env, demandes) {
+  const t = await appelSheets(env, "GET", "values:batchGet", { ranges: demandes.map(d => plage(d.onglet, "1:1")), majorDimension: "ROWS" });
+  const parOnglet = demandes.map((d, i) => {
+    const noms = ((t.valueRanges && t.valueRanges[i] && t.valueRanges[i].values && t.valueRanges[i].values[0]) || []);
+    const cols = Object.fromEntries(noms.map((n, k) => [String(n).trim(), k]).filter(([n]) => n));
+    return { cols, noms: d.facultatif ? d.noms.filter(n => n in cols) : d.noms };
+  });
+  const ranges = parOnglet.flatMap(({ cols, noms }, i) => noms.map(n => { const l = lettreColonne(index(cols, n)); return plage(demandes[i].onglet, `${l}:${l}`); }));
+  const d = ranges.length ? await appelSheets(env, "GET", "values:batchGet", { ranges, majorDimension: "COLUMNS" }) : {};
+  let k = 0;
+  return parOnglet.map(({ cols, noms }) => ({ cols, v: Object.fromEntries(noms.map(n => {
+    const v = (d.valueRanges && d.valueRanges[k] && d.valueRanges[k].values && d.valueRanges[k].values[0]) || [];
+    k++;
+    return [n, v.slice(1).map(x => (x == null ? "" : String(x)))];
+  })) }));
 }
 
 /* Ligne de valeurs dans l'ordre des colonnes ; null = cellule laissée telle quelle (formules, saisies du propriétaire) */

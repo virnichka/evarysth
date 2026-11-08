@@ -2,7 +2,8 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
-import { viderCacheJeton } from "../src/google.js";
+import { viderCacheJeton, reglerAttentes } from "../src/google.js";
+reglerAttentes([0, 0]); /* nouveaux essais sans attente dans les tests */
 import { creerJeton, verifierJeton, ErreurJeton } from "../src/jeton.js";
 import { COL_CF as COL, ENTETES_CF as ENTETES } from "./entetes.mjs";
 

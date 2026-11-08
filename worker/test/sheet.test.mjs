@@ -3,7 +3,8 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
 import { signer } from "../src/stripe.js";
-import { jetonAcces, jwtCompteService, viderCacheJeton, lettreColonne } from "../src/google.js";
+import { jetonAcces, jwtCompteService, viderCacheJeton, lettreColonne, reglerAttentes } from "../src/google.js";
+reglerAttentes([0, 0]); /* nouveaux essais sans attente dans les tests */
 import { prochainNumero, reglages, dateParis } from "../src/sheet.js";
 import { COL_EV, ENTETES_CF, ENTETES_EV } from "./entetes.mjs";
 
