@@ -11,7 +11,7 @@
       ou « Statut forcé » saisi à la main) ; la tâche n'y écrit rien et journalise seulement les changements de Statut.
    Inactive sans secrets Google ; un e-mail dont le secret manque n'est pas envoyé et la ligne attend (aucune erreur).
    Lignes retrouvées par leur clé (Commande EV + Article n°, ou n° EV), jamais par leur position. */
-import { entetes, googleConfigure, lettreColonne, lireColonnes } from "./google.js";
+import { appelSheets, entetes, googleConfigure, lettreColonne, lireColonnes } from "./google.js";
 import { creerJeton, jetonConfigure } from "./jeton.js";
 import { liensStandards } from "./fichier.js";
 import { EVARYSTH } from "./catalogue.js";
@@ -272,11 +272,32 @@ export async function tachePlanifiee(env, maintenant = Date.now()) {
   return bilan;
 }
 
+/* Heure du dernier passage : métadonnée de développeur du classeur (invisible dans le Sheet, aucun onglet à créer),
+   lue par l'onglet Système de /admin. Valeur JSON { t: ms, ok: passage sans erreur }. */
+export const ID_PASSAGE = 731001;
+export async function noterPassage(env, ok, maintenant = Date.now()) {
+  const valeur = JSON.stringify({ t: maintenant, ok: Boolean(ok) });
+  try {
+    const r = await appelSheets(env, "POST", ":batchUpdate", {}, { requests: [{ updateDeveloperMetadata: {
+      dataFilters: [{ developerMetadataLookup: { metadataId: ID_PASSAGE } }], developerMetadata: { metadataValue: valeur }, fields: "metadataValue" } }] });
+    const maj = (((r.replies || [])[0] || {}).updateDeveloperMetadata || {}).developerMetadata || [];
+    if (maj.length) return;
+  } catch (e) { if (e.statut && e.statut !== 400 && e.statut !== 404) throw e; }
+  await appelSheets(env, "POST", ":batchUpdate", {}, { requests: [{ createDeveloperMetadata: { developerMetadata: {
+    metadataId: ID_PASSAGE, metadataKey: "evarysth_dernier_passage", metadataValue: valeur, location: { spreadsheet: true }, visibility: "PROJECT" } } }] });
+}
+/* { t, ok } ou null (jamais passé, ou Sheet injoignable) */
+export async function lirePassage(env) {
+  try { const d = await appelSheets(env, "GET", `developerMetadata/${ID_PASSAGE}`); return JSON.parse(d.metadataValue); }
+  catch { return null; }
+}
+
 /* Handler `scheduled` : ne lève jamais (journaux Cloudflare seulement) */
 export async function lancerTache(env) {
   try {
     const b = await tachePlanifiee(env);
     if (b.inactive) return b;
+    await noterPassage(env, !b.erreurs.length).catch(e => console.warn("Tâche planifiée : heure de passage non notée", e.message));
     if (b.erreurs.length) console.error("Tâche planifiée : erreurs", b.erreurs);
     if (b.attente.length) console.warn("Tâche planifiée : en attente", b.attente);
     if (b.attribuees.length || b.notifiees.length || b.relances.length || b.commandes.length)

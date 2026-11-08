@@ -322,7 +322,6 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
    | `GOOGLE_SA_KEY` | clé privée du compte de service | JSON, champ `private_key` (tout le bloc) |
    | `SHEET_ID` | classeur des commandes | URL du Sheet, entre `/d/` et `/edit` |
    | `HMAC_SECRET` | liens fournisseur et `/fichier/` | `openssl rand -hex 32` (le changer invalide les liens envoyés) |
-   | `ADMIN_KEY` | vérification manuelle `$W/maj?cle=…` (facultatif) | valeur aléatoire longue, à garder en favori |
 
    Contrôle : `npx wrangler secret list` ; `curl $W/f/x` doit passer de 503 à une page « lien invalide ».
 9. **Brevo** : aucun modèle à créer (contenus dans `worker/src/email.js`). Authentifier le domaine `evarysth.fr`
@@ -377,7 +376,13 @@ page mobile plutôt que dans l'appli Google Sheets.
   - **`POST /admin/bloquer`** (articles avant envoi → `incident`) et **`/admin/debloquer`** (articles bloqués jamais
     envoyés → `a_valider` / `lien_stl_a_indiquer`).
 - Sheet : `Listes!A` (11 statuts, menu de `Commandes CF!E`), formule « Action requise », couleurs, `Mode d'emploi` mis à jour.
-- Tests : `test/admin.test.mjs` (accès, page, validation, double clic, requêtes étrangères, panne Brevo, blocage).
+  - **Onglets** (`?vue=`) : Tableau de bord (compteurs, alertes relance 48 h et commande sans fabricant depuis 24 h),
+    Catalogue (produits de `data.js`, STL présent / manquant dans R2 par taille standard), Système (voyant par secret
+    ou binding, mode test/live, dernier passage de la tâche), Liens (Sheet construit depuis `SHEET_ID`, Stripe, Brevo…).
+  - **`POST /admin/tache`** (onglet Système, mêmes protections) : lance la tâche planifiée tout de suite (remplace
+    l'ancien `/maj` et le secret `ADMIN_KEY`, supprimés). Heure du dernier passage : métadonnée de développeur du
+    classeur (`ID_PASSAGE`, invisible dans le Sheet), écrite à chaque passage.
+- Tests : `test/admin.test.mjs` (accès, page, validation, double clic, requêtes étrangères, panne Brevo, blocage, onglets, tâche manuelle).
 - Reporté à l'itération suivante : livre des recettes et `charge.refunded`.
 
 ### À faire par le propriétaire (bloc G)

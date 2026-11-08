@@ -12,7 +12,6 @@ import { envoyerConfirmationClient, envoyerFiche } from "./email.js";
 import { googleConfigure } from "./google.js";
 import { routeFournisseur } from "./fournisseur.js";
 import { routeFichier } from "./fichier.js";
-import { routeMaj } from "./maj.js";
 import { routeAdmin } from "./admin.js";
 import { enregistrerCommande, journaliserCreation, majCommande } from "./sheet.js";
 
@@ -258,9 +257,6 @@ export default {
     /* STL standards (bloc E) : 503 propre sans binding R2 STL ou sans HMAC_SECRET */
     const lienFichier = /^\/fichier\/([^/]+)$/.exec(url.pathname);
     if (lienFichier) return routeFichier(req, env, lienFichier[1]);
-
-    /* Vérification manuelle du Sheet (même tâche que le cron), protégée par ADMIN_KEY */
-    if (url.pathname === "/maj" && (req.method === "GET" || req.method === "POST")) return routeMaj(req, env);
 
     const route = `${req.method} ${url.pathname}`;
     const routesSite = ["POST /checkout", "POST /promo", "GET /session"];

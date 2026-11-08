@@ -26,10 +26,10 @@ async function jwt({ email = "evarysth@gmail.com", aud = ["aud-test"], iss = "ht
   return `${corps}.${Buffer.from(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cle, new TextEncoder().encode(corps))).toString("base64url")}`;
 }
 
-let sheet, emails, brevoEnPanne;
+let sheet, emails, brevoEnPanne, meta;
 beforeEach(() => {
   viderCacheJeton(); viderCacheAcces();
-  brevoEnPanne = false; emails = [];
+  brevoEnPanne = false; emails = []; meta = null;
   const ligneCF = (n, statut, extra = {}) => { const l = ENTETES_CF.map(() => ""); Object.assign(l, { [COL_CF["Commande EV"]]: "EV-2026-0010", [COL_CF["Article n°"]]: String(n),
     [COL_CF.Statut]: statut, [COL_CF["Dernier statut notifié"]]: statut, [COL_CF.Date]: "2026-11-08 10:00" });
     for (const [k, v] of Object.entries(extra)) l[COL_CF[k]] = v; return l; };
@@ -52,7 +52,14 @@ async function fauxFetch(url, init = {}) {
   if (u.host === "oauth2.googleapis.com") return rep({ access_token: "ya29.test", expires_in: 3599 });
   if (u.host === "api.brevo.com") { if (brevoEnPanne) return rep({ message: "panne" }, 500); emails.push(JSON.parse(init.body)); return rep({ messageId: "m" }, 201); }
   if (u.host !== "sheets.googleapis.com") throw new Error("Appel réseau inattendu : " + url);
+  if (u.pathname === "/v4/spreadsheets/id-factice:batchUpdate") {
+    for (const r of JSON.parse(init.body).requests) {
+      if (r.updateDeveloperMetadata) { if (!meta) return rep({ error: { message: "introuvable" } }, 400); meta = r.updateDeveloperMetadata.developerMetadata.metadataValue; return rep({ replies: [{ updateDeveloperMetadata: { developerMetadata: [{}] } }] }); }
+      if (r.createDeveloperMetadata) { meta = r.createDeveloperMetadata.developerMetadata.metadataValue; return rep({ replies: [{}] }); }
+    }
+  }
   const chemin = decodeURIComponent(u.pathname.replace("/v4/spreadsheets/id-factice/", ""));
+  if (chemin.startsWith("developerMetadata/")) return meta ? rep({ metadataValue: meta }) : rep({ error: { message: "introuvable" } }, 404);
   if (chemin === "values:batchGet") { appliquerFormules(sheet); return rep({ valueRanges: u.searchParams.getAll("ranges").map(r => {
     const { onglet, ref } = plage(r), v = sheet[onglet].map(l => l[col(ref.split(":")[0])] ?? "");
     while (v.length && v[v.length - 1] === "") v.pop();
@@ -208,4 +215,68 @@ test("lienValide : https seulement", () => {
   assert.equal(lienValide(""), "");
   assert.equal(lienValide("https://drive.google.com/a b"), "https://drive.google.com/a%20b");
   for (const x of ["http://drive.google.com/a", "javascript:alert(1)", "ftp://x.y/z", "https://localhost/x", "x".repeat(600)]) assert.equal(lienValide(x), null, x);
+});
+
+const vue = async (v, e = env) => silence(async () => worker.fetch(new Request(`${ORIGINE}/admin?vue=${v}`, { headers: { "Cf-Access-Jwt-Assertion": await jwt() } }), e));
+
+test("Onglets : menu sur chaque vue, sans script ; vue inconnue → Commandes", async () => {
+  for (const v of ["tableau", "catalogue", "systeme", "liens", "inconnue"]) {
+    const r = await vue(v), html = await r.text();
+    assert.equal(r.status, 200, v);
+    assert.doesNotMatch(html, /<script/i);
+    assert.match(html, /<nav[\s\S]*Tableau de bord[\s\S]*Catalogue[\s\S]*Système[\s\S]*Liens/);
+    assert.match(html, new RegExp(`href="${v === "inconnue" ? "/admin" : `/admin\\?vue=${v}`}" aria-current="page"`), v);
+  }
+});
+
+test("Tableau de bord : compteurs et alerte « sans fabricant depuis plus de 24 h »", async () => {
+  sheet["Commandes EV"][1][1] = "2026-01-01 10:00";
+  const html = await (await vue("tableau")).text();
+  assert.match(html, /<div class="nombre">1<\/div><div class="muted">à valider/);
+  assert.match(html, /<div class="nombre">0<\/div><div class="muted">bloquées/);
+  assert.match(html, /EV-2026-0010[\s\S]*toujours sans fabricant/);
+});
+
+test("Liens : Sheet construit depuis SHEET_ID, site en mode test ; sans secret Google, Liens et Système restent visibles", async () => {
+  const html = await (await vue("liens")).text();
+  assert.match(html, /docs\.google\.com\/spreadsheets\/d\/id-factice\/edit/);
+  assert.match(html, /evarysth\.fr\/\?checkout=test/);
+  const sans = { ...env, SHEET_ID: "" };
+  assert.doesNotMatch(await (await vue("liens", sans)).text(), /docs\.google/);
+  assert.equal((await vue("systeme", sans)).status, 200);
+  assert.equal((await vue("tableau", sans)).status, 503);
+});
+
+test("Catalogue : STL présent / manquant par taille standard (une liste R2), sans R2 : signalé", async () => {
+  const STL = { head: async () => null, list: async () => ({ objects: [{ key: "crochet-balcon/m.stl" }], truncated: false }) };
+  const html = await (await vue("catalogue", { ...env, STL })).text();
+  assert.match(html, /Crochet de balcon[\s\S]*?>S <[\s\S]*?STL manquant[\s\S]*?>M <[\s\S]*?STL présent/);
+  assert.match(html, /produits\/crochet-balcon\//);
+  assert.match(await (await vue("catalogue")).text(), /Binding R2 « STL » absent/);
+});
+
+test("Système : voyants sans valeur de secret ; « Lancer la tâche » protégé, puis heure du dernier passage notée", async () => {
+  let html = await (await vue("systeme")).text();
+  assert.match(html, /aucun passage noté/);
+  assert.match(html, /binding STL absent/);
+  assert.match(html, /mode test[\s\S]*clé Stripe absente/);
+  assert.doesNotMatch(html, /secret-de-test|xkeysib/);
+  assert.match(html, /action="\/admin\/tache"/);
+  const r0 = await envoyer("/admin/tache", {}, { origine: "https://pirate.dev" });
+  assert.equal(r0.status, 403);
+  assert.equal(meta, null, "requête étrangère : rien lancé");
+  const r = await envoyer("/admin/tache", {});
+  assert.equal(r.status, 303);
+  assert.match(r.headers.get("Location"), /vue=systeme/);
+  assert.match(bandeau(r), /Tâche faite/);
+  assert.ok(JSON.parse(meta).t > 0);
+  html = await (await vue("systeme")).text();
+  assert.doesNotMatch(html, /aucun passage noté/);
+  await envoyer("/admin/tache", {});
+  assert.ok(JSON.parse(meta).t > 0, "2e passage : mise à jour");
+});
+
+test("/maj n'existe plus", async () => {
+  const r = await silence(() => worker.fetch(new Request("https://public.dev/maj", { method: "POST" }), env));
+  assert.equal(r.status, 404);
 });
