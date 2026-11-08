@@ -280,3 +280,94 @@ test("/maj n'existe plus", async () => {
   const r = await silence(() => worker.fetch(new Request("https://public.dev/maj", { method: "POST" }), env));
   assert.equal(r.status, 404);
 });
+
+/* ---------- Lot 2 ---------- */
+import { readFileSync } from "node:fs";
+import { signature } from "../src/jeton.js";
+import { ICONES } from "../src/icones.js";
+import { masquerEmail } from "../src/admin.js";
+
+const get = async (chemin, headers = {}) => silence(async () => worker.fetch(new Request(ORIGINE + chemin, { headers: { "Cf-Access-Jwt-Assertion": await jwt(), ...headers } }), env));
+
+test("Bandeau : signé, affiché une seule fois (cookie), ignoré s'il est forgé ou a plus de 2 min ; Actualiser sans paramètres", async () => {
+  const r = await envoyer("/admin/bloquer", {});
+  const loc = r.headers.get("Location");
+  assert.match(loc, /[?&]ts=\d+&s=/);
+  const r1 = await get(loc), html1 = await r1.text();
+  assert.match(html1, /class="bandeau ok"[^>]*>Commande EV-2026-0010 bloquée/);
+  const cookie = r1.headers.get("Set-Cookie");
+  assert.match(cookie, /^admin_flash=[^;]+; Path=\/admin; Max-Age=120; HttpOnly; Secure; SameSite=Strict$/);
+  assert.match(html1, /<a href="\/admin">Actualiser<\/a>/);
+  const r2 = await get(loc, { Cookie: cookie.split(";")[0] });
+  assert.doesNotMatch(await r2.text(), /class="bandeau/, "rechargement : plus de bandeau");
+  const u = new URL(loc, ORIGINE);
+  u.searchParams.set("m", "Message inventé");
+  assert.doesNotMatch(await (await get(u.pathname + u.search)).text(), /Message inventé/, "message modifié : signature fausse");
+  assert.doesNotMatch(await (await get("/admin?m=Pirate&t=ok")).text(), /Pirate/, "sans signature");
+  const ts = String(Math.floor(Date.now() / 1000) - 121), m = "Trop vieux";
+  const s = await signature(env.HMAC_SECRET, `flash||ok|${ts}|${m}`);
+  assert.doesNotMatch(await (await get(`/admin?${new URLSearchParams({ m, t: "ok", ts, s })}`)).text(), /Trop vieux/, "plus de 2 min");
+  const ts2 = String(Math.floor(Date.now() / 1000)), s2 = await signature(env.HMAC_SECRET, `flash||ok|${ts2}|Récent`);
+  assert.match(await (await get(`/admin?${new URLSearchParams({ m: "Récent", t: "ok", ts: ts2, s: s2 })}`)).text(), /Récent/, "signé et récent");
+});
+
+test("Icônes : servies par le Worker (identiques aux fichiers du dépôt), balises, manifeste, CSP au strict nécessaire", async () => {
+  for (const nom of Object.keys(ICONES))
+    assert.equal(Buffer.from(ICONES[nom].b64, "base64").compare(readFileSync(new URL(`../../assets/icons/${nom}`, import.meta.url))), 0, `${nom} à jour (node tools/icones-admin.mjs)`);
+  const r = await get("/admin/apple-touch-icon.png");
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get("Content-Type"), "image/png");
+  assert.equal(Buffer.from(await r.arrayBuffer()).compare(readFileSync(new URL("../../assets/icons/apple-touch-icon.png", import.meta.url))), 0);
+  assert.equal((await get("/admin/favicon.svg")).headers.get("Content-Type"), "image/svg+xml");
+  const man = await (await get("/admin/manifest.webmanifest")).json();
+  assert.equal(man.name, "Evarysth admin");
+  assert.equal(man.icons[0].src, "/admin/favicon-192.png");
+  assert.equal((await get("/admin/favicon-192.png")).status, 200);
+  assert.equal((await get("/admin/inconnu.png")).status, 404);
+  const p = await get("/admin"), html = await p.text();
+  assert.match(html, /<link rel="icon" href="\/admin\/favicon\.svg"/);
+  assert.match(html, /<link rel="apple-touch-icon" href="\/admin\/apple-touch-icon\.png">/);
+  assert.match(html, /<link rel="manifest" href="\/admin\/manifest\.webmanifest"/);
+  assert.match(html, /<meta name="apple-mobile-web-app-title" content="Evarysth admin">/);
+  assert.equal(p.headers.get("Content-Security-Policy"), "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; manifest-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+  const pub = await silence(() => worker.fetch(new Request("https://public.dev/admin/favicon.svg"), env));
+  assert.equal(pub.status, 404, "pas sur l'adresse publique");
+});
+
+test("Recherche : par n° EV, n° CF ou nom (sans accents) → fiche avec articles et Journal, ville seulement, texte échappé", async () => {
+  sheet["Commandes CF"][1][COL_CF["Commande CF"]] = "CF-2026-0010-A";
+  sheet["Commandes CF"][1][COL_CF.Fabricant] = FAB;
+  sheet["Commandes CF"][1][COL_CF.Transporteur] = "Colissimo";
+  sheet["Commandes CF"][1][COL_CF["N° de suivi"]] = "6A123";
+  sheet["Commandes CF"][1][COL_CF["Lien STL"]] = "https://drive.google.com/fichier";
+  sheet.Journal.push(["2026-11-08 10:00", "EV-2026-0010", "", "payee", "worker"], ["2026-11-08 11:00", "CF-2026-0010-A", "a_valider", "envoyee_fabricant", "proprietaire"]);
+  for (const q of ["EV-2026-0010", "cf-2026-0010-a", "camille", "CAMÍLLE TEST"]) {
+    const html = await (await get(`/admin?q=${encodeURIComponent(q)}`)).text();
+    assert.match(html, /<h1>EV-2026-0010<\/h1>/, q);
+    assert.match(html, /Camille Test · 75011 Paris/);
+    assert.doesNotMatch(html, /rue des Lilas|client@example\.com/);
+    assert.match(html, /Article 1 · <b>CF-2026-0010-A<\/b>[\s\S]*Atelier Dupont[\s\S]*drive\.google\.com\/fichier[\s\S]*Colissimo · 6A123/);
+    assert.match(html, /Historique[\s\S]*EV-2026-0010<\/b> · Payée<br>[\s\S]*CF-2026-0010-A<\/b> · À valider → Envoyée au fabricant[\s\S]*proprietaire/);
+    assert.doesNotMatch(html, /<form method="post"/, "lecture seule");
+  }
+  const vide = await (await get(`/admin?q=${encodeURIComponent('<script>x</script>')}`)).text();
+  assert.match(vide, /Aucune commande/);
+  assert.doesNotMatch(vide, /<script>/);
+  assert.match(vide, /&lt;script&gt;/);
+  assert.match(await (await get("/admin")).text(), /<form method="get" action="\/admin" role="search"/);
+});
+
+test("Fabricants : e-mail masqué, CF en cours et en retard (délai dépassé d'après le Journal)", async () => {
+  assert.equal(masquerEmail("atelier@example.com"), "a•••@example.com");
+  assert.equal(masquerEmail(""), "—");
+  const cf = sheet["Commandes CF"];
+  Object.assign(cf[1], { [COL_CF["Commande CF"]]: "CF-2026-0010-A", [COL_CF.Fabricant]: FAB, [COL_CF.Statut]: "envoyee_fabricant", [COL_CF["Dernier statut notifié"]]: "envoyee_fabricant" });
+  Object.assign(cf[2], { [COL_CF["Commande CF"]]: "CF-2026-0010-B", [COL_CF.Fabricant]: FAB, [COL_CF.Statut]: "acceptee", [COL_CF["Dernier statut notifié"]]: "acceptee" });
+  sheet.Journal.push(["2026-01-01 10:00", "CF-2026-0010-A", "a_valider", "envoyee_fabricant", "proprietaire"],
+    [new Date(Date.now() - 3600_000).toISOString().slice(0, 16).replace("T", " "), "CF-2026-0010-B", "a_valider", "envoyee_fabricant", "proprietaire"]);
+  const html = await (await get("/admin?vue=fabricants")).text();
+  assert.match(html, /<h1>2 fabricants<\/h1>/);
+  assert.match(html, /Atelier Dupont[\s\S]*1 en retard[\s\S]*a•••@example\.com[\s\S]*5 j[\s\S]*Livre le client<\/span><span>non[\s\S]*En cours<\/span><span>2[\s\S]*En retard<\/span><span>1[\s\S]*CF-2026-0010-A/);
+  assert.doesNotMatch(html, /atelier@example\.com/);
+  assert.doesNotMatch(html, /<form method="post"/);
+});

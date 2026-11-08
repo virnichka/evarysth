@@ -49,7 +49,9 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    derrière Cloudflare Access) : fabricant + lien STL (obligatoire) → « Valider et envoyer » → `envoyee_fabricant`,
    n° fournisseur `CF-AAAA-NNNN-X` (seul n° vu par le fabricant ; lettre = fabricant), e-mail fabricant immédiat.
    Boutons « Bloquer » / « Débloquer » (`incident`). Autres onglets : Tableau de bord (compteurs, alertes), Catalogue
-   (STL présents dans R2), Système (voyants, dernier passage de la tâche, « Lancer la tâche maintenant »), Liens.
+   (STL présents dans R2), Fabricants (en cours / en retard), Système (voyants, « Lancer la tâche maintenant »), Liens ;
+   recherche d'une commande (n° EV, n° CF ou nom) avec son Journal. Icônes de /admin intégrées au Worker
+   (`worker/src/icones.js`, à régénérer par `node tools/icones-admin.mjs` si `assets/icons/` change).
 4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours).
 5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas
    d'acceptation sous 48 h, renvoi des e-mails en échec, Journal. Statut client (`Commandes EV`) = formule du Sheet.
