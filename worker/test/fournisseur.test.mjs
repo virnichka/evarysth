@@ -213,3 +213,51 @@ test("Expédier : onglet Listes illisible → liste de secours", async () => {
   const w = console.warn; console.warn = () => {};
   try { assert.match(await (await appeler(j)).text(), /La Poste – Colissimo/); } finally { console.warn = w; }
 });
+
+test("Refuser : page avec motif facultatif ; POST → articles à valider sans fabricant ni n° CF, note, Journal, e-mail au propriétaire", async () => {
+  for (const i of [2, 4]) sheet["Commandes CF"][i][COL["Lien STL"]] = "https://drive.google.com/f";
+  sheet["Commandes CF"][4][COL.Statut] = "acceptee";                 /* refus possible même après acceptation */
+  sheet["Commandes CF"][4][COL.Notes] = "fragile";
+  const j = await jeton("refuser");
+  const page = await (await appeler(j)).text();
+  assert.match(page, /name="motif"[\s\S]*Je ne peux pas la fabriquer/);
+  assert.equal(ecritures, 0, "GET : rien d'écrit");
+
+  const mails = [];
+  globalThis.fetch = async (url, init) => (new URL(url).host === "api.brevo.com" ? (mails.push(JSON.parse(init.body)), new Response("{}", { status: 201 })) : fauxFetch(url, init));
+  const e = { ...env, BREVO_API_KEY: "k", ORDER_EMAIL: "proprio@example.com", ADMIN_HOST: "admin.test.dev" };
+  const r = await appeler(j, "POST", { motif: "Imprimante en panne\u0007" }, e);
+  assert.equal(r.status, 200);
+  assert.match(await r.text(), /Refus enregistré/);
+  const lignes = sheet["Commandes CF"].filter(l => l[COL["Commande EV"]] === "EV-2026-0042");
+  assert.deepEqual(lignes.map(l => [l[COL["Commande CF"]], l[COL.Statut], l[COL["Dernier statut notifié"]], l[COL.Fabricant]]),
+    [["", "a_valider", "a_valider", ""], ["", "a_valider", "a_valider", ""]]);
+  assert.match(lignes[0][COL.Notes], /^\d{4}-\d\d-\d\d \d\d:\d\d · CF-2026-0042-A refusée par Atelier Dupont & Fils : Imprimante en panne$/);
+  assert.match(lignes[1][COL.Notes], /^fragile\n.* refusée par /, "note ajoutée sous la note existante");
+  assert.equal(cellule("CF-2026-0009-A", "Statut"), "payee", "autres commandes intactes");
+  assert.deepEqual(sheet.Journal.slice(1).map(l => l.slice(1)), [["CF-2026-0042-A", "envoyee_fabricant", "refusee_fabricant", "fabricant"]]);
+  assert.equal(mails.length, 1);
+  assert.deepEqual(mails[0].to, [{ email: "proprio@example.com" }]);
+  assert.match(mails[0].subject, /^\[TEST\] Refus : CF-2026-0042-A/);
+  assert.match(mails[0].textContent, /Atelier Dupont & Fils[\s\S]*Motif : Imprimante en panne[\s\S]*Tablette · L · sable · ×2[\s\S]*https:\/\/admin\.test\.dev\/admin\?q=EV-2026-0042/);
+
+  /* 2e clic : refus déjà enregistré ; anciens liens accepter / expédier : commande retirée, rien d'écrit */
+  const avant = ecritures;
+  assert.match(await (await appeler(j, "POST", {}, e)).text(), /Refus déjà enregistré/);
+  for (const a of ["accepter", "expedier"]) {
+    const x = await appeler(await jeton(a), "POST", { transporteur: "Colissimo", suivi: "1" });
+    assert.equal(x.status, 410);
+    assert.match(await x.text(), /ne vous est plus confiée/);
+  }
+  assert.equal(ecritures, avant);
+  assert.equal(sheet.Journal.length, 2);
+  assert.equal(mails.length, 1);
+});
+
+test("Refuser : impossible une fois expédiée (409), rien d'écrit", async () => {
+  sheet["Commandes CF"][2][COL.Statut] = "expediee";
+  sheet["Commandes CF"][4][COL.Statut] = "expediee";
+  const r = await appeler(await jeton("refuser"), "POST");
+  assert.equal(r.status, 409);
+  assert.equal(ecritures, 0);
+});

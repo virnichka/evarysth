@@ -4,12 +4,28 @@
    l'onglet « Commandes CF » qui portent ce n°, retrouvées par la colonne « Commande CF », jamais par leur position. */
 import { ecrireCellule, entetes, ErreurGoogle, googleConfigure, lireColonnes } from "./google.js";
 import { ErreurJeton, jetonConfigure, verifierJeton } from "./jeton.js";
-import { CF, JOURNAL, journaliser, ONGLET_CF } from "./sheet.js";
+import { CF, JOURNAL, journaliser, ONGLET_CF, refusDe, rendreCF, REFUSEE, RETIRABLES } from "./sheet.js";
+import { contenuRefus, envoyerEmail } from "./email.js";
+
+/* E-mail au propriétaire après un refus (le refus est déjà enregistré : un échec d'envoi est seulement journalisé,
+   la commande apparaît de toute façon « à valider » dans /admin) */
+async function prevenirRefus(env, cf, rendu, motif) {
+  const to = String(env.ORDER_EMAIL || "").split(",").map(e => ({ email: e.trim() })).filter(e => e.email);
+  if (!env.BREVO_API_KEY || !to.length) return;
+  const ev = cf.replace(/^CF-/, "EV-").replace(/-[A-Z]+$/, "");
+  const test = env.CHECKOUT_MODE !== "live";
+  const m = contenuRefus({ numero: cf, fabricant: rendu.fabricant, motif, piece: rendu.lignes.map(l => l.article).join("\n"), test,
+    lien: env.ADMIN_HOST ? `https://${env.ADMIN_HOST}/admin?${new URLSearchParams({ q: ev })}` : "" });
+  try { await envoyerEmail(env, { to, subject: m.sujet, htmlContent: m.html, textContent: m.texte, tags: ["refus", test ? "test" : "live"] }); }
+  catch (e) { console.error("Refus : e-mail au propriétaire non parti", cf, e.message); }
+}
 
 /* Transitions : statuts de départ acceptés → statut d'arrivée ; « déjà » = statuts où l'action est déjà faite */
 export const TRANSITIONS = {
   accepter: { depuis: ["envoyee_fabricant"], vers: "acceptee", deja: ["acceptee", "expediee", "livree"] },
-  expedier: { depuis: ["acceptee", "envoyee_fabricant"], vers: "expediee", deja: ["expediee", "livree"] }
+  expedier: { depuis: ["acceptee", "envoyee_fabricant"], vers: "expediee", deja: ["expediee", "livree"] },
+  /* Refus : articles rendus à l'atelier (rendreCF), possible tant que rien n'est expédié */
+  refuser: { depuis: RETIRABLES, vers: REFUSEE, deja: [] }
 };
 /* Transporteurs : colonne « Transporteurs » de l'onglet Listes (même liste que le menu du Sheet) ; secours si illisible */
 export const LISTES = "Listes";
@@ -27,11 +43,12 @@ async function lireTransporteurs(env) {
 }
 const LIBELLES = {
   accepter: { titre: "Accepter la commande", bouton: "J'accepte la commande", ok: "Commande acceptée. Merci !" },
-  expedier: { titre: "Déclarer l'expédition", bouton: "Confirmer l'expédition", ok: "Expédition enregistrée. Merci !" }
+  expedier: { titre: "Déclarer l'expédition", bouton: "Confirmer l'expédition", ok: "Expédition enregistrée. Merci !" },
+  refuser: { titre: "Refuser la commande", bouton: "Je ne peux pas la fabriquer", ok: "Refus enregistré, merci de nous avoir prévenus : l'atelier Evarysth confie la commande à un autre fabricant." }
 };
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const nettoyer = s => String(s ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+const nettoyer = (s, max = 80) => String(s ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 
 function page(titre, corps, statut = 200) {
   const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -43,7 +60,7 @@ main{max-width:520px;margin:0 auto;padding:40px 16px}.marque{font:600 12px/1 ui-
 h1{font-family:"Bricolage Grotesque",Inter,sans-serif;font-size:28px;letter-spacing:-.025em;line-height:1.1;margin:12px 0 20px}
 .carte{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}p{margin:0 0 12px}.muted{color:var(--muted);font-size:14px}
 .piece{white-space:pre-line;font:14px/1.5 ui-monospace,"JetBrains Mono",monospace;background:var(--bg);border-radius:8px;padding:10px 12px;margin:0 0 16px}
-label{display:block;font-weight:600;font-size:14px;margin:0 0 6px}input,select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin:0 0 14px;background:#fff;color:var(--text)}
+label{display:block;font-weight:600;font-size:14px;margin:0 0 6px}input,select,textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin:0 0 14px;background:#fff;color:var(--text)}
 button{width:100%;font:600 16px/1 Inter,sans-serif;padding:14px;border:0;border-radius:999px;background:var(--accent);color:#151515;cursor:pointer}button:hover{background:var(--accent-hover)}
 .erreur{color:var(--err);font-weight:600}
 </style></head><body><main><div class="marque">Evarysth · espace fabricant</div><h1>${esc(titre)}</h1><div class="carte">${corps}</div></main></body></html>`;
@@ -75,7 +92,10 @@ function formulaire(jeton, action, transporteurs = []) {
   const champs = action === "expedier" ? `
 <label for="transporteur">Transporteur</label><select id="transporteur" name="transporteur" required>
 <option value="">Choisir…</option>${transporteurs.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("")}</select>
-<label for="suivi">N° de suivi</label><input id="suivi" name="suivi" required maxlength="80" autocomplete="off">` : "";
+<label for="suivi">N° de suivi</label><input id="suivi" name="suivi" required maxlength="80" autocomplete="off">`
+    : action === "refuser" ? `
+<label for="motif">Motif <span class="muted">(facultatif)</span></label><textarea id="motif" name="motif" rows="3" maxlength="300" placeholder="Ex. : délai impossible, matière ou machine indisponible…"></textarea>
+<p class="muted">Besoin seulement de plus de temps ? Répondez plutôt à l'e-mail de commande.</p>` : "";
   return `<form method="post" action="/f/${esc(jeton)}">${champs}<button type="submit">${esc(LIBELLES[action].bouton)}</button></form>`;
 }
 
@@ -90,6 +110,12 @@ async function preparer(env, jeton) {
     return message("Lien invalide", "Ce lien est incomplet ou a été modifié. Utilisez le lien reçu par e-mail, tel quel.", 403, "erreur");
   }
   const c = await lireCommande(env, j.commande);
+  if (!c) {
+    /* Commande refusée ou retirée : ses articles n'ont plus ce n° */
+    const refus = await refusDe(env, j.commande);
+    if (refus && j.action === "refuser" && refus.auteur === "fabricant") return message("Refus déjà enregistré", `Votre refus de la commande ${j.commande} est bien enregistré. Merci !`, 200);
+    if (refus) return message("Commande retirée", `La commande ${j.commande} ne vous est plus confiée : merci de ne pas la fabriquer. Une question ? Répondez à l'e-mail de commande.`, 410, "erreur");
+  }
   if (!c) return message("Commande introuvable", `La commande ${j.commande} n'existe plus. Contactez l'atelier Evarysth.`, 404, "erreur");
   if (c.fabricants.some(f => f !== j.fabricant))
     return message("Lien plus valable", `La commande ${j.commande} a été confiée à un autre fabricant.`, 403, "erreur");
@@ -112,6 +138,14 @@ export async function routeFournisseur(req, env, jeton) {
       return page(LIBELLES[j.action].titre, `<p>Commande <b>${esc(j.commande)}</b></p>
 ${c.piece ? `<div class="piece">${esc(c.piece)}</div>` : ""}${formulaire(jeton, j.action, transporteurs)}
 <p class="muted" style="margin:14px 0 0">Lien valable jusqu'au ${esc(new Date(j.expiration).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" }))}.</p>`);
+    }
+
+    if (j.action === "refuser") {
+      const f = await req.formData().catch(() => new FormData());
+      const motif = nettoyer(f.get("motif"), 300);
+      const rendu = await rendreCF(env, j.commande, { auteur: "fabricant", motif });
+      if (rendu) await prevenirRefus(env, j.commande, rendu, motif);
+      return message(LIBELLES.refuser.titre, LIBELLES.refuser.ok, 200);
     }
 
     const ecrits = {};
