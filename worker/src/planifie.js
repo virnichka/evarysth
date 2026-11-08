@@ -62,7 +62,7 @@ async function lireJournal(env) {
   const cols = await entetes(env, JOURNAL);
   const v = await lireColonnes(env, JOURNAL, cols, ["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"]);
   const parCommande = {};
-  v.Commande.forEach((n, i) => { if (n) (parCommande[n] ||= []).push({ date: v.Date[i] || "", ancien: v["Ancien statut"][i] || "", nouveau: (v["Nouveau statut"][i] || "").trim() }); });
+  v.Commande.forEach((n, i) => { if (n) (parCommande[n] ||= []).push({ date: v.Date[i] || "", ancien: v["Ancien statut"][i] || "", nouveau: (v["Nouveau statut"][i] || "").trim(), auteur: (v.Auteur[i] || "").trim() }); });
   return parCommande;
 }
 

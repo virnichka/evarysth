@@ -382,6 +382,10 @@ page mobile plutôt que dans l'appli Google Sheets.
   - **`POST /admin/tache`** (onglet Système, mêmes protections) : lance la tâche planifiée tout de suite (remplace
     l'ancien `/maj` et le secret `ADMIN_KEY`, supprimés). Heure du dernier passage : métadonnée de développeur du
     classeur (`ID_PASSAGE`, invisible dans le Sheet), écrite à chaque passage.
+  - **Lot 2** : bandeau après action signé (HMAC_SECRET), valable 2 min, affiché une seule fois (cookie `admin_flash`) ;
+    recherche `GET /admin?q=` (n° EV, n° CF, nom) → fiche en lecture seule avec le Journal de l'EV et de ses CF ;
+    onglet Fabricants (e-mail masqué, CF en cours et en retard au-delà du délai) ; icônes et manifeste servis sous
+    `/admin/` depuis `worker/src/icones.js` (généré par `tools/icones-admin.mjs`), CSP `img-src 'self'; manifest-src 'self'`.
 - Tests : `test/admin.test.mjs` (accès, page, validation, double clic, requêtes étrangères, panne Brevo, blocage, onglets, tâche manuelle).
 - Reporté à l'itération suivante : livre des recettes et `charge.refunded`.
 

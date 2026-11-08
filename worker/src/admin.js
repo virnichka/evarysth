@@ -1,7 +1,11 @@
 /* Page d'administration (« télécommande ») : ouverte sur le Worker d'administration (wrangler.toml [env.admin],
    derrière Cloudflare Access), qui relaie la requête à ce Worker ; le jeton Access est revérifié ici (acces.js).
    GET  /admin            onglet Commandes : à valider (point de verrou), bloquées, en cours (lecture seule)
-   GET  /admin?vue=…      onglets tableau (compteurs, alertes), catalogue (data.js + STL dans R2), systeme (voyants), liens
+   GET  /admin?vue=…      onglets tableau (compteurs, alertes), catalogue (data.js + STL dans R2), fabricants, systeme (voyants), liens
+   GET  /admin?q=…        recherche (n° EV, n° CF ou nom du client) → fiche de la commande avec son Journal (lecture seule)
+   GET  /admin/<icône>    icônes et manifeste (ICONES, intégrées au code : aucun appel extérieur)
+   Bandeau après une action : ?m=…&t=…&ts=…&s=… signé (HMAC_SECRET), ignoré après 2 min, affiché une seule fois
+   (cookie admin_flash = signature déjà affichée).
    POST /admin/valider    fabricant + lien STL par article → envoyee_fabricant, e-mail fabricant envoyé tout de suite
    POST /admin/bloquer    articles pas encore envoyés d'une commande → incident
    POST /admin/debloquer  articles bloqués jamais envoyés → retour à a_valider / lien_stl_a_indiquer
@@ -17,6 +21,7 @@ import { EXTENSIONS, fichierStandardDispo, segmentTaille } from "./fichier.js";
 import { A_ENVOYER, DELAI_RELANCE_MS, envoyerSelonStatut, journaliserSiNouveau, lancerTache, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
 import { A_VALIDER, dateParis, majArticle, STL_A_INDIQUER } from "./sheet.js";
 import { EVARYSTH } from "./catalogue.js";
+import { ICONES } from "./icones.js";
 
 const ENVOYE = "envoyee_fabricant", INCIDENT = "incident";
 const EN_COURS = [ENVOYE, "acceptee", "expediee"];
@@ -25,6 +30,9 @@ const LIBELLES = {
   fichier_a_produire: "Fichier à produire (ancien circuit)", envoyee_fabricant: "Envoyée au fabricant", acceptee: "Acceptée",
   expediee: "Expédiée", livree: "Livrée", incident: "Bloquée", remboursee: "Remboursée", annulee: "Annulée"
 };
+const LIBELLES_EV = { payee: "Payée", en_fabrication: "En fabrication", partiellement_expediee: "Partiellement expédiée", expediee: "Expédiée",
+  livree: "Livrée", incident: "Bloquée", remboursee: "Remboursée", annulee: "Annulée" };
+const libelleEV = s => LIBELLES_EV[s] || libelle(s);
 const VALIDITE_CSRF_S = 12 * 3600;
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -55,11 +63,25 @@ async function csrfValide(env, email, jeton, maintenant = Date.now()) {
 const ENTETES = {
   "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow",
   "Referrer-Policy": "same-origin", "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff",
-  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
+  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; manifest-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
 };
+/* Icônes de l'onglet et de l'écran d'accueil (iPhone / iPad), manifeste web : servis par ce Worker sous /admin/ */
+const MANIFESTE = JSON.stringify({ name: "Evarysth admin", short_name: "Evarysth admin", start_url: "/admin", scope: "/admin", display: "standalone",
+  background_color: "#f4f1ea", theme_color: "#f4f1ea", icons: [{ src: "/admin/favicon-192.png", sizes: "192x192", type: "image/png" }] });
+const TETE_ICONES = `<link rel="icon" href="/admin/favicon.svg" type="image/svg+xml"><link rel="icon" href="/admin/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/admin/apple-touch-icon.png"><link rel="manifest" href="/admin/manifest.webmanifest" crossorigin="use-credentials">
+<meta name="apple-mobile-web-app-title" content="Evarysth admin"><meta name="theme-color" content="#f4f1ea">`;
+function ressource(nom) {
+  const entetes = { "Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow" };
+  if (nom === "manifest.webmanifest") return new Response(MANIFESTE, { headers: { ...entetes, "Content-Type": "application/manifest+json" } });
+  const i = Object.hasOwn(ICONES, nom) ? ICONES[nom] : null;
+  if (!i) return null;
+  return new Response(Uint8Array.from(atob(i.b64), c => c.charCodeAt(0)), { headers: { ...entetes, "Content-Type": i.type } });
+}
 function page(titre, corps, statut = 200) {
   return new Response(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>${esc(titre)} · Evarysth</title>
+${TETE_ICONES}
 <style>
 :root{--bg:#f4f1ea;--card:#fff;--line:#e4dfd4;--text:#151515;--muted:#66625a;--accent:#ff5a1f;--accent-hover:#ff7440;--err:#b3261e;--ok:#1d6b3a}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -79,13 +101,14 @@ nav a[aria-current]{background:var(--text);border-color:var(--text);color:#fff}
 .grille{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}.grille .carte{margin:0;text-decoration:none;display:block}.nombre{font:600 32px/1.1 "Bricolage Grotesque",Inter,sans-serif;letter-spacing:-.02em}
 .grille .alerte{border-color:var(--accent)}.ligne{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-top:1px solid var(--line);padding:9px 0}.ligne:first-child{border-top:0;padding-top:0}
 .voyant{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;background:var(--muted)}.v-ok{background:var(--ok)}.v-err{background:var(--err)}.v-att{background:#c98a00}
+.recherche{margin:0 0 18px}.recherche button{margin-top:0}.journal{font-size:14px}
 .pastille{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid var(--line);vertical-align:-2px;margin-right:4px}.manque{color:var(--err);border-color:#f0c7c2}.present{color:var(--ok);border-color:#bfdcc8}
 </style></head><body><main><div class="marque">Evarysth · back-office</div>${corps}</main></body></html>`, { status: statut, headers: ENTETES });
 }
 const simple = (titre, texte, statut) => page(titre, `<h1>${esc(titre)}</h1><div class="carte"><p>${esc(texte)}</p></div>`, statut);
 
 /* Onglets : ?vue=… (Commandes par défaut) */
-const VUES = [["", "Commandes"], ["tableau", "Tableau de bord"], ["catalogue", "Catalogue"], ["systeme", "Système"], ["liens", "Liens"]];
+const VUES = [["", "Commandes"], ["tableau", "Tableau de bord"], ["catalogue", "Catalogue"], ["fabricants", "Fabricants"], ["systeme", "Système"], ["liens", "Liens"]];
 const SITE = "https://www.evarysth.fr";
 const lienVue = v => (v ? `/admin?vue=${v}` : "/admin");
 function cadre(vue, email, { message = "", type = "ok" } = {}, corps) {
@@ -93,6 +116,8 @@ function cadre(vue, email, { message = "", type = "ok" } = {}, corps) {
 ${message ? `<div class="bandeau ${type === "ok" ? "ok" : "err"}" role="status">${esc(message)}</div>` : ""}${corps}
 <p class="muted"><a href="${lienVue(vue)}">Actualiser</a> · connecté : ${esc(email)}</p>`;
 }
+const RECHERCHE = (q = "") => `<form method="get" action="/admin" role="search" class="recherche"><label for="q">Rechercher une commande</label>
+<input id="q" name="q" type="search" autocomplete="off" placeholder="EV-2026-0012, CF-2026-0012-A ou nom" value="${esc(q)}"><button class="second" type="submit">Rechercher</button></form>`;
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 /* Rendu de la page. saisie = valeurs envoyées à garder après une erreur : { ev, fab: { n: nom }, stl: { n: lien } } */
@@ -147,9 +172,90 @@ ${parEV[numero].filter(l => debloquable(l, journal)).map(l => `<div class="piece
   });
 
   return page("Back-office", cadre("", email, { message, type }, `<h1>${aValider.length} commande${aValider.length > 1 ? "s" : ""} à valider</h1>
-${cartes.join("") || '<div class="carte"><p class="muted">Rien à valider.</p></div>'}
+${RECHERCHE()}${cartes.join("") || '<div class="carte"><p class="muted">Rien à valider.</p></div>'}
 ${cartesB.length ? `<h2>Bloquées</h2>${cartesB.join("")}` : ""}
 <h2>En cours</h2>${enCours.length ? `<div class="carte"><table>${enCours.join("")}</table></div>` : '<div class="carte"><p class="muted">Aucune commande chez un fabricant.</p></div>'}`), statut);
+}
+
+/* Client affiché sans l'adresse complète : nom · ville */
+function nomVille(ev) {
+  const [nom = "", , adresse = ""] = String(ev.client || "").split("\n");
+  return [nom.trim(), ville(adresse)].filter(Boolean).join(" · ");
+}
+const sansAccents = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/* Recherche : n° EV ou CF (exact, ou fragment de n°), sinon nom du client (sans accents ni casse) → n° EV trouvés */
+export function chercher(etat, q) {
+  const t = sansAccents(q).trim();
+  if (!t) return [];
+  const { evs, lignes, parEV } = etat;
+  const tous = [...new Set([...Object.keys(evs), ...Object.keys(parEV)])];
+  const cf = lignes.find(l => l.cf && l.cf.toLowerCase() === t);
+  if (cf) return [cf.ev];
+  const exact = tous.find(n => n.toLowerCase() === t);
+  if (exact) return [exact];
+  const parNumero = new Set([...tous.filter(n => n.toLowerCase().includes(t)), ...lignes.filter(l => l.cf && l.cf.toLowerCase().includes(t)).map(l => l.ev)]);
+  const parNom = tous.filter(n => t.length >= 2 && sansAccents(String((evs[n] || {}).client || "").split("\n")[0]).includes(t));
+  return [...new Set([...parNumero, ...parNom])].sort().reverse().slice(0, 30);
+}
+
+function vueRecherche(email, etat, q, bandeau) {
+  const trouves = chercher(etat, q);
+  const { evs, parEV, journal } = etat;
+  let corps;
+  if (trouves.length === 1) {
+    const numero = trouves[0], ev = evs[numero] || { numero }, arts = parEV[numero] || [];
+    const cfs = [...new Set(arts.map(l => l.cf).filter(Boolean))];
+    const histo = [numero, ...cfs].flatMap(n => (journal[n] || []).map(j => ({ ...j, n })))
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const articles = arts.map(l => {
+      const lien = lienValide(l.stl);
+      const suivi = [l.transporteur, l.suivi].map(x => String(x || "").trim()).filter(Boolean).join(" · ");
+      return `<div class="art"><div class="tete"><span>Article ${esc(l.n)}${l.cf ? ` · <b>${esc(l.cf)}</b>` : ""}</span><span class="badge">${esc(libelle(l.statut))}</span></div>
+<div class="piece">${esc(l.article)}</div>
+<p class="muted">Fabricant : ${esc(l.fabricant.trim() || "—")}</p>
+<p class="muted">Lien STL : ${lien ? `<a href="${esc(lien)}" target="_blank" rel="noopener noreferrer">ouvrir ↗</a>` : esc(l.stl.trim() || "—")}</p>
+${suivi ? `<p class="muted">Suivi : ${esc(suivi)}</p>` : ""}</div>`;
+    });
+    corps = `<h1>${esc(numero)}</h1><div class="carte"><div class="tete"><b>${esc(nomVille(ev) || "Client inconnu")}</b><span class="badge">${esc(ev.statut ? libelleEV(ev.statut) : "—")}</span></div>
+<p class="muted">${esc(ev.date || "")}${ev.type ? " · " + esc(ev.type) : ""}${ev.cadeau ? " · Cadeau" : ""}</p>${articles.join("") || '<p class="muted">Aucun article dans Commandes CF.</p>'}</div>
+<h2>Historique</h2><div class="carte journal">${histo.map(j => `<div class="ligne"><span><b>${esc(j.n)}</b> · ${esc(j.ancien ? `${(j.n.startsWith("EV") ? libelleEV : libelle)(j.ancien)} → ` : "")}${esc((j.n.startsWith("EV") ? libelleEV : libelle)(j.nouveau))}<br><span class="muted">${esc(j.date)}${j.auteur ? " · " + esc(j.auteur) : ""}</span></span></div>`).join("") || '<p class="muted">Rien au Journal.</p>'}</div>`;
+  } else if (trouves.length) {
+    corps = `<h1>${pluriel(trouves.length, "commande")} trouvée${trouves.length > 1 ? "s" : ""}</h1><div class="carte">${trouves.map(n => {
+      const ev = evs[n] || {};
+      return `<div class="ligne"><a href="/admin?${new URLSearchParams({ q: n })}"><b>${esc(n)}</b></a><span class="muted">${esc(nomVille(ev))}${ev.date ? " · " + esc(ev.date.slice(0, 10)) : ""}</span></div>`;
+    }).join("")}</div>`;
+  } else corps = `<h1>Aucune commande</h1><div class="carte"><p class="muted">Rien ne correspond à « ${esc(q)} ».</p></div>`;
+  return page("Recherche", cadre("", email, bandeau, RECHERCHE(q) + corps));
+}
+
+/* Fabricants : onglet du Sheet, e-mail masqué ; CF en cours (envoyée ou acceptée) et en retard (envoyée depuis plus que
+   le délai du fabricant, date de l'envoi lue au Journal) */
+export const masquerEmail = e => { const [u = "", d = ""] = String(e || "").trim().split("@"); return u && d ? `${u[0]}•••@${d}` : "—"; };
+export function chargeFabricants(etat, maintenant = Date.now()) {
+  const { lignes, fabs, journal } = etat;
+  const cfs = {};
+  for (const l of lignes) if (l.cf && [ENVOYE, "acceptee"].includes(l.statut)) (cfs[l.cf] ||= l);
+  return Object.entries(fabs).map(([nom, f]) => {
+    const enCours = Object.keys(cfs).filter(cf => cfs[cf].fabricant.trim() === nom);
+    const delai = Number(String(f.delai).replace(",", "."));
+    const retard = Number.isFinite(delai) && String(f.delai).trim() !== "" ? enCours.filter(cf => {
+      const envoi = [...(journal[cf] || [])].reverse().find(j => j.nouveau === ENVOYE);
+      return envoi && maintenant - parisVersMs(envoi.date) > delai * 86400_000;
+    }) : [];
+    return { nom, email: masquerEmail(f.email), delai: String(f.delai || "").trim(), livre: f.livre, enCours: enCours.sort(), retard: retard.sort() };
+  });
+}
+function vueFabricants(email, etat, bandeau) {
+  const liste = chargeFabricants(etat);
+  const cartes = liste.map(f => `<div class="carte"><div class="tete"><b>${esc(f.nom)}</b>${f.retard.length ? `<span class="badge manque">${f.retard.length} en retard</span>` : ""}</div>
+<p class="muted">${esc(f.email)}</p>
+<div class="ligne"><span>Délai</span><span>${f.delai ? `${esc(f.delai)} j` : "—"}</span></div>
+<div class="ligne"><span>Livre le client</span><span>${f.livre ? "oui" : "non"}</span></div>
+<div class="ligne"><span>En cours</span><span>${f.enCours.length}</span></div>
+<div class="ligne"><span>En retard</span><span>${f.retard.length}${f.retard.length ? `<br><span class="muted">${f.retard.map(esc).join(", ")}</span>` : ""}</span></div></div>`);
+  return page("Fabricants", cadre("fabricants", email, bandeau, `<h1>${pluriel(liste.length, "fabricant")}</h1>
+${cartes.join("") || '<div class="carte"><p class="muted">Onglet Fabricants vide.</p></div>'}`));
 }
 
 /* Tableau de bord : compteurs et alertes, calculés depuis le Sheet (aucune écriture) */
@@ -254,12 +360,12 @@ async function vueSysteme(env, email, bandeau) {
 /* POST /admin/tache : même code que le cron, bilan en bandeau sur l'onglet Système */
 async function tacheMaintenant(env) {
   const b = await lancerTache(env);
-  if (b.inactive) return redirection("Secrets Google absents : rien à vérifier.", "err", "systeme");
-  if (b.erreur) return redirection(`Sheet indisponible : ${b.erreur}`, "err", "systeme");
+  if (b.inactive) return redirection(env, "Secrets Google absents : rien à vérifier.", "err", "systeme");
+  if (b.erreur) return redirection(env, `Sheet indisponible : ${b.erreur}`, "err", "systeme");
   const n = x => (Array.isArray(x) ? x.length : 0);
   const texte = `Tâche faite : ${n(b.attribuees)} n° CF, ${n(b.notifiees)} statut(s) traité(s), ${n(b.commandes)} statut(s) EV recalculé(s), ${n(b.relances)} relance(s), ${n(b.attente)} en attente, ${n(b.erreurs)} erreur(s).`
     + (n(b.erreurs) ? " " + b.erreurs.slice(0, 3).join(" ; ") : "");
-  return redirection(texte, n(b.erreurs) ? "err" : "ok", "systeme");
+  return redirection(env, texte, n(b.erreurs) ? "err" : "ok", "systeme");
 }
 
 /* Liens rapides : aucun identifiant dans le code ; l'adresse du Sheet vient du secret SHEET_ID */
@@ -281,17 +387,37 @@ ${env.SHEET_ID ? "" : '<p class="muted">Google Sheet : secret SHEET_ID absent.</
 /* Bloquée et jamais envoyée au fabricant (aucun envoyee_fabricant au Journal de sa CF) */
 const debloquable = (l, journal) => l.statut === INCIDENT && !(l.cf && (journal[l.cf] || []).some(x => x.nouveau === ENVOYE));
 
-const redirection = (message, type = "ok", vue = "") => new Response(null, { status: 303, headers: {
-  Location: `/admin?${new URLSearchParams({ ...(vue ? { vue } : {}), m: message.slice(0, 300), t: type })}`, "Cache-Control": "no-store" } });
+/* Bandeau après une action : message daté et signé, valable 2 min, affiché une seule fois */
+const FLASH_S = 120, COOKIE_FLASH = "admin_flash";
+const signerFlash = (env, { vue, m, t, ts }) => signature(env.HMAC_SECRET, `flash|${vue}|${t}|${ts}|${m}`);
+async function redirection(env, message, type = "ok", vue = "") {
+  const f = { vue, m: message.slice(0, 300), t: type === "err" ? "err" : "ok", ts: String(Math.floor(Date.now() / 1000)) };
+  const params = new URLSearchParams({ ...(vue ? { vue } : {}), m: f.m, t: f.t, ts: f.ts, s: await signerFlash(env, f) });
+  return new Response(null, { status: 303, headers: { Location: `/admin?${params}`, "Cache-Control": "no-store" } });
+}
+/* → { bandeau, cookie } : bandeau vide si absent, faux, périmé ou déjà affiché (cookie = sa signature) */
+export async function lireFlash(env, url, req, vue, maintenant = Date.now()) {
+  const p = url.searchParams, s = p.get("s") || "", ts = p.get("ts") || "";
+  const f = { vue, m: String(p.get("m") || "").slice(0, 300), t: p.get("t") === "err" ? "err" : "ok", ts };
+  const vide = { bandeau: {}, cookie: null };
+  if (!s || !/^\d{1,12}$/.test(ts) || !f.m) return vide;
+  const age = maintenant / 1000 - Number(ts);
+  if (age < -30 || age > FLASH_S) return vide;
+  if (!egal(await signerFlash(env, f), s)) return vide;
+  const vu = (req.headers.get("Cookie") || "").split(/;\s*/).find(c => c.startsWith(COOKIE_FLASH + "="));
+  if (vu && vu.slice(COOKIE_FLASH.length + 1) === s) return vide;
+  return { bandeau: { message: nettoyer(f.m, 300), type: f.t },
+    cookie: `${COOKIE_FLASH}=${s}; Path=/admin; Max-Age=${FLASH_S}; HttpOnly; Secure; SameSite=Strict` };
+}
 
 /* POST /admin/valider */
 async function valider(env, email, f) {
   const etat = await lireEtat(env);
   const numero = nettoyer(f.get("ev"));
   const toutes = etat.parEV[numero];
-  if (!toutes) return redirection(`Commande ${numero} introuvable.`, "err");
+  if (!toutes) return redirection(env, `Commande ${numero} introuvable.`, "err");
   const enAttente = toutes.filter(l => A_ENVOYER.includes(l.statut));
-  if (!enAttente.length) return redirection(`Commande ${numero} déjà validée.`);
+  if (!enAttente.length) return redirection(env, `Commande ${numero} déjà validée.`);
 
   const saisie = { ev: numero, fab: {}, stl: {} };
   for (const l of enAttente) { saisie.fab[l.n] = nettoyer(f.get(`fab_${l.n}`)); saisie.stl[l.n] = String(f.get(`stl_${l.n}`) ?? "").trim().slice(0, 600); }
@@ -343,7 +469,7 @@ async function valider(env, email, f) {
   const reste = enAttente.length - choisis.length;
   const texte = [ok.length ? ok.join(" ; ") + " ✓" : "", attente.length ? `Validée, e-mail en attente (renvoi automatique sous 10 min) : ${attente.join(" ; ")}` : "",
     reste ? `${reste} article${reste > 1 ? "s" : ""} laissé${reste > 1 ? "s" : ""} pour plus tard.` : ""].filter(Boolean).join(" ");
-  return redirection(texte, attente.length ? "err" : "ok");
+  return redirection(env, texte, attente.length ? "err" : "ok");
 }
 
 /* POST /admin/bloquer : articles pas encore envoyés → incident */
@@ -351,12 +477,12 @@ async function bloquer(env, f) {
   const etat = await lireEtat(env);
   const numero = nettoyer(f.get("ev"));
   const ls = (etat.parEV[numero] || []).filter(l => A_ENVOYER.includes(l.statut));
-  if (!ls.length) return redirection(`Commande ${numero} : rien à bloquer.`, "err");
+  if (!ls.length) return redirection(env, `Commande ${numero} : rien à bloquer.`, "err");
   for (const l of ls) {
     await majArticle(env, numero, l.n, { Statut: INCIDENT, "Dernier statut notifié": INCIDENT });
     await journaliserSiNouveau(env, etat.journal, l.cf || numero, l.statut, INCIDENT, "proprietaire");
   }
-  return redirection(`Commande ${numero} bloquée (${ls.length} article${ls.length > 1 ? "s" : ""}).`);
+  return redirection(env, `Commande ${numero} bloquée (${ls.length} article${ls.length > 1 ? "s" : ""}).`);
 }
 
 /* POST /admin/debloquer : articles bloqués jamais envoyés → a_valider (fichier connu) ou lien_stl_a_indiquer */
@@ -364,13 +490,13 @@ async function debloquer(env, f) {
   const etat = await lireEtat(env);
   const numero = nettoyer(f.get("ev"));
   const ls = (etat.parEV[numero] || []).filter(l => debloquable(l, etat.journal));
-  if (!ls.length) return redirection(`Commande ${numero} : rien à débloquer.`, "err");
+  if (!ls.length) return redirection(env, `Commande ${numero} : rien à débloquer.`, "err");
   for (const l of ls) {
     const s = l.stl.trim() || await fichierStandardDispo(env, l.article) ? A_VALIDER : STL_A_INDIQUER;
     await majArticle(env, numero, l.n, { Statut: s, "Dernier statut notifié": s });
     await journaliserSiNouveau(env, etat.journal, l.cf || numero, INCIDENT, s, "proprietaire");
   }
-  return redirection(`Commande ${numero} débloquée : à valider.`);
+  return redirection(env, `Commande ${numero} débloquée : à valider.`);
 }
 
 /* POST venu de la page elle-même : Origin = celle de la page ; ou, si le navigateur envoie « null » / rien
@@ -385,6 +511,9 @@ function memeOrigine(req, url) {
 export async function routeAdmin(req, env, url) {
   if (env.ADMIN_HOST && url.host !== env.ADMIN_HOST) return simple("Introuvable", "Page introuvable.", 404);
   if (url.pathname === "/" && req.method === "GET") return new Response(null, { status: 302, headers: { Location: "/admin" } });
+  /* Icônes et manifeste : rien de confidentiel, servis sans relire le jeton Access (l'adresse reste derrière Access) */
+  const icone = /^\/admin\/([a-z0-9-]+\.(?:svg|png|webmanifest))$/.exec(url.pathname);
+  if (icone && req.method === "GET") { const r = ressource(icone[1]); if (r) return r; }
   const route = `${req.method} ${url.pathname}`;
   const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/tache"];
   if (!routes.includes(route)) return simple("Introuvable", "Page introuvable.", 404);
@@ -394,23 +523,27 @@ export async function routeAdmin(req, env, url) {
   if (!email) return simple("Accès refusé", "Connectez-vous avec le compte autorisé.", 403);
   const vue = req.method === "GET" ? VUES.map(x => x[0]).find(v => v && v === url.searchParams.get("vue")) || "" : "";
   /* Catalogue, Système et Liens restent visibles sans secrets Google (diagnostic) ; HMAC_SECRET toujours requis (jeton CSRF) */
-  const sansSheet = ["catalogue", "systeme", "liens"].includes(vue);
+  const sansSheet = ["catalogue", "systeme", "liens"].includes(vue) && !url.searchParams.get("q");
   if ((!sansSheet && !googleConfigure(env)) || !jetonConfigure(env)) return simple("Service indisponible", "Configuration incomplète (secrets Google ou HMAC_SECRET).", 503);
 
   try {
     if (req.method === "GET") {
-      const t = url.searchParams.get("t");
-      const bandeau = { message: nettoyer(url.searchParams.get("m"), 300), type: t === "err" ? "err" : "ok" };
-      if (vue === "tableau") return vueTableau(email, await lireEtat(env), bandeau);
-      if (vue === "catalogue") return await vueCatalogue(env, email, bandeau);
-      if (vue === "systeme") return await vueSysteme(env, email, bandeau);
-      if (vue === "liens") return vueLiens(env, email, bandeau);
-      return await rendre(env, email, await lireEtat(env), bandeau);
+      const { bandeau, cookie } = await lireFlash(env, url, req, vue);
+      const q = nettoyer(url.searchParams.get("q"), 80);
+      const r = q ? vueRecherche(email, await lireEtat(env), q, bandeau)
+        : vue === "tableau" ? vueTableau(email, await lireEtat(env), bandeau)
+        : vue === "catalogue" ? await vueCatalogue(env, email, bandeau)
+        : vue === "fabricants" ? vueFabricants(email, await lireEtat(env), bandeau)
+        : vue === "systeme" ? await vueSysteme(env, email, bandeau)
+        : vue === "liens" ? vueLiens(env, email, bandeau)
+        : await rendre(env, email, await lireEtat(env), bandeau);
+      if (cookie) r.headers.append("Set-Cookie", cookie);
+      return r;
     }
     /* POST : même origine (Origin obligatoire), jeton anti-falsification */
     if (!memeOrigine(req, url)) return simple("Requête refusée", "Origine de la requête non reconnue.", 403);
     const f = await req.formData().catch(() => null);
-    if (!f || !await csrfValide(env, email, f.get("csrf"))) return redirection("Page expirée : action non faite. Recommencez.", "err");
+    if (!f || !await csrfValide(env, email, f.get("csrf"))) return redirection(env, "Page expirée : action non faite. Recommencez.", "err");
     if (url.pathname === "/admin/valider") return await valider(env, email, f);
     if (url.pathname === "/admin/bloquer") return await bloquer(env, f);
     if (url.pathname === "/admin/tache") return await tacheMaintenant(env);
