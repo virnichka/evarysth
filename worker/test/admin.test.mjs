@@ -17,7 +17,7 @@ const PEM = `-----BEGIN PRIVATE KEY-----\n${pkcs8.match(/.{1,64}/g).join("\n")}\
 const JWK = { ...(await crypto.subtle.exportKey("jwk", access.publicKey)), kid: "k1" };
 
 const HOTE = "admin.test.dev", ORIGINE = `https://${HOTE}`, FAB = "Atelier Dupont";
-const env = { ROLE: "admin", ADMIN_HOST: HOTE, ACCESS_TEAM_DOMAIN: "equipe.cloudflareaccess.com", ACCESS_AUD: "aud-test", ADMIN_EMAILS: "Evarysth@gmail.com",
+const env = { ADMIN_HOST: HOTE, ACCESS_TEAM_DOMAIN: "equipe.cloudflareaccess.com", ACCESS_AUD: "aud-test", ADMIN_EMAILS: "Evarysth@gmail.com",
   CHECKOUT_MODE: "test", GOOGLE_SA_EMAIL: "w@p.iam.gserviceaccount.com", GOOGLE_SA_KEY: PEM, SHEET_ID: "id-factice", HMAC_SECRET: "secret-de-test",
   BREVO_API_KEY: "xkeysib-factice", WORKER_URL: "https://public.dev" };
 
@@ -95,10 +95,18 @@ test("Accès : sans jeton Access, jeton d'une autre équipe ou d'une autre appli
   assert.equal((await ouvrir()).status, 200, "e-mail autorisé (casse indifférente)");
 });
 
-test("Worker public : /admin n'existe pas", async () => {
-  const pub = { ...env }; delete pub.ROLE;
-  const r = await silence(() => worker.fetch(new Request("https://public.dev/admin", { headers: { "Cf-Access-Jwt-Assertion": "x" } }), pub));
+test("Adresse publique : /admin n'existe pas, même avec un jeton Access valide", async () => {
+  const r = await silence(async () => worker.fetch(new Request("https://public.dev/admin", { headers: { "Cf-Access-Jwt-Assertion": await jwt() } }), env));
   assert.equal(r.status, 404);
+});
+
+test("Worker d'administration : relais pur vers le Worker public (requête transmise telle quelle), 503 sans liaison", async () => {
+  const recues = [];
+  const relais = { ROLE: "admin", PUBLIC: { fetch: async r => { recues.push(r); return new Response("ok"); } } };
+  const req = new Request(`${ORIGINE}/admin`, { headers: { "Cf-Access-Jwt-Assertion": "jwt" } });
+  assert.equal(await (await worker.fetch(req, relais)).text(), "ok");
+  assert.equal(recues[0], req, "même requête : adresse et jeton Access conservés");
+  assert.equal((await worker.fetch(new Request(`${ORIGINE}/admin`), { ROLE: "admin" })).status, 503);
 });
 
 test("Page : commandes à valider, sans script, en-têtes de sécurité, adresse complète non affichée", async () => {
@@ -141,7 +149,7 @@ test("Valider : refusé sans lien STL ni fabricant valide, rien n'est écrit ; p
   assert.match(emails[0].textContent, /https:\/\/public\.dev\/f\//, "liens fournisseur vers le Worker public");
   assert.deepEqual(sheet.Journal.slice(1).map(l => l.slice(1)), [["CF-2026-0010-A", "lien_stl_a_indiquer", "envoyee_fabricant", "proprietaire"]]);
 
-  const b = await silence(() => tachePlanifiee({ ...env, ROLE: undefined }));
+  const b = await silence(() => tachePlanifiee(env));
   assert.deepEqual(b.notifiees, [], "rien à renvoyer par la tâche planifiée");
 });
 
@@ -172,7 +180,7 @@ test("Brevo en panne : validée, e-mail en attente, la tâche planifiée l'envoi
   assert.match(bandeau(r), /e-mail en attente/);
   assert.deepEqual([art(1).Statut, art(1)["Dernier statut notifié"]], ["envoyee_fabricant", "lien_stl_a_indiquer"]);
   brevoEnPanne = false;
-  const b = await silence(() => tachePlanifiee({ ...env, ROLE: undefined }));
+  const b = await silence(() => tachePlanifiee(env));
   assert.deepEqual(b.notifiees, ["CF-2026-0010-A : envoyee_fabricant"]);
   assert.equal(emails.length, 1);
 });

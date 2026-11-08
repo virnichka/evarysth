@@ -21,8 +21,16 @@ EMAIL_FROM = "commandes@evarysth.fr"
 REPLY_TO = "contact@evarysth.fr"
 
 # Liens fournisseur des e-mails fabricant (bloc D) : adresse publique de ce Worker
-# (reprise telle quelle dans [env.admin.vars] : les liens pointent toujours vers ce Worker public)
 WORKER_URL = "https://evarysth-checkout.virnichka.workers.dev"
+
+# Page d'administration (/admin, bloc G) : servie seulement pour les requêtes relayées par le Worker d'administration
+# ci-dessous (adresse ADMIN_HOST), avec un jeton Cloudflare Access valide (revérifié par le code).
+# Tant que ACCESS_TEAM_DOMAIN et ACCESS_AUD sont vides, /admin répond 403 à tout le monde.
+ADMIN_HOST = "evarysth-admin.virnichka.workers.dev"
+# Cloudflare Zero Trust → Access : domaine de l'équipe (ex. evarysth.cloudflareaccess.com) et tag AUD de l'application
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+ADMIN_EMAILS = "evarysth@gmail.com"
 
 # Tâche planifiée (bloc D) : e-mails selon le statut du Sheet ; sans secrets Google, elle ne fait rien
 [triggers]
@@ -37,29 +45,17 @@ enabled = true
 # [[r2_buckets]]
 # binding = "STL"
 # bucket_name = "evarysth-stl"
-# (le même bloc est à ajouter sous [env.admin] : les bindings ne sont pas hérités par les environnements)
 
-# ─── Worker d'administration (page /admin, « télécommande ») ───────────────────────────────────────────────────
-# Déployé par `npx wrangler deploy --env admin` (et par le workflow). Même code, ROLE = "admin" : il ne sert que /admin.
-# Protégé par Cloudflare Access (Zero Trust) sur son adresse workers.dev ; le Worker revérifie le jeton Access.
-# Secrets à poser AUSSI sur ce Worker (`npx wrangler secret put <NOM> --env admin`) : GOOGLE_SA_EMAIL, GOOGLE_SA_KEY,
-# SHEET_ID, BREVO_API_KEY et HMAC_SECRET (la MÊME valeur que le Worker public, qui vérifie les liens fournisseur signés ici).
-# Tant que ACCESS_TEAM_DOMAIN et ACCESS_AUD sont vides, /admin répond 403 à tout le monde.
+# ─── Worker d'administration (« télécommande ») ────────────────────────────────────────────────────────────────
+# Déployé par `npx wrangler deploy --env admin` (et par le workflow). Simple relais vers le Worker public (liaison
+# de service PUBLIC) : aucun secret à poser sur lui. Protégé par Cloudflare Access sur son adresse workers.dev.
 [env.admin]
 name = "evarysth-admin"
 workers_dev = true
+services = [{ binding = "PUBLIC", service = "evarysth-checkout" }]
 
 [env.admin.vars]
 ROLE = "admin"
-ADMIN_HOST = "evarysth-admin.virnichka.workers.dev"
-# Cloudflare Zero Trust → Access : domaine de l'équipe (ex. evarysth.cloudflareaccess.com) et tag AUD de l'application
-ACCESS_TEAM_DOMAIN = ""
-ACCESS_AUD = ""
-ADMIN_EMAILS = "evarysth@gmail.com"
-CHECKOUT_MODE = "test"
-EMAIL_FROM = "commandes@evarysth.fr"
-REPLY_TO = "contact@evarysth.fr"
-WORKER_URL = "https://evarysth-checkout.virnichka.workers.dev"
 
 [env.admin.triggers]
 crons = []

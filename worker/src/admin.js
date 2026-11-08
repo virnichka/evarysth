@@ -1,5 +1,5 @@
-/* Page d'administration (« télécommande ») : Worker d'administration (ROLE = "admin", wrangler.toml [env.admin]),
-   derrière Cloudflare Access ; le Worker revérifie le jeton Access (acces.js) à chaque requête.
+/* Page d'administration (« télécommande ») : ouverte sur le Worker d'administration (wrangler.toml [env.admin],
+   derrière Cloudflare Access), qui relaie la requête à ce Worker ; le jeton Access est revérifié ici (acces.js).
    GET  /admin            commandes à valider (point de verrou), commandes bloquées, commandes en cours (lecture seule)
    POST /admin/valider    fabricant + lien STL par article → envoyee_fabricant, e-mail fabricant envoyé tout de suite
    POST /admin/bloquer    articles pas encore envoyés d'une commande → incident

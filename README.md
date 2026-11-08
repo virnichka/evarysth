@@ -71,8 +71,8 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   jeton en cache 1 h). Google en erreur : la fiche de fabrication part quand même, puis réponse 503 (Stripe réessaie).
   **Inactif tant que les secrets `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY` et `SHEET_ID` ne sont pas tous définis** (marche à
   suivre : plan, « À faire par le propriétaire »).
-- **Page d'administration** (`worker/src/admin.js`, `worker/src/acces.js`, plan : bloc G) : Worker séparé
-  `evarysth-admin` (`wrangler.toml` `[env.admin]`, même code), `https://evarysth-admin.virnichka.workers.dev/admin`, derrière
+- **Page d'administration** (`worker/src/admin.js`, `worker/src/acces.js`, plan : bloc G) : Worker
+  `evarysth-admin` (`wrangler.toml` `[env.admin]`, simple relais sans secret vers le Worker public), `https://evarysth-admin.virnichka.workers.dev/admin`, derrière
   Cloudflare Access (JWT revérifié par le Worker). Par article : fabricant + lien STL (obligatoire) → « Valider et envoyer »
   → `envoyee_fabricant` et e-mail fabricant immédiat ; « Bloquer » / « Débloquer ».
 - **Liens fournisseur** (`worker/src/jeton.js`, `worker/src/fournisseur.js`) : jeton
