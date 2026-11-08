@@ -83,8 +83,7 @@ async function ouvrir({ jeton, hote = HOTE, e = env } = {}) {
 }
 const csrfDe = html => /name="csrf" value="([^"]+)"/.exec(html)[1];
 async function envoyer(chemin, champs, { origine = ORIGINE, csrf, site } = {}) {
-  let html = await (await ouvrir()).text();
-  if (!/name="csrf"/.test(html)) html = await (await get("/admin?q=EV-2026-0010")).text();   /* plus rien à valider : jeton de la fiche */
+  const html = await (await get("/admin?q=EV-2026-0010")).text();   /* jeton de la fiche, où sont les actions */
   const corps = new URLSearchParams({ csrf: csrf ?? csrfDe(html), ev: "EV-2026-0010", ...champs });
   const headers = { "Cf-Access-Jwt-Assertion": await jwt(), "Content-Type": "application/x-www-form-urlencoded", ...(origine ? { Origin: origine } : {}), ...(site ? { "Sec-Fetch-Site": site } : {}) };
   return silence(() => worker.fetch(new Request(`${ORIGINE}${chemin}`, { method: "POST", headers, body: corps }), env));
@@ -123,13 +122,17 @@ test("Page : commandes à valider, sans script, en-têtes de sécurité, adresse
   assert.match(r.headers.get("Content-Security-Policy"), /default-src 'none'.*frame-ancestors 'none'/);
   assert.equal(r.headers.get("Cache-Control"), "no-store");
   assert.doesNotMatch(html, /<script/i);
-  assert.match(html, /1 commande à valider/);
-  assert.match(html, /EV-2026-0010/);
-  assert.match(html, /Camille Test · 75011 Paris/);
+  assert.match(html, /<h1>À traiter<\/h1>/);
+  assert.match(html, /À traiter <span class="compte">1<\/span>[\s\S]*Toutes <span class="compte">1<\/span>/);
+  assert.match(html, /<a class="cmd bord t-att" href="\/admin\?q=EV-2026-0010"><span class="tete"><b>EV-2026-0010<\/b><span class="badge t-att">Payée/);
+  assert.match(html, /Camille Test · 75011 Paris · 8 nov\. 2026 · 2 articles[\s\S]*2 à valider/);
   assert.doesNotMatch(html, /rue des Lilas|client@example\.com/);
-  assert.match(html, /Lien STL à indiquer/);
-  assert.match(html, /name="fab_1"[\s\S]*Atelier Dupont/);
-  assert.match(html, /action="\/admin\/valider"/);
+  assert.doesNotMatch(html, /<form method="post"/, "liste : aucune action, on ouvre la fiche");
+  const fiche = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.match(fiche, /À valider <span class="compte">2<\/span>[\s\S]*Lien STL à indiquer[\s\S]*name="fab_1"[\s\S]*Atelier Dupont/);
+  assert.match(fiche, /action="\/admin\/valider"/);
+  assert.match(fiche, /<details class="carte pli zone">[\s\S]*action="\/admin\/bloquer"/, "actions définitives repliées");
+  assert.doesNotMatch(fiche, /rue des Lilas|client@example\.com|<script/i);
 });
 
 test("Valider : refusé sans lien STL ni fabricant valide, rien n'est écrit ; puis validé → e-mail fabricant immédiat, Journal, n° CF", async () => {
@@ -164,8 +167,7 @@ test("Valider : refusé sans lien STL ni fabricant valide, rien n'est écrit ; p
 test("Double clic : le 2e envoi ne renvoie rien (« déjà validée »)", async () => {
   sheet["Commandes CF"].splice(2, 1);
   const champs = { fab_1: FAB, stl_1: "https://drive.google.com/x" };
-  const html = await (await ouvrir()).text();
-  const csrf = csrfDe(html);
+  const csrf = csrfDe(await (await get("/admin?q=EV-2026-0010")).text());
   assert.equal((await envoyer("/admin/valider", champs, { csrf })).status, 303);
   const r = await envoyer("/admin/valider", champs, { csrf });
   assert.match(bandeau(r), /déjà validée/);
@@ -205,7 +207,8 @@ test("Bloquer puis débloquer : incident, puis retour à lien_stl_a_indiquer ; j
   let r = await envoyer("/admin/bloquer", {});
   assert.match(bandeau(r), /bloquée \(2 articles\)/);
   assert.deepEqual([art(1).Statut, art(2).Statut], ["incident", "incident"]);
-  assert.match(await (await ouvrir()).text(), /Bloquées[\s\S]*Débloquer/);
+  assert.match(await (await get("/admin?f=bloquees")).text(), /Bloquées <span class="compte">1<\/span>[\s\S]*2 bloqués/);
+  assert.match(await (await get("/admin?q=EV-2026-0010")).text(), /Bloqués <span class="compte">2<\/span>[\s\S]*Débloquer/);
   r = await envoyer("/admin/debloquer", {});
   assert.match(bandeau(r), /débloquée/);
   assert.deepEqual([art(1).Statut, art(2).Statut], ["lien_stl_a_indiquer", "lien_stl_a_indiquer"]);
@@ -300,7 +303,7 @@ test("Bandeau : signé, affiché une seule fois (cookie), ignoré s'il est forg�
   assert.match(html1, /class="bandeau ok"[^>]*>Commande EV-2026-0010 bloquée/);
   const cookie = r1.headers.get("Set-Cookie");
   assert.match(cookie, /^admin_flash=[^;]+; Path=\/admin; Max-Age=120; HttpOnly; Secure; SameSite=Strict$/);
-  assert.match(html1, /<a href="\/admin">Actualiser<\/a>/);
+  assert.match(html1, /<a href="\/admin\?q=EV-2026-0010">Actualiser<\/a>/, "retour sur la fiche, Actualiser sans le bandeau");
   const r2 = await get(loc, { Cookie: cookie.split(";")[0] });
   assert.doesNotMatch(await r2.text(), /class="bandeau/, "rechargement : plus de bandeau");
   const u = new URL(loc, ORIGINE);
@@ -347,12 +350,12 @@ test("Recherche : par n° EV, n° CF ou nom (sans accents) → fiche avec articl
   for (const q of ["EV-2026-0010", "cf-2026-0010-a", "camille", "CAMÍLLE TEST"]) {
     const html = await (await get(`/admin?q=${encodeURIComponent(q)}`)).text();
     assert.match(html, /<h1>EV-2026-0010<\/h1>/, q);
-    assert.match(html, /Camille Test · 75011 Paris/);
+    assert.match(html, /<b>Camille Test<\/b>[\s\S]*75011 Paris · 8 nov\. 2026 à 10:00/);
     assert.doesNotMatch(html, /rue des Lilas|client@example\.com/);
-    assert.match(html, /Article 1 · <b>CF-2026-0010-A<\/b>[\s\S]*Atelier Dupont[\s\S]*drive\.google\.com\/fichier[\s\S]*Colissimo · 6A123/);
+    assert.match(html, /<details class="carte pli bord t-att" open><summary><span class="nom">CF-2026-0010-A <span class="muted">· Atelier Dupont · 1 article[\s\S]*Colissimo · 6A123[\s\S]*Article 1[\s\S]*drive\.google\.com\/fichier/);
     assert.match(html, /Historique[\s\S]*EV-2026-0010<\/b> · Payée<br>[\s\S]*CF-2026-0010-A<\/b> · À valider → Envoyée au fabricant[\s\S]*proprietaire/);
     assert.match(html, /href="https:\/\/dashboard\.stripe\.com\/test\/search\?query=cs_test_admin"/, "lien vers le paiement Stripe");
-    assert.match(html, /Actions[\s\S]*action="\/admin\/cloturer"[\s\S]*value="annulee"[\s\S]*value="remboursee"/);
+    assert.match(html, /Bloquer, annuler ou rembourser[\s\S]*action="\/admin\/cloturer"[\s\S]*value="annulee"[\s\S]*value="remboursee"/);
   }
   const vide = await (await get(`/admin?q=${encodeURIComponent('<script>x</script>')}`)).text();
   assert.match(vide, /Aucune commande/);
@@ -392,7 +395,7 @@ test("Annuler : case « Je confirme » obligatoire ; puis articles annulés, Jou
   assert.match(bandeau(r), /annulée \(2 articles\)/);
   assert.deepEqual([art(1).Statut, art(1)["Dernier statut notifié"], art(2).Statut], ["annulee", "annulee", "annulee"]);
   assert.deepEqual(sheet.Journal.slice(1).map(l => l.slice(1)), [["EV-2026-0010", "lien_stl_a_indiquer", "annulee", "proprietaire"]]);
-  assert.match(await (await ouvrir()).text(), /0 commande à valider/);
+  assert.match(await (await ouvrir()).text(), /Rien à traiter/);
   assert.doesNotMatch(await fiche(), /action="\/admin\/cloturer"/, "plus aucune action une fois close");
   const b = await silence(() => tachePlanifiee(env));
   assert.equal(emails.length, 0);
@@ -420,7 +423,7 @@ test("Renvoyer : e-mail fabricant renvoyé sans changer le statut ; expédiée �
   let r = await envoyer("/admin/renvoyer", { cf: "CF-2026-0010-A" });
   assert.match(bandeau(r), /aucun e-mail à renvoyer/);
   await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/x" });
-  assert.match(await fiche(), /Renvoyer l'e-mail au fabricant \(CF-2026-0010-A\)/);
+  assert.match(await fiche(), /Renvoyer l'e-mail au fabricant<\/button>/);
   const journal = sheet.Journal.length;
   r = await envoyer("/admin/renvoyer", { cf: "CF-2026-0010-A" });
   assert.match(bandeau(r), /renvoyé au fabricant ✓/);
