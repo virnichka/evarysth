@@ -3,7 +3,7 @@
    POST /promo      vérifie un code promo Stripe → { code, rate, amount }
    GET  /session    résumé d'une commande payée (page commande/merci/)
    POST /webhook    événements Stripe signés (checkout.session.completed → Sheet back-office, e-mail client, fiche de fabrication)
-   Déployé aussi en Worker d'administration (ROLE = "admin", voir admin.js) : il ne sert alors que /admin. */
+   /admin (admin.js) : servi seulement pour les requêtes relayées par le Worker d'administration (ROLE = "admin"). */
 import { lancerTache } from "./planifie.js";
 import { versionCatalogue } from "./catalogue.js";
 import { ErreurPanier, lireCadeau, lirePanier, nouvelleReference, parametresSession } from "./commande.js";
@@ -225,9 +225,14 @@ export default {
 
   async fetch(req, env) {
     const url = new URL(req.url);
-    /* Worker d'administration (wrangler.toml [env.admin], derrière Cloudflare Access) : il ne sert que /admin.
-       Le Worker public ne sert jamais /admin (404 plus bas, route inconnue). */
-    if (env.ROLE === "admin") return routeAdmin(req, env, url);
+    /* Worker d'administration (wrangler.toml [env.admin]) : simple relais, derrière Cloudflare Access, vers ce Worker
+       (liaison de service PUBLIC) ; il n'a ni code métier ni secret. La requête arrive ici avec son adresse d'origine
+       (ADMIN_HOST) et le jeton Access, revérifié par admin.js. Sur toute autre adresse, /admin n'existe pas (404). */
+    if (env.ROLE === "admin") {
+      if (!env.PUBLIC || typeof env.PUBLIC.fetch !== "function") return new Response("Service indisponible (configuration).\n", { status: 503 });
+      return env.PUBLIC.fetch(req);
+    }
+    if (env.ADMIN_HOST && url.host === env.ADMIN_HOST) return routeAdmin(req, env, url);
     const origine = req.headers.get("Origin");
     const autorisee = origine && origines(env).includes(origine) ? origine : null;
 

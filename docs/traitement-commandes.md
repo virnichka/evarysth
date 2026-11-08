@@ -356,8 +356,9 @@ page mobile plutôt que dans l'appli Google Sheets.
 - **Lien STL obligatoire** : l'e-mail fabricant ne part jamais sans lien (ni saisi ni dans R2) ; la tâche planifiée met la
   CF en attente « lien STL manquant » (fin du « fourni séparément »). Lien collé à la main dans le Sheet sur une ligne
   `lien_stl_a_indiquer` → la tâche la passe à `a_valider` (aucun e-mail).
-- **Worker d'administration** `evarysth-admin` (`wrangler.toml` `[env.admin]`, même code, `ROLE = "admin"` : il ne sert
-  que `/admin` ; le Worker public répond 404 sur `/admin`). Adresse : `https://evarysth-admin.virnichka.workers.dev/admin`
+- **Worker d'administration** `evarysth-admin` (`wrangler.toml` `[env.admin]`, `ROLE = "admin"`) : simple relais derrière
+  Access vers le Worker public (liaison de service `PUBLIC`, aucun secret) ; le Worker public sert `/admin` seulement
+  quand la requête porte l'adresse `ADMIN_HOST` (donc relayée), 404 sinon. Adresse : `https://evarysth-admin.virnichka.workers.dev/admin`
   (domaine `evarysth.fr` chez OVH : pas de sous-domaine Cloudflare ; `ADMIN_HOST` à changer si le DNS passe chez Cloudflare).
   - **Accès** : Cloudflare Access sur l'adresse workers.dev du Worker d'administration ; le Worker revérifie le JWT
     `Cf-Access-Jwt-Assertion` (`acces.js` : signature RS256 avec les clés de l'équipe, émetteur, audience `ACCESS_AUD`,
@@ -378,11 +379,11 @@ page mobile plutôt que dans l'appli Google Sheets.
 ### À faire par le propriétaire (bloc G)
 13. **Cloudflare Zero Trust** (gratuit) : one.dash.cloudflare.com → créer l'équipe (nom → `<équipe>.cloudflareaccess.com`).
 14. **Déployer le Worker d'administration** : fusion sur `main` (le workflow lance aussi `wrangler deploy --env admin`).
-15. **Secrets du Worker d'administration** (`cd worker`, puis `npx wrangler secret put <NOM> --env admin`) :
-    `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `BREVO_API_KEY`, `HMAC_SECRET` (**même valeur** que le Worker public).
+15. ~~Secrets du Worker d'administration~~ : inutile. Ce Worker n'est qu'un relais (liaison de service `PUBLIC`) vers le
+    Worker public, qui a déjà tous les secrets et sert `/admin` uniquement pour l'adresse `ADMIN_HOST`.
 16. **Activer Access** : tableau de bord Cloudflare → Workers → `evarysth-admin` → Paramètres → Domaines et routes →
     `workers.dev` → activer Cloudflare Access ; politique : e-mail = `evarysth@gmail.com`. Relever le **tag AUD** et
-    le domaine de l'équipe, les reporter dans `[env.admin.vars]` (`ACCESS_AUD`, `ACCESS_TEAM_DOMAIN`) et pousser.
+    le domaine de l'équipe, les reporter dans `[vars]` du Worker public (`ACCESS_AUD`, `ACCESS_TEAM_DOMAIN`) et pousser.
 17. Contrôle : `https://evarysth-admin.virnichka.workers.dev/admin` demande un code envoyé à evarysth@gmail.com, puis
     affiche EV-2026-0006 « à valider » ; sans connexion (navigation privée, autre e-mail) : refus.
 
