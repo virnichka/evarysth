@@ -342,10 +342,7 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .card__photos { position: absolute; inset: 0; z-index: 2; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .card__photos::-webkit-scrollbar { display: none; }
 .card__photo { flex: 0 0 100%; width: 100%; height: 100%; object-fit: cover; scroll-snap-align: start; scroll-snap-stop: always; user-select: none; -webkit-user-drag: none; }
-.card__renders { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.card__render { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: opacity .35s var(--ease), transform .5s var(--ease); user-select: none; }
-.card__render + .card__render { opacity: 0; }
-@media (hover: hover) { .card:hover .card__render:first-child { opacity: 0; } .card:hover .card__render + .card__render { opacity: 1; transform: scale(1.04); } }
+.card__photos--renders .card__photo { object-fit: contain; }
 .card__dots { position: absolute; z-index: 3; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; padding: 5px 8px; border-radius: 999px; background: rgba(0, 0, 0, .35); pointer-events: none; }
 .card__dots i { width: 6px; height: 6px; border-radius: 50%; background: #fff; opacity: .5; transition: opacity .2s, transform .2s; }
 .card__dots i.is-on { opacity: 1; transform: scale(1.25); }
