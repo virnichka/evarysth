@@ -45,15 +45,17 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 2. Webhook Stripe payé → Sheet back-office : une ligne `Commandes EV` (n° client `EV-AAAA-NNNN`) et une ligne par article
    dans `Commandes CF` ; e-mail client « Commande reçue » et fiche « Nouvelle commande » au propriétaire (Brevo).
    Article en `a_valider` (STL standard présent dans R2) ou `lien_stl_a_indiquer`. **Rien ne part sans validation.**
-3. Le propriétaire valide sur la page d'administration `https://evarysth-admin.virnichka.workers.dev/admin` (téléphone,
-   derrière Cloudflare Access) : fabricant + lien STL (obligatoire) → « Valider et envoyer » → `envoyee_fabricant`,
-   n° fournisseur `CF-AAAA-NNNN-X` (seul n° vu par le fabricant ; lettre = fabricant), e-mail fabricant immédiat.
-   Boutons « Bloquer » / « Débloquer » (`incident`). Autres onglets : Tableau de bord (compteurs, alertes), Catalogue
-   (STL présents dans R2), Fabricants (en cours / en retard), Système (voyants, « Lancer la tâche maintenant »), Liens ;
-   recherche d'une commande (n° EV, n° CF ou nom) avec son Journal. Sur la fiche d'une commande : lien vers le paiement
-   Stripe, « Annuler la commande » (articles pas encore expédiés) ou « Marquer remboursée » (le remboursement se fait dans
-   Stripe), case « Je confirme » obligatoire, aucun e-mail ; « Renvoyer l'e-mail » au fabricant (CF envoyée ou acceptée)
-   ou d'expédition au client (CF expédiée), sans changer le statut. Icônes de /admin intégrées au Worker
+3. Le propriétaire gère les commandes sur la page d'administration `https://evarysth-admin.virnichka.workers.dev/admin`
+   (téléphone, derrière Cloudflare Access). Onglet Commandes = liste des commandes client (n° EV) avec recherche (n° EV,
+   n° CF ou nom) et filtres `?f=` : À traiter (défaut : à valider ou bloquées), Chez le fabricant, Expédiées, Bloquées,
+   Toutes. Une commande s'ouvre en fiche (`?q=<n°>`) : en-tête (client, ville, statut, lien du paiement Stripe), articles
+   à valider (fabricant + lien STL obligatoire → « Valider et envoyer » → `envoyee_fabricant`, n° fournisseur
+   `CF-AAAA-NNNN-X`, seul n° vu par le fabricant, lettre = fabricant, e-mail fabricant immédiat), articles bloqués
+   (« Débloquer »), un pli par envoi fabricant (articles, STL, suivi, « Renvoyer l'e-mail » au fabricant ou d'expédition
+   au client, sans changer le statut), Historique replié, et un pli « Bloquer, annuler ou rembourser » (« Bloquer » →
+   `incident` ; « Annuler » articles pas encore expédiés ou « Marquer remboursée » après remboursement fait dans Stripe,
+   case « Je confirme » obligatoire, aucun e-mail). Autres onglets : Tableau de bord (compteurs, alertes), Catalogue
+   (STL présents dans R2), Fabricants (en cours / en retard), Système (voyants, « Lancer la tâche maintenant »), Liens. Icônes de /admin intégrées au Worker
    (`worker/src/icones.js`, à régénérer par `node tools/icones-admin.mjs` si `assets/icons/` change).
 4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours).
 5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas

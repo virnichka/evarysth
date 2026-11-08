@@ -1,6 +1,7 @@
 /* Page d'administration (« télécommande ») : ouverte sur le Worker d'administration (wrangler.toml [env.admin],
    derrière Cloudflare Access), qui relaie la requête à ce Worker ; le jeton Access est revérifié ici (acces.js).
-   GET  /admin            onglet Commandes : à valider (point de verrou), bloquées, en cours (lecture seule)
+   GET  /admin?f=…        onglet Commandes : liste des commandes client (n° EV), filtres À traiter (défaut), Chez le
+                          fabricant, Expédiées, Bloquées, Toutes ; une ligne ouvre la fiche (?q=n°)
    GET  /admin?vue=…      onglets tableau (compteurs, alertes), catalogue (data.js + STL dans R2), fabricants, systeme (voyants), liens
    GET  /admin?q=…        recherche (n° EV, n° CF ou nom du client) → fiche de la commande avec son Journal, lien vers le
                           paiement Stripe et actions (annuler / remboursée, renvoyer un e-mail)
@@ -22,7 +23,7 @@ import { verifierAcces } from "./acces.js";
 import { googleConfigure } from "./google.js";
 import { egal, jetonConfigure, signature } from "./jeton.js";
 import { EXTENSIONS, fichierStandardDispo, segmentTaille } from "./fichier.js";
-import { A_ENVOYER, DELAI_RELANCE_MS, envoyerSelonStatut, journaliserSiNouveau, lancerTache, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
+import { A_ENVOYER, STATUTS, statutEV, DELAI_RELANCE_MS, envoyerSelonStatut, journaliserSiNouveau, lancerTache, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
 import { A_VALIDER, dateParis, majArticle, STL_A_INDIQUER } from "./sheet.js";
 import { EVARYSTH } from "./catalogue.js";
 import { ICONES } from "./icones.js";
@@ -99,6 +100,16 @@ label{display:block;font-weight:600;font-size:14px;margin:0 0 4px}input,select{w
 button{width:100%;font:600 16px/1 Inter,sans-serif;padding:14px;border:0;border-radius:999px;background:var(--accent);color:#151515;cursor:pointer;margin-top:4px}button:hover{background:var(--accent-hover)}
 button.second{background:transparent;border:1px solid var(--line);color:var(--muted);font-size:14px;padding:10px}
 button.danger{background:transparent;border:1px solid #f0c7c2;color:var(--err);font-size:14px;padding:10px}button.danger:hover{background:#fbe9e7}
+.badge.t-att{background:#fff1ea;border-color:#ffc9b3;color:#a33a0f}.badge.t-fab{background:#eaf1fb;border-color:#c3d6f0;color:#1f4f8f}
+.badge.t-ok{background:#e6f2ea;border-color:#bfdcc8;color:var(--ok)}.badge.t-err{background:#fbe9e7;border-color:#f0c7c2;color:var(--err)}.badge.t-clos{color:var(--muted)}
+.bord{border-left-width:4px}.bord.t-att{border-left-color:var(--accent)}.bord.t-fab{border-left-color:#3b74c4}.bord.t-ok{border-left-color:var(--ok)}.bord.t-err{border-left-color:var(--err)}
+.cmds{display:grid;gap:8px;margin:0 0 14px}.cmd{display:block;text-decoration:none;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.cmd:hover{border-color:var(--muted)}.cmd .muted{display:block;margin-top:2px}.a-faire{display:block;font-size:14px;font-weight:600;color:#a33a0f;margin-top:2px}
+nav.filtres{margin:0 0 4px}nav.filtres a{font-size:13px;padding:6px 10px}.compte{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-size:12px;font-weight:600;text-align:center;color:var(--muted)}
+nav a[aria-current] .compte{background:#fff;color:var(--text);border-color:#fff}h2 .compte{vertical-align:2px}
+details.pli,details.pli:first-child{border-top:1px solid var(--line);padding:0 16px}details.bord,details.bord:first-child{border-left-width:4px}
+details.pli>summary{padding:14px 0}details.pli[open]>summary{border-bottom:1px solid var(--line)}details.pli .detail{padding:4px 0 14px}details.pli summary .nom{white-space:normal}
+.zone>summary .nom{color:var(--err)}.zone form+form{border-top:1px solid var(--line);margin-top:14px;padding-top:14px}.retour{margin:0 0 -6px;font-size:14px}.valider .art:first-of-type{border-top:0;margin-top:0;padding-top:0}summary .nom .muted{font-weight:400}
 label.confirme{display:flex;gap:8px;align-items:center;font-weight:400;margin:4px 0 8px}label.confirme input{width:auto;margin:0}
 .bandeau{border-radius:10px;padding:12px 14px;margin:0 0 16px;font-weight:600}.ok{background:#e6f2ea;color:var(--ok)}.err{background:#fbe9e7;color:var(--err)}
 a{color:inherit}table{width:100%;border-collapse:collapse;font-size:14px}td{padding:6px 4px;border-top:1px solid var(--line);vertical-align:top}
@@ -121,71 +132,14 @@ const simple = (titre, texte, statut) => page(titre, `<h1>${esc(titre)}</h1><div
 const VUES = [["", "Commandes"], ["tableau", "Tableau de bord"], ["catalogue", "Catalogue"], ["fabricants", "Fabricants"], ["systeme", "Système"], ["liens", "Liens"]];
 const SITE = "https://www.evarysth.fr";
 const lienVue = v => (v ? `/admin?vue=${v}` : "/admin");
-function cadre(vue, email, { message = "", type = "ok" } = {}, corps) {
+function cadre(vue, email, { message = "", type = "ok" } = {}, corps, ici = lienVue(vue)) {
   return `<nav aria-label="Rubriques">${VUES.map(([v, nom]) => `<a href="${lienVue(v)}"${v === vue ? ' aria-current="page"' : ""}>${nom}</a>`).join("")}</nav>
 ${message ? `<div class="bandeau ${type === "ok" ? "ok" : "err"}" role="status">${esc(message)}</div>` : ""}${corps}
-<p class="muted"><a href="${lienVue(vue)}">Actualiser</a> · connecté : ${esc(email)}</p>`;
+<p class="muted"><a href="${ici}">Actualiser</a> · connecté : ${esc(email)}</p>`;
 }
 const RECHERCHE = (q = "") => `<form method="get" action="/admin" role="search" class="recherche"><label for="q">Rechercher une commande</label>
 <input id="q" name="q" type="search" autocomplete="off" placeholder="EV-2026-0012, CF-2026-0012-A ou nom" value="${esc(q)}"><button class="second" type="submit">Rechercher</button></form>`;
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
-
-/* Rendu de la page. saisie = valeurs envoyées à garder après une erreur : { ev, fab: { n: nom }, stl: { n: lien } } */
-async function rendre(env, email, etat, { message = "", type = "ok", saisie = null } = {}, statut = 200) {
-  const { evs, lignes, parEV, fabs, journal } = etat;
-  const csrf = await jetonCsrf(env, email);
-  const noms = Object.keys(fabs);
-  const cache = (ev, n, cle, defaut) => (saisie && saisie.ev === ev && saisie[cle][n] != null ? saisie[cle][n] : defaut);
-  const entete = ev => {
-    const [nom = "", , adresse = ""] = (ev.client || "").split("\n");
-    return `<div class="tete"><b>${esc(ev.numero)}</b><span class="muted">${esc(ev.date)}${ev.type ? " · " + esc(ev.type) : ""}</span></div>
-<p class="muted">${esc(nom.trim())}${ville(adresse) ? " · " + esc(ville(adresse)) : ""}${ev.cadeau ? " · Cadeau" + (ev.cadeau.includes("·") ? " : " + esc(ev.cadeau.split("·").slice(1).join("·").trim()) : "") : ""}</p>`;
-  };
-
-  /* 1. À valider : commandes avec au moins un article pas encore envoyé */
-  const aValider = Object.keys(parEV).filter(ev => parEV[ev].some(l => A_ENVOYER.includes(l.statut))).sort().reverse();
-  const cartes = [];
-  for (const numero of aValider) {
-    const ev = evs[numero] || { numero };
-    const arts = [];
-    for (const l of parEV[numero].filter(x => A_ENVOYER.includes(x.statut))) {
-      const r2 = !l.stl.trim() && await fichierStandardDispo(env, l.article);
-      const fab = cache(numero, l.n, "fab", l.fabricant.trim());
-      arts.push(`<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span><span class="badge">${esc(libelle(l.statut))}</span></div>
-<div class="piece">${esc(l.article)}</div>
-<label for="fab-${esc(numero)}-${esc(l.n)}">Fabricant</label><select id="fab-${esc(numero)}-${esc(l.n)}" name="fab_${esc(l.n)}">
-<option value="">— plus tard —</option>${noms.map(f => `<option value="${esc(f)}"${f === fab ? " selected" : ""}>${esc(f)}</option>`).join("")}</select>
-<label for="stl-${esc(numero)}-${esc(l.n)}">Lien STL${r2 ? " <span class=\"muted\">(fichier standard disponible, facultatif)</span>" : ""}</label>
-<input id="stl-${esc(numero)}-${esc(l.n)}" name="stl_${esc(l.n)}" type="url" inputmode="url" autocomplete="off" placeholder="https://drive.google.com/…" value="${esc(cache(numero, l.n, "stl", l.stl.trim()))}"></div>`);
-    }
-    cartes.push(`<div class="carte">${entete(ev)}
-<form method="post" action="/admin/valider"><input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="ev" value="${esc(numero)}">
-${arts.join("")}<button type="submit">Valider et envoyer au fabricant</button></form>
-<form method="post" action="/admin/bloquer"><input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="ev" value="${esc(numero)}">
-<button class="second" type="submit">Bloquer cette commande</button></form></div>`);
-  }
-
-  /* 2. Bloquées (jamais envoyées) : bouton Débloquer */
-  const bloquees = Object.keys(parEV).filter(ev => parEV[ev].some(l => debloquable(l, journal))).sort().reverse();
-  const cartesB = bloquees.map(numero => `<div class="carte">${entete(evs[numero] || { numero })}
-${parEV[numero].filter(l => debloquable(l, journal)).map(l => `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>`).join("")}
-<form method="post" action="/admin/debloquer"><input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="ev" value="${esc(numero)}">
-<button class="second" type="submit">Débloquer</button></form></div>`);
-
-  /* 3. En cours (lecture seule), par commande fournisseur */
-  const parCF = {};
-  for (const l of lignes) if (l.cf && EN_COURS.includes(l.statut)) (parCF[l.cf] ||= []).push(l);
-  const enCours = Object.keys(parCF).sort().reverse().slice(0, 30).map(cf => {
-    const ls = parCF[cf], l = ls[0];
-    const suivi = [l.transporteur, l.suivi].filter(x => x && x.trim()).join(" · ");
-    return `<tr><td><b>${esc(cf)}</b><br><span class="muted">${esc(l.fabricant)}</span></td><td>${esc(libelle(l.statut))}${suivi ? `<br><span class="muted">${esc(suivi)}</span>` : ""}</td></tr>`;
-  });
-
-  return page("Back-office", cadre("", email, { message, type }, `<h1>${aValider.length} commande${aValider.length > 1 ? "s" : ""} à valider</h1>
-${RECHERCHE()}${cartes.join("") || '<div class="carte"><p class="muted">Rien à valider.</p></div>'}
-${cartesB.length ? `<h2>Bloquées</h2>${cartesB.join("")}` : ""}
-<h2>En cours</h2>${enCours.length ? `<div class="carte"><table>${enCours.join("")}</table></div>` : '<div class="carte"><p class="muted">Aucune commande chez un fabricant.</p></div>'}`), statut);
-}
 
 /* Client affiché sans l'adresse complète : nom · ville */
 function nomVille(ev) {
@@ -223,49 +177,139 @@ function cfsRenvoyables(arts) {
     .map(([cf, ls]) => ({ cf, lignes: ls, statut: ls[0].statut === "acceptee" ? ENVOYE : ls[0].statut }));
 }
 
-function actionsFiche(numero, arts, csrf) {
-  const champs = `<input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="ev" value="${esc(numero)}">`;
-  const renvois = cfsRenvoyables(arts).map(g => `<form method="post" action="/admin/renvoyer">${champs}<input type="hidden" name="cf" value="${esc(g.cf)}">
-<button class="second" type="submit">Renvoyer l'e-mail ${g.statut === ENVOYE ? "au fabricant" : "d'expédition au client"} (${esc(g.cf)})</button></form>`);
-  const a = annulables(arts).length, r = remboursables(arts).length;
-  const cloture = a || r ? `<form method="post" action="/admin/cloturer">${champs}
-<label class="confirme"><input type="checkbox" name="confirmer" value="oui" required> Je confirme (définitif, aucun e-mail envoyé)</label>
-${a ? `<button class="danger" type="submit" name="statut" value="annulee">Annuler la commande</button>` : ""}
-${r ? `<button class="danger" type="submit" name="statut" value="remboursee">Marquer remboursée (après remboursement dans Stripe)</button>` : ""}</form>` : "";
-  return renvois.length || cloture ? `<h2>Actions</h2><div class="carte">${renvois.join("")}${cloture}</div>` : "";
+/* Couleur d'un statut (badge et liseré) : à traiter, chez le fabricant, parti, bloqué, clos */
+const TON = s => (A_ENVOYER.includes(s) || s === "payee" ? "t-att" : [ENVOYE, "acceptee", "en_fabrication", "partiellement_expediee"].includes(s) ? "t-fab"
+  : ["expediee", "livree"].includes(s) ? "t-ok" : s === INCIDENT ? "t-err" : "t-clos");
+const badge = (s, lib = libelle) => `<span class="badge ${TON(s)}">${esc(lib(s))}</span>`;
+const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+const dateCourte = d => { const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(d || ""); return m ? `${Number(m[3])} ${MOIS[Number(m[2]) - 1]} ${m[1]}` : ""; };
+const versFiche = n => `/admin?${new URLSearchParams({ q: n })}`;
+
+/* Résumé d'une commande client (n° EV) : statut calculé comme la formule du Sheet (statutEV), à défaut celui du Sheet */
+function resumeEV(etat, numero) {
+  const ev = etat.evs[numero] || { numero }, arts = etat.parEV[numero] || [];
+  return { numero, ev, arts, statut: statutEV(arts.map(l => l.statut)) || ev.statut || "",
+    aValider: arts.filter(l => A_ENVOYER.includes(l.statut)).length, bloques: arts.filter(l => l.statut === INCIDENT).length };
+}
+
+/* Liste des commandes client : filtres ?f=… (« À traiter » par défaut), ou résultats d'une recherche */
+const FILTRES = [["traiter", "À traiter"], ["fabricant", "Chez le fabricant"], ["expediees", "Expédiées"], ["bloquees", "Bloquées"], ["toutes", "Toutes"]];
+const DANS = {
+  traiter: r => r.aValider > 0 || r.bloques > 0,
+  fabricant: r => r.arts.some(l => [ENVOYE, "acceptee"].includes(l.statut)),
+  expediees: r => ["expediee", "livree"].includes(r.statut),
+  bloquees: r => r.bloques > 0,
+  toutes: () => true
+};
+const MAX_LISTE = 50;
+function ligneCommande(r) {
+  const info = [nomVille(r.ev) || "Client inconnu", dateCourte(r.ev.date), pluriel(r.arts.length, "article")].filter(Boolean).join(" · ");
+  const alerte = [r.aValider ? `${r.aValider} à valider` : "", r.bloques ? pluriel(r.bloques, "bloqué") : ""].filter(Boolean).join(" · ");
+  return `<a class="cmd bord ${TON(r.statut)}" href="${versFiche(r.numero)}"><span class="tete"><b>${esc(r.numero)}</b>${badge(r.statut, libelleEV)}</span>
+<span class="muted">${esc(info)}</span>${alerte ? `<span class="a-faire">${esc(alerte)}</span>` : ""}</a>`;
+}
+function vueCommandes(email, etat, filtre, bandeau, q = "", trouves = null) {
+  const numeros = trouves || [...new Set([...Object.keys(etat.evs), ...Object.keys(etat.parEV)])];
+  const resumes = numeros.map(n => resumeEV(etat, n)).sort((a, b) => b.numero.localeCompare(a.numero));
+  const choisies = trouves ? resumes : resumes.filter(DANS[filtre]);
+  const liste = choisies.slice(0, MAX_LISTE);
+  const filtres = trouves ? "" : `<nav class="filtres" aria-label="Filtres">${FILTRES.map(([f, nom]) =>
+    `<a href="/admin${f === "traiter" ? "" : "?f=" + f}"${f === filtre ? ' aria-current="page"' : ""}>${nom} <span class="compte">${resumes.filter(DANS[f]).length}</span></a>`).join("")}</nav>`;
+  const titre = trouves ? (liste.length ? `${pluriel(liste.length, "commande")} trouvée${liste.length > 1 ? "s" : ""}` : "Aucune commande")
+    : FILTRES.find(x => x[0] === filtre)[1];
+  const vide = trouves ? `Rien ne correspond à « ${esc(q)} ».` : filtre === "traiter" ? "Rien à traiter : tout est validé." : "Aucune commande.";
+  return page("Commandes", cadre("", email, bandeau, `${RECHERCHE(q)}${filtres}<h1>${titre}</h1>
+${liste.length ? `<div class="cmds">${liste.map(ligneCommande).join("")}</div>` : `<div class="carte"><p class="muted">${vide}</p></div>`}
+${choisies.length > MAX_LISTE ? `<p class="muted">${MAX_LISTE} plus récentes affichées sur ${choisies.length} : utilisez la recherche.</p>` : ""}`,
+  trouves ? versFiche(q) : `/admin${filtre === "traiter" ? "" : "?f=" + filtre}`));
 }
 
 async function vueRecherche(env, email, etat, q, bandeau) {
   const trouves = chercher(etat, q);
-  const { evs, parEV, journal } = etat;
-  let corps;
-  if (trouves.length === 1) {
-    const numero = trouves[0], ev = evs[numero] || { numero }, arts = parEV[numero] || [];
-    const cfs = [...new Set(arts.map(l => l.cf).filter(Boolean))];
-    const histo = [numero, ...cfs].flatMap(n => (journal[n] || []).map(j => ({ ...j, n })))
-      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
-    const articles = arts.map(l => {
-      const lien = lienValide(l.stl);
-      const suivi = [l.transporteur, l.suivi].map(x => String(x || "").trim()).filter(Boolean).join(" · ");
-      return `<div class="art"><div class="tete"><span>Article ${esc(l.n)}${l.cf ? ` · <b>${esc(l.cf)}</b>` : ""}</span><span class="badge">${esc(libelle(l.statut))}</span></div>
+  return trouves.length === 1 ? vueFiche(env, email, etat, trouves[0], bandeau) : vueCommandes(email, etat, null, bandeau, q, trouves);
+}
+
+/* Fiche d'une commande client : en-tête, articles à valider (formulaire), bloqués, envois fabricant (un pli par CF),
+   historique et actions définitives repliés. saisie = valeurs à garder après une erreur : { ev, fab: { n: nom }, stl: { n: lien } } */
+async function vueFiche(env, email, etat, numero, { message = "", type = "ok", saisie = null } = {}, statut = 200) {
+  const r = resumeEV(etat, numero), { ev, arts } = r;
+  const csrf = await jetonCsrf(env, email);
+  const champs = `<input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="ev" value="${esc(numero)}">`;
+  const cache = (n, cle, defaut) => (saisie && saisie.ev === numero && saisie[cle][n] != null ? saisie[cle][n] : defaut);
+  const noms = Object.keys(etat.fabs);
+  const blocs = [];
+
+  /* En-tête */
+  const [, , adresse = ""] = String(ev.client || "").split("\n");
+  const cadeau = ev.cadeau ? " · Cadeau" + (ev.cadeau.includes("·") ? " : " + ev.cadeau.split("·").slice(1).join("·").trim() : "") : "";
+  const stripe = lienStripe(ev.sid);
+  blocs.push(`<div class="carte bord ${TON(r.statut)}"><div class="tete"><b>${esc(String(ev.client || "").split("\n")[0].trim() || "Client inconnu")}</b>${badge(r.statut, libelleEV)}</div>
+<p class="muted">${esc([ville(adresse), dateCourte(ev.date) + (ev.date ? ` à ${String(ev.date).slice(11, 16)}` : ""), ev.type, pluriel(arts.length, "article")].filter(Boolean).join(" · "))}${esc(cadeau)}</p>
+${stripe ? `<p class="muted"><a href="${esc(stripe)}" target="_blank" rel="noopener noreferrer">Paiement dans Stripe ↗</a></p>` : ""}</div>`);
+
+  /* 1. À valider */
+  const aValider = arts.filter(l => A_ENVOYER.includes(l.statut));
+  if (aValider.length) {
+    const lignes = [];
+    for (const l of aValider) {
+      const r2 = !l.stl.trim() && await fichierStandardDispo(env, l.article);
+      const fab = cache(l.n, "fab", l.fabricant.trim()), id = `${numero}-${l.n}`;
+      lignes.push(`<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${badge(l.statut)}</div>
 <div class="piece">${esc(l.article)}</div>
-<p class="muted">Fabricant : ${esc(l.fabricant.trim() || "—")}</p>
-<p class="muted">Lien STL : ${lien ? `<a href="${esc(lien)}" target="_blank" rel="noopener noreferrer">ouvrir ↗</a>` : esc(l.stl.trim() || "—")}</p>
-${suivi ? `<p class="muted">Suivi : ${esc(suivi)}</p>` : ""}</div>`;
-    });
-    const stripe = lienStripe(ev.sid);
-    corps = `<h1>${esc(numero)}</h1><div class="carte"><div class="tete"><b>${esc(nomVille(ev) || "Client inconnu")}</b><span class="badge">${esc(ev.statut ? libelleEV(ev.statut) : "—")}</span></div>
-<p class="muted">${esc(ev.date || "")}${ev.type ? " · " + esc(ev.type) : ""}${ev.cadeau ? " · Cadeau" : ""}</p>
-${stripe ? `<p class="muted"><a href="${esc(stripe)}" target="_blank" rel="noopener noreferrer">Paiement dans Stripe ↗</a></p>` : ""}${articles.join("") || '<p class="muted">Aucun article dans Commandes CF.</p>'}</div>
-${actionsFiche(numero, arts, await jetonCsrf(env, email))}
-<h2>Historique</h2><div class="carte journal">${histo.map(j => `<div class="ligne"><span><b>${esc(j.n)}</b> · ${esc(j.ancien ? `${(j.n.startsWith("EV") ? libelleEV : libelle)(j.ancien)} → ` : "")}${esc((j.n.startsWith("EV") ? libelleEV : libelle)(j.nouveau))}<br><span class="muted">${esc(j.date)}${j.auteur ? " · " + esc(j.auteur) : ""}</span></span></div>`).join("") || '<p class="muted">Rien au Journal.</p>'}</div>`;
-  } else if (trouves.length) {
-    corps = `<h1>${pluriel(trouves.length, "commande")} trouvée${trouves.length > 1 ? "s" : ""}</h1><div class="carte">${trouves.map(n => {
-      const ev = evs[n] || {};
-      return `<div class="ligne"><a href="/admin?${new URLSearchParams({ q: n })}"><b>${esc(n)}</b></a><span class="muted">${esc(nomVille(ev))}${ev.date ? " · " + esc(ev.date.slice(0, 10)) : ""}</span></div>`;
-    }).join("")}</div>`;
-  } else corps = `<h1>Aucune commande</h1><div class="carte"><p class="muted">Rien ne correspond à « ${esc(q)} ».</p></div>`;
-  return page("Recherche", cadre("", email, bandeau, RECHERCHE(q) + corps));
+<label for="fab-${esc(id)}">Fabricant</label><select id="fab-${esc(id)}" name="fab_${esc(l.n)}">
+<option value="">— plus tard —</option>${noms.map(f => `<option value="${esc(f)}"${f === fab ? " selected" : ""}>${esc(f)}</option>`).join("")}</select>
+<label for="stl-${esc(id)}">Lien STL${r2 ? " <span class=\"muted\">(fichier standard disponible, facultatif)</span>" : ""}</label>
+<input id="stl-${esc(id)}" name="stl_${esc(l.n)}" type="url" inputmode="url" autocomplete="off" placeholder="https://drive.google.com/…" value="${esc(cache(l.n, "stl", l.stl.trim()))}"></div>`);
+    }
+    blocs.push(`<h2>À valider <span class="compte">${aValider.length}</span></h2><div class="carte bord t-att">
+<form class="valider" method="post" action="/admin/valider">${champs}${lignes.join("")}<button type="submit">Valider et envoyer au fabricant</button></form></div>`);
+  }
+
+  /* 2. Bloqués (jamais envoyés) */
+  const bloques = arts.filter(l => debloquable(l, etat.journal));
+  if (bloques.length) blocs.push(`<h2>Bloqués <span class="compte">${bloques.length}</span></h2><div class="carte bord t-err">
+${bloques.map(l => `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>`).join("")}
+<form method="post" action="/admin/debloquer">${champs}<button class="second" type="submit">Débloquer</button></form></div>`);
+
+  /* 3. Envois fabricant : un pli par n° CF (ouvert s'il est seul) */
+  const parCF = {};
+  for (const l of arts) if (l.cf) (parCF[l.cf] ||= []).push(l);
+  const renvoyables = Object.fromEntries(cfsRenvoyables(arts).map(g => [g.cf, g]));
+  const cfs = Object.keys(parCF).sort();
+  if (cfs.length) blocs.push(`<h2>Envois fabricant <span class="compte">${cfs.length}</span></h2>${cfs.map(cf => {
+    const ls = parCF[cf], memes = ls.every(l => l.statut === ls[0].statut);
+    const s = memes ? ls[0].statut : ls.map(l => l.statut).filter(x => !CLOS.includes(x)).sort((a, b) => STATUTS.indexOf(a) - STATUTS.indexOf(b))[0] || ls[0].statut;
+    const suivi = [ls[0].transporteur, ls[0].suivi].map(x => String(x || "").trim()).filter(Boolean).join(" · ");
+    const g = renvoyables[cf];
+    return `<details class="carte pli bord ${TON(s)}"${cfs.length === 1 ? " open" : ""}><summary><span class="nom">${esc(cf)} <span class="muted">· ${esc(ls[0].fabricant.trim() || "—")} · ${pluriel(ls.length, "article")}</span></span><span class="resume">${badge(s)}</span></summary>
+<div class="detail">${suivi ? `<p class="muted">Suivi : ${esc(suivi)}</p>` : ""}${ls.map(l => {
+      const lien = lienValide(l.stl);
+      return `<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${memes ? "" : badge(l.statut)}</div><div class="piece">${esc(l.article)}</div>
+<p class="muted">Lien STL : ${lien ? `<a href="${esc(lien)}" target="_blank" rel="noopener noreferrer">ouvrir ↗</a>` : esc(l.stl.trim() || "—")}</p></div>`;
+    }).join("")}${g ? `<form method="post" action="/admin/renvoyer">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
+<button class="second" type="submit">Renvoyer l'e-mail ${g.statut === ENVOYE ? "au fabricant" : "d'expédition au client"}</button></form>` : ""}</div></details>`;
+  }).join("")}`);
+
+  /* 4. Articles sans envoi ni action (ex. annulés avant l'envoi) */
+  const autres = arts.filter(l => !l.cf && !aValider.includes(l) && !bloques.includes(l));
+  if (autres.length) blocs.push(`<h2>Autres articles <span class="compte">${autres.length}</span></h2><div class="carte">${autres.map(l =>
+    `<div class="tete"><span>Article ${esc(l.n)}</span>${badge(l.statut)}</div><div class="piece">${esc(l.article)}</div>`).join("")}</div>`);
+  if (!arts.length) blocs.push('<div class="carte"><p class="muted">Aucun article dans Commandes CF.</p></div>');
+
+  /* 5. Historique et actions définitives, repliés */
+  const histo = [numero, ...cfs].flatMap(n => (etat.journal[n] || []).map(j => ({ ...j, n }))).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const lib = n => (n.startsWith("EV") ? libelleEV : libelle);
+  blocs.push(`<details class="carte pli journal"><summary><span class="nom">Historique</span><span class="resume">${pluriel(histo.length, "ligne")}</span></summary><div class="detail">
+${histo.map(j => `<div class="ligne"><span><b>${esc(j.n)}</b> · ${esc(j.ancien ? `${lib(j.n)(j.ancien)} → ` : "")}${esc(lib(j.n)(j.nouveau))}<br><span class="muted">${esc(j.date)}${j.auteur ? " · " + esc(j.auteur) : ""}</span></span></div>`).join("") || '<p class="muted">Rien au Journal.</p>'}</div></details>`);
+  const a = annulables(arts).length, rb = remboursables(arts).length;
+  if (aValider.length || a || rb) blocs.push(`<details class="carte pli zone"><summary><span class="nom">Bloquer, annuler ou rembourser</span></summary><div class="detail">
+${aValider.length ? `<form method="post" action="/admin/bloquer">${champs}<p class="muted">Met de côté les articles à valider (réversible).</p><button class="second" type="submit">Bloquer cette commande</button></form>` : ""}
+${a || rb ? `<form method="post" action="/admin/cloturer">${champs}
+<label class="confirme"><input type="checkbox" name="confirmer" value="oui" required> Je confirme (définitif, aucun e-mail envoyé)</label>
+${a ? `<button class="danger" type="submit" name="statut" value="annulee">Annuler la commande</button>` : ""}
+${rb ? `<button class="danger" type="submit" name="statut" value="remboursee">Marquer remboursée (après remboursement dans Stripe)</button>` : ""}</form>` : ""}</div></details>`);
+
+  return page(numero, cadre("", email, { message, type }, `${RECHERCHE()}<p class="retour"><a href="/admin">← Commandes</a></p><h1>${esc(numero)}</h1>${blocs.join("\n")}`, versFiche(numero)), statut);
 }
 
 /* Fabricants : onglet du Sheet, e-mail masqué ; CF en cours (envoyée ou acceptée) et en retard (envoyée depuis plus que
@@ -321,13 +365,13 @@ export function chiffres(etat, maintenant = Date.now()) {
 
 function vueTableau(email, etat, bandeau) {
   const c = chiffres(etat);
-  const tuile = (n, texte, vue = "", alerte = false) => `<a class="carte${alerte && n ? " alerte" : ""}" href="${lienVue(vue)}"><div class="nombre">${n}</div><div class="muted">${texte}</div></a>`;
+  const tuile = (n, texte, href = "/admin", alerte = false) => `<a class="carte${alerte && n ? " alerte" : ""}" href="${href}"><div class="nombre">${n}</div><div class="muted">${texte}</div></a>`;
   const alertes = [
-    ...c.relances.map(r => `<div class="ligne"><span><b>${esc(r.cf)}</b> · ${esc(r.fabricant)}<br><span class="muted">${r.relance ? `relance 48 h envoyée le ${esc(r.relance)}` : "plus de 48 h sans acceptation, relance au prochain passage"} · envoyée le ${esc(r.depuis)}</span></span><span class="badge">Relance</span></div>`),
-    ...c.sansFabricant.map(x => `<div class="ligne"><span><a href="/admin"><b>${esc(x.ev)}</b></a><br><span class="muted">payée le ${esc(x.date)}, toujours sans fabricant</span></span><span class="badge">+ 24 h</span></div>`)
+    ...c.relances.map(r => `<div class="ligne"><span><a href="${versFiche(r.cf)}"><b>${esc(r.cf)}</b></a> · ${esc(r.fabricant)}<br><span class="muted">${r.relance ? `relance 48 h envoyée le ${esc(r.relance)}` : "plus de 48 h sans acceptation, relance au prochain passage"} · envoyée le ${esc(r.depuis)}</span></span><span class="badge">Relance</span></div>`),
+    ...c.sansFabricant.map(x => `<div class="ligne"><span><a href="${versFiche(x.ev)}"><b>${esc(x.ev)}</b></a><br><span class="muted">payée le ${esc(x.date)}, toujours sans fabricant</span></span><span class="badge">+ 24 h</span></div>`)
   ];
   return page("Tableau de bord", cadre("tableau", email, bandeau, `<h1>Tableau de bord</h1>
-<div class="grille">${tuile(c.aValider, "à valider", "", true)}${tuile(c.chez, "chez le fabricant")}${tuile(c.expediees, "expédiées ce mois")}${tuile(c.bloquees, "bloquées", "", true)}</div>
+<div class="grille">${tuile(c.aValider, "à valider", "/admin", true)}${tuile(c.chez, "chez le fabricant", "/admin?f=fabricant")}${tuile(c.expediees, "expédiées ce mois", "/admin?f=expediees")}${tuile(c.bloquees, "bloquées", "/admin?f=bloquees", true)}</div>
 <h2>Alertes</h2><div class="carte">${alertes.join("") || '<p class="muted">Aucune alerte.</p>'}</div>`));
 }
 
@@ -458,11 +502,11 @@ async function valider(env, email, f) {
   const toutes = etat.parEV[numero];
   if (!toutes) return redirection(env, `Commande ${numero} introuvable.`, "err");
   const enAttente = toutes.filter(l => A_ENVOYER.includes(l.statut));
-  if (!enAttente.length) return redirection(env, `Commande ${numero} déjà validée.`);
+  if (!enAttente.length) return redirection(env, `Commande ${numero} déjà validée.`, "ok", "", numero);
 
   const saisie = { ev: numero, fab: {}, stl: {} };
   for (const l of enAttente) { saisie.fab[l.n] = nettoyer(f.get(`fab_${l.n}`)); saisie.stl[l.n] = String(f.get(`stl_${l.n}`) ?? "").trim().slice(0, 600); }
-  const erreur = message => rendre(env, email, etat, { message, type: "err", saisie }, 400);
+  const erreur = message => vueFiche(env, email, etat, numero, { message, type: "err", saisie }, 400);
 
   /* Contrôles complets avant toute écriture */
   const choisis = [];
@@ -510,7 +554,7 @@ async function valider(env, email, f) {
   const reste = enAttente.length - choisis.length;
   const texte = [ok.length ? ok.join(" ; ") + " ✓" : "", attente.length ? `Validée, e-mail en attente (renvoi automatique sous 10 min) : ${attente.join(" ; ")}` : "",
     reste ? `${reste} article${reste > 1 ? "s" : ""} laissé${reste > 1 ? "s" : ""} pour plus tard.` : ""].filter(Boolean).join(" ");
-  return redirection(env, texte, attente.length ? "err" : "ok");
+  return redirection(env, texte, attente.length ? "err" : "ok", "", numero);
 }
 
 /* POST /admin/bloquer : articles pas encore envoyés → incident */
@@ -518,12 +562,12 @@ async function bloquer(env, f) {
   const etat = await lireEtat(env);
   const numero = nettoyer(f.get("ev"));
   const ls = (etat.parEV[numero] || []).filter(l => A_ENVOYER.includes(l.statut));
-  if (!ls.length) return redirection(env, `Commande ${numero} : rien à bloquer.`, "err");
+  if (!ls.length) return redirection(env, `Commande ${numero} : rien à bloquer.`, "err", "", numero);
   for (const l of ls) {
     await majArticle(env, numero, l.n, { Statut: INCIDENT, "Dernier statut notifié": INCIDENT });
     await journaliserSiNouveau(env, etat.journal, l.cf || numero, l.statut, INCIDENT, "proprietaire");
   }
-  return redirection(env, `Commande ${numero} bloquée (${ls.length} article${ls.length > 1 ? "s" : ""}).`);
+  return redirection(env, `Commande ${numero} bloquée (${ls.length} article${ls.length > 1 ? "s" : ""}).`, "ok", "", numero);
 }
 
 /* POST /admin/debloquer : articles bloqués jamais envoyés → a_valider (fichier connu) ou lien_stl_a_indiquer */
@@ -531,13 +575,13 @@ async function debloquer(env, f) {
   const etat = await lireEtat(env);
   const numero = nettoyer(f.get("ev"));
   const ls = (etat.parEV[numero] || []).filter(l => debloquable(l, etat.journal));
-  if (!ls.length) return redirection(env, `Commande ${numero} : rien à débloquer.`, "err");
+  if (!ls.length) return redirection(env, `Commande ${numero} : rien à débloquer.`, "err", "", numero);
   for (const l of ls) {
     const s = l.stl.trim() || await fichierStandardDispo(env, l.article) ? A_VALIDER : STL_A_INDIQUER;
     await majArticle(env, numero, l.n, { Statut: s, "Dernier statut notifié": s });
     await journaliserSiNouveau(env, etat.journal, l.cf || numero, INCIDENT, s, "proprietaire");
   }
-  return redirection(env, `Commande ${numero} débloquée : à valider.`);
+  return redirection(env, `Commande ${numero} débloquée : à valider.`, "ok", "", numero);
 }
 
 /* POST /admin/cloturer : annulee (articles pas encore expédiés) ou remboursee (tous ceux pas encore clos) ; aucun e-mail */
@@ -612,7 +656,7 @@ export async function routeAdmin(req, env, url) {
         : vue === "fabricants" ? vueFabricants(email, await lireEtat(env), bandeau)
         : vue === "systeme" ? await vueSysteme(env, email, bandeau)
         : vue === "liens" ? vueLiens(env, email, bandeau)
-        : await rendre(env, email, await lireEtat(env), bandeau);
+        : vueCommandes(email, await lireEtat(env), FILTRES.map(x => x[0]).find(x => x === url.searchParams.get("f")) || "traiter", bandeau);
       if (cookie) r.headers.append("Set-Cookie", cookie);
       return r;
     }
