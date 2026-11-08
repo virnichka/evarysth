@@ -564,3 +564,83 @@ test("Retirer au fabricant : confirmation obligatoire ; articles à valider, fab
   assert.match(bandeau(r), /CF-2026-0010-B envoyée à Atelier Dupont ✓/, "n° rendu jamais réattribué");
   assert.equal(art(1)["Commande CF"], "CF-2026-0010-B");
 });
+
+/* Fabricant « manuel » (colonne Envoi) : atelier interne, plateforme, téléphone… */
+const MANUEL = "Atelier Evarysth";
+function avecManuel() {
+  sheet.Fabricants[0].push("Envoi");
+  sheet.Fabricants.push([MANUEL, "", "3", "oui", "Manuel"]);
+  sheet.Listes = [["Transporteurs"], ["Colissimo"], ["Remise en main propre"]];
+  sheet["Commandes CF"][0].push("Référence externe");
+}
+const colRef = () => sheet["Commandes CF"][0].indexOf("Référence externe");
+
+test("Envoi manuel : validé directement « acceptée » sans e-mail, fiche à transmettre, référence externe, expédition déclarée → e-mail client", async () => {
+  avecManuel();
+  assert.match(await (await get("/admin?q=EV-2026-0010")).text(), /<option value="Atelier Evarysth">Atelier Evarysth \(envoi manuel\)<\/option>/);
+  let r = await envoyer("/admin/valider", { fab_1: MANUEL, stl_1: "https://drive.google.com/file/d/sm/view", fab_2: "" });
+  assert.match(bandeau(r), /CF-2026-0010-A confiée à Atelier Evarysth \(envoi manuel/);
+  assert.equal(emails.length, 0, "aucun e-mail au fabricant");
+  assert.deepEqual([art(1).Statut, art(1)["Dernier statut notifié"], art(1)["Commande CF"]], ["acceptee", "acceptee", "CF-2026-0010-A"]);
+  assert.deepEqual(sheet.Journal.at(-1).slice(1), ["CF-2026-0010-A", "lien_stl_a_indiquer", "acceptee", "proprietaire"]);
+
+  let html = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.match(html, /Atelier Evarysth · envoi manuel · 1 article/);
+  assert.match(html, /<textarea id="fiche-CF-2026-0010-A" class="fiche" readonly[^>]*>Commande CF-2026-0010-A\n\nPièces[^\n]*\nboite-rugged · a=142[\s\S]*Fichier STL : https:\/\/drive\.google\.com\/file\/d\/sm\/view\n\nDélai convenu : 3 jours\n\nÀ expédier directement au client :\nCamille Test\n1 rue des Lilas, 75011 Paris, FR<\/textarea>/);
+  assert.doesNotMatch(html, /Renvoyer l&#39;e-mail au fabricant|Renvoyer l'e-mail au fabricant/);
+  assert.doesNotMatch(html, /Il a répondu autrement/, "manuel : actions affichées directement");
+  assert.match(html, /action="\/admin\/expedier"[\s\S]*<option value="Remise en main propre">/);
+
+  r = await envoyer("/admin/reference", { cf: "CF-2026-0010-A", ref: "PLAT-123" });
+  assert.match(bandeau(r), /référence externe « PLAT-123 » enregistrée/);
+  assert.equal(sheet["Commandes CF"][1][colRef()], "PLAT-123");
+  assert.match(await (await get("/admin?q=EV-2026-0010")).text(), /envoi manuel · 1 article · réf\. PLAT-123/);
+  assert.match(bandeau(await envoyer("/admin/reference", { cf: "CF-2026-0011-A", ref: "x" })), /inconnue/, "CF d'une autre commande refusée");
+
+  r = await envoyer("/admin/expedier", { cf: "CF-2026-0010-A", transporteur: "Pigeon", suivi: "" });
+  assert.match(bandeau(r), /choisissez un transporteur/);
+  assert.equal(art(1).Statut, "acceptee");
+  r = await envoyer("/admin/expedier", { cf: "CF-2026-0010-A", transporteur: "Remise en main propre", suivi: "" });
+  assert.match(bandeau(r), /CF-2026-0010-A expédiée \(Remise en main propre\) ; client prévenu ✓/);
+  assert.deepEqual([art(1).Statut, art(1)["Dernier statut notifié"], art(1).Transporteur], ["expediee", "expediee", "Remise en main propre"]);
+  assert.equal(emails.length, 1);
+  assert.deepEqual(emails[0].to, [{ email: "client@example.com", name: "Camille Test" }]);
+  assert.match(emails[0].textContent, /Transporteur : Remise en main propre/);
+  assert.doesNotMatch(emails[0].textContent, /N° de suivi/, "pas de ligne de suivi vide");
+  assert.deepEqual(sheet.Journal.at(-1).slice(1), ["CF-2026-0010-A", "acceptee", "expediee", "proprietaire"]);
+  const b = await silence(() => tachePlanifiee(env));
+  assert.deepEqual([b.notifiees, emails.length], [[], 1], "la tâche ne renvoie rien");
+  assert.match(bandeau(await envoyer("/admin/expedier", { cf: "CF-2026-0010-A", transporteur: "Colissimo" })), /rien à expédier/);
+});
+
+test("Fabricant par e-mail qui répond autrement : « Marquer acceptée » puis expédition avec suivi, depuis /admin", async () => {
+  avecManuel();
+  await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/file/d/sm/view", fab_2: "" });
+  assert.equal(emails.length, 1);
+  const html = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.match(html, /Il a répondu autrement[\s\S]*action="\/admin\/accepter"[\s\S]*action="\/admin\/expedier"/);
+  assert.doesNotMatch(html, /class="fiche"/, "pas de fiche à transmettre : il a reçu l'e-mail");
+  let r = await envoyer("/admin/accepter", { cf: "CF-2026-0010-A" });
+  assert.match(bandeau(r), /CF-2026-0010-A marquée acceptée ✓/);
+  assert.equal(art(1).Statut, "acceptee");
+  assert.deepEqual(sheet.Journal.at(-1).slice(1), ["CF-2026-0010-A", "envoyee_fabricant", "acceptee", "proprietaire"]);
+  assert.match(bandeau(await envoyer("/admin/accepter", { cf: "CF-2026-0010-A" })), /rien à accepter/);
+  r = await envoyer("/admin/expedier", { cf: "CF-2026-0010-A", transporteur: "Colissimo", suivi: "6A999" });
+  assert.match(bandeau(r), /expédiée \(Colissimo · 6A999\) ; client prévenu ✓/);
+  assert.match(emails.at(-1).textContent, /Transporteur : Colissimo\nN° de suivi : 6A999/);
+});
+
+test("Envoi manuel choisi dans le Sheet (envoyee_fabricant) : la tâche n'écrit pas au fabricant et ne relance pas", async () => {
+  avecManuel();
+  Object.assign(sheet["Commandes CF"][1], { [COL_CF.Statut]: "envoyee_fabricant", [COL_CF.Fabricant]: MANUEL, [COL_CF["Lien STL"]]: "https://drive.google.com/x", [COL_CF["Commande CF"]]: "CF-2026-0010-A" });
+  const e = { ...env, ORDER_EMAIL: "proprio@example.com" };
+  const b = await silence(() => tachePlanifiee(e));
+  assert.deepEqual(b.notifiees, ["CF-2026-0010-A : envoyee_fabricant"]);
+  assert.equal(emails.length, 0);
+  const b2 = await silence(() => tachePlanifiee(e, Date.now() + 5 * 86400_000));
+  assert.deepEqual([b2.relances, emails.length], [[], 0]);
+  const html = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.match(html, /class="fiche"/);
+  assert.doesNotMatch(html, /En attente d&#39;acceptation|En attente d'acceptation/);
+  assert.match(bandeau(await envoyer("/admin/renvoyer", { cf: "CF-2026-0010-A" })), /envoi manuel, aucun e-mail/);
+});

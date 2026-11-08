@@ -15,6 +15,11 @@
                           dans Stripe) ; case « Je confirme » obligatoire, aucun e-mail, liens fabricant devenus sans effet
    POST /admin/retirer    CF envoyée ou acceptée → articles de nouveau à valider sans fabricant ni n° CF (rendreCF), e-mail
                           au fabricant ; case « Je confirme » obligatoire. Le fabricant peut aussi refuser lui-même (/f/ refuser).
+   POST /admin/accepter   CF envoyée → acceptee (le fabricant a répondu autrement que par son lien)
+   POST /admin/expedier   CF envoyée ou acceptée → expediee (transporteur de la liste, suivi facultatif), e-mail client aussitôt
+   POST /admin/reference  « Référence externe » (n° chez le fournisseur) sur les lignes de la CF (colonne facultative)
+   Fabricant « manuel » (colonne Envoi de l'onglet Fabricants) : validé directement en acceptee, sans e-mail ;
+   la fiche à transmettre (pièces, STL, délai, adresse s'il livre le client) est affichée sur le pli de la CF.
    POST /admin/renvoyer   renvoie l'e-mail dû pour une CF (fabricant si envoyée/acceptée, client si expédiée), sans changer de statut
    POST /admin/tache      lance tout de suite la tâche planifiée (même code que le cron des 10 minutes)
    POST : Origin = celle de la page, jeton anti-falsification (HMAC lié à l'e-mail Access, 12 h), relecture du Sheet
@@ -25,13 +30,14 @@ import { verifierAcces } from "./acces.js";
 import { ErreurGoogle, googleConfigure } from "./google.js";
 import { egal, jetonConfigure, signature } from "./jeton.js";
 import { EXTENSIONS, fichierStandardDispo, segmentTaille } from "./fichier.js";
-import { A_ENVOYER, STATUTS, statutEV, cfsRendues, DELAI_RELANCE_MS, envoyerSelonStatut, estTest, journaliserSiNouveau, lancerTache, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
-import { A_VALIDER, dateParis, majArticle, REFUSEE, rendreCF, RETIRABLES, STL_A_INDIQUER } from "./sheet.js";
+import { A_ENVOYER, STATUTS, statutEV, baseWorker, cfsRendues, DELAI_RELANCE_MS, envoyerSelonStatut, estTest, journaliserSiNouveau, lancerTache, liensGroupe, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
+import { A_VALIDER, dateParis, journaliser, majArticle, majLignesCF, REF_EXTERNE, REFUSEE, rendreCF, RETIRABLES, STL_A_INDIQUER } from "./sheet.js";
+import { lireTransporteurs } from "./fournisseur.js";
 import { contenuRetrait, envoyerEmail } from "./email.js";
 import { EVARYSTH } from "./catalogue.js";
 import { ICONES } from "./icones.js";
 
-const ENVOYE = "envoyee_fabricant", INCIDENT = "incident";
+const ENVOYE = "envoyee_fabricant", ACCEPTEE = "acceptee", INCIDENT = "incident";
 const EN_COURS = [ENVOYE, "acceptee", "expediee"];
 const LIBELLES = {
   lien_stl_a_indiquer: "Lien STL à indiquer", a_valider: "À valider", payee: "Payée (ancien circuit)",
@@ -132,7 +138,9 @@ nav a[aria-current]{background:var(--text);border-color:var(--text);color:#fff}
 .grille .alerte{border-color:var(--accent)}.ligne{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-top:1px solid var(--line);padding:9px 0}.ligne:first-child{border-top:0;padding-top:0}
 .voyant{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;background:var(--muted)}.v-ok{background:var(--ok)}.v-err{background:var(--err)}.v-att{background:#c98a00}
 .note{white-space:pre-line;font-size:13px;color:#7a5600;background:#fff7dc;border-radius:8px;padding:6px 10px;margin:-4px 0 10px}
-form.retirer{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}.recherche{display:flex;margin:8px 0 10px}.recherche input{flex:1;min-width:0;margin:0;border-radius:8px 0 0 8px}.recherche button{flex:none;width:44px;margin:0;padding:0;border-radius:0 8px 8px 0;border:1px solid var(--line);border-left:0;background:var(--card);color:var(--muted);display:grid;place-items:center}.recherche button:hover{background:var(--bg)}
+form.retirer,form.agir,details.agir{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}details.agir>summary{padding:0 0 4px}details.agir form.agir:first-of-type{border-top:0;margin-top:4px;padding-top:0}
+textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin:0 0 10px;background:#fff;color:var(--text)}textarea.fiche{font:13px/1.45 ui-monospace,"JetBrains Mono",monospace;background:var(--bg);resize:vertical}
+.ligne-champ{display:flex;gap:8px}.ligne-champ input{flex:1;min-width:0;margin:0}.ligne-champ button{width:auto;margin:0;padding:0 14px}form.ref{padding-bottom:2px}.recherche{display:flex;margin:8px 0 10px}.recherche input{flex:1;min-width:0;margin:0;border-radius:8px 0 0 8px}.recherche button{flex:none;width:44px;margin:0;padding:0;border-radius:0 8px 8px 0;border:1px solid var(--line);border-left:0;background:var(--card);color:var(--muted);display:grid;place-items:center}.recherche button:hover{background:var(--bg)}
 .vh{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.journal{font-size:14px}
 details{border-top:1px solid var(--line)}details:first-child{border-top:0}summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 0}
 summary::-webkit-details-marker{display:none}summary::after{content:"";flex:none;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);margin:0 4px 0 2px;transition:transform .15s}
@@ -269,6 +277,26 @@ async function vueRecherche(env, email, etat, q, bandeau) {
   return trouves.length === 1 ? vueFiche(env, email, etat, trouves[0], bandeau) : vueCommandes(email, etat, null, bandeau, q, trouves);
 }
 
+/* Fiche à transmettre (fabricant « manuel ») : même contenu que l'e-mail fabricant, en texte à copier */
+async function ficheATransmettre(env, ev, cf, ls, fab) {
+  const stl = await liensGroupe(env, ls, baseWorker(env));
+  const [nom = "", , adresse = ""] = String(ev.client || "").split("\n");
+  return [`Commande ${cf}`, `Pièces (produit · taille ou cotes en mm · coloris · quantité) :\n${ls.map(l => l.article).join("\n")}`,
+    `Fichier STL : ${stl.texte || "à indiquer"}${stl.manquants.length ? ` (manque : ${stl.manquants.join(", ")})` : ""}`,
+    ...(fab.delai ? [`Délai convenu : ${fab.delai} jours`] : []),
+    ...(fab.livre ? [`À expédier directement au client :\n${[nom.trim(), adresse.trim()].filter(Boolean).join("\n")}`] : [])].join("\n\n");
+}
+/* Actions à la place du fabricant : accepter (si envoyée), déclarer l'expédition */
+const formsAgir = (champs, cf, ls, transporteurs) => `${ls.some(l => l.statut === ENVOYE) ? `<form class="agir" method="post" action="/admin/accepter">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
+<button class="second" type="submit">Marquer acceptée</button></form>` : ""}
+<form class="agir" method="post" action="/admin/expedier">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
+<label for="tr-${esc(cf)}">Transporteur</label><select id="tr-${esc(cf)}" name="transporteur" required><option value="">Choisir…</option>${transporteurs.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("")}</select>
+<label for="suivi-${esc(cf)}">N° de suivi <span class="muted">(facultatif)</span></label><input id="suivi-${esc(cf)}" name="suivi" maxlength="80" autocomplete="off">
+<button type="submit">Déclarer l'expédition (e-mail au client)</button></form>`;
+const formReference = (champs, cf, ref) => `<form class="agir ref" method="post" action="/admin/reference">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
+<label for="ref-${esc(cf)}">Référence externe <span class="muted">(n° chez le fournisseur, facultatif)</span></label>
+<span class="ligne-champ"><input id="ref-${esc(cf)}" name="ref" maxlength="80" autocomplete="off" value="${esc(ref)}"><button class="second" type="submit">Enregistrer</button></span></form>`;
+
 /* Fiche d'une commande client : en-tête, articles à valider (formulaire), bloqués, envois fabricant (un pli par CF),
    historique et actions définitives repliés. saisie = valeurs à garder après une erreur : { ev, fab: { n: nom }, stl: { n: lien } } */
 async function vueFiche(env, email, etat, numero, { message = "", type = "ok", saisie = null } = {}, statut = 200) {
@@ -297,7 +325,7 @@ ${stripe ? `<p class="muted"><a href="${esc(stripe)}" target="_blank" rel="noope
       lignes.push(`<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${badge(l.statut)}</div>
 <div class="piece">${esc(l.article)}</div>${l.notes.trim() ? `<p class="note">${esc(l.notes.trim())}</p>` : ""}
 <label for="fab-${esc(id)}">Fabricant</label><select id="fab-${esc(id)}" name="fab_${esc(l.n)}">
-<option value="">— plus tard —</option>${noms.map(f => `<option value="${esc(f)}"${f === fab ? " selected" : ""}>${esc(f)}</option>`).join("")}</select>
+<option value="">— plus tard —</option>${noms.map(f => `<option value="${esc(f)}"${f === fab ? " selected" : ""}>${esc(f)}${etat.fabs[f].manuel ? " (envoi manuel)" : ""}</option>`).join("")}</select>
 <label for="stl-${esc(id)}">Lien STL${r2 ? " <span class=\"muted\">(fichier standard disponible, facultatif)</span>" : ""}</label>
 <input id="stl-${esc(id)}" name="stl_${esc(l.n)}" type="url" inputmode="url" autocomplete="off" placeholder="https://drive.google.com/…" value="${esc(cache(l.n, "stl", l.stl.trim()))}"></div>`);
     }
@@ -317,23 +345,34 @@ ${bloques.map(l => `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>`).jo
   for (const l of arts) if (l.cf) (parCF[l.cf] ||= []).push(l);
   const renvoyables = Object.fromEntries(cfsRenvoyables(arts).map(g => [g.cf, g]));
   const cfs = Object.keys(parCF).sort();
+  /* CF encore chez le fabricant : actions à sa place ; fabricant « manuel » : fiche à transmettre */
+  const fabDe = cf => etat.fabs[parCF[cf][0].fabricant.trim()] || {};
+  const actives = cfs.filter(cf => parCF[cf].some(l => RETIRABLES.includes(l.statut)));
+  const transporteurs = actives.length ? await lireTransporteurs(env) : [];
+  const fiches = {};
+  for (const cf of actives) if (fabDe(cf).manuel) fiches[cf] = await ficheATransmettre(env, ev, cf, parCF[cf].filter(l => RETIRABLES.includes(l.statut)), fabDe(cf));
   if (cfs.length) blocs.push(`<h2>Envois fabricant <span class="compte">${cfs.length}</span></h2>${cfs.map(cf => {
     const ls = parCF[cf], memes = ls.every(l => l.statut === ls[0].statut);
     const s = memes ? ls[0].statut : ls.map(l => l.statut).filter(x => !CLOS.includes(x)).sort((a, b) => STATUTS.indexOf(a) - STATUTS.indexOf(b))[0] || ls[0].statut;
     const suivi = [ls[0].transporteur, ls[0].suivi].map(x => String(x || "").trim()).filter(Boolean).join(" · ");
-    const g = renvoyables[cf];
-    const a = s === ENVOYE ? attente(etat, cf) : null, ton = a ? (a.retard ? "t-att" : "t-wait") : TON(s);
-    return `<details class="carte pli bord ${ton}"${cfs.length === 1 ? " open" : ""}><summary><span class="nom">${esc(cf)}<br><span class="muted">${esc(ls[0].fabricant.trim() || "—")} · ${pluriel(ls.length, "article")}</span></span><span class="resume"><span class="badge ${ton}">${esc(libelle(s))}</span></span>${a ? `<span class="attend${a.retard ? " retard" : ""}">${esc(texteAttente(a))}</span>` : ""}</summary>
+    const manuel = Boolean(fabDe(cf).manuel), active = actives.includes(cf);
+    const g = renvoyables[cf] && !(manuel && renvoyables[cf].statut === ENVOYE) ? renvoyables[cf] : null;
+    const a = s === ENVOYE && !manuel ? attente(etat, cf) : null, ton = a ? (a.retard ? "t-att" : "t-wait") : TON(s);
+    const ref = String(ls[0].ref || "").trim();
+    const infos = [ls[0].fabricant.trim() || "—", manuel ? "envoi manuel" : "", pluriel(ls.length, "article"), ref ? `réf. ${ref}` : ""].filter(Boolean).join(" · ");
+    return `<details class="carte pli bord ${ton}"${cfs.length === 1 ? " open" : ""}><summary><span class="nom">${esc(cf)}<br><span class="muted">${esc(infos)}</span></span><span class="resume"><span class="badge ${ton}">${esc(libelle(s))}</span></span>${a ? `<span class="attend${a.retard ? " retard" : ""}">${esc(texteAttente(a))}</span>` : ""}</summary>
 <div class="detail">${suivi ? `<p class="muted">Suivi : ${esc(suivi)}</p>` : ""}${ls.map(l => {
       const lien = lienValide(l.stl);
       return `<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${memes ? "" : badge(l.statut)}</div><div class="piece">${esc(l.article)}</div>
 <p class="muted">Lien STL : ${lien ? `<a href="${esc(lien)}" target="_blank" rel="noopener noreferrer">ouvrir ↗</a>` : esc(l.stl.trim() || "—")}</p></div>`;
-    }).join("")}${g ? `<form method="post" action="/admin/renvoyer">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
+    }).join("")}${fiches[cf] ? `<label for="fiche-${esc(cf)}">Fiche à transmettre</label><textarea id="fiche-${esc(cf)}" class="fiche" readonly rows="${Math.min(22, fiches[cf].split("\n").reduce((n, x) => n + Math.max(1, Math.ceil(x.length / 34)), 1))}">${esc(fiches[cf])}</textarea>` : ""}
+${etat.refExterne && active ? formReference(champs, cf, ref) : ""}${active ? (manuel ? formsAgir(champs, cf, ls, transporteurs)
+  : `<details class="agir"><summary><span class="nom">Il a répondu autrement (téléphone, e-mail…)</span></summary>${formsAgir(champs, cf, ls, transporteurs)}</details>`) : ""}${g ? `<form method="post" action="/admin/renvoyer">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
 <button class="second" type="submit">Renvoyer l'e-mail ${g.statut === ENVOYE ? "au fabricant" : "d'expédition au client"}</button></form>` : ""}${ls.some(l => RETIRABLES.includes(l.statut)) ? `
 <form class="retirer" method="post" action="/admin/retirer">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
-<label for="motif-${esc(cf)}">Retirer au fabricant <span class="muted">(refus par e-mail, pas de réponse…)</span></label>
-<input id="motif-${esc(cf)}" name="motif" maxlength="200" autocomplete="off" placeholder="Motif pour le fabricant (facultatif)">
-<label class="confirme"><input type="checkbox" name="confirmer" value="oui" required> <span>Je confirme : il est prévenu par e-mail, ses liens ne fonctionnent plus, les articles reviennent « à valider »</span></label>
+<label for="motif-${esc(cf)}">Retirer au fabricant <span class="muted">(${manuel ? "changer d'atelier ou de fournisseur" : "refus par e-mail, pas de réponse…"})</span></label>
+<input id="motif-${esc(cf)}" name="motif" maxlength="200" autocomplete="off" placeholder="${manuel ? "Motif (facultatif, gardé dans Notes)" : "Motif pour le fabricant (facultatif)"}">
+<label class="confirme"><input type="checkbox" name="confirmer" value="oui" required> <span>${manuel ? "Je confirme : les articles reviennent « à valider »" : "Je confirme : il est prévenu par e-mail, ses liens ne fonctionnent plus, les articles reviennent « à valider »"}</span></label>
 <button class="danger" type="submit">Retirer au fabricant</button></form>` : ""}</div></details>`;
   }).join("")}`);
 
@@ -375,7 +414,7 @@ export function chargeFabricants(etat, maintenant = Date.now()) {
       const envoi = [...(journal[cf] || [])].reverse().find(j => j.nouveau === ENVOYE);
       return envoi && maintenant - parisVersMs(envoi.date) > delai * 86400_000;
     }) : [];
-    return { nom, email: masquerEmail(f.email), delai: String(f.delai || "").trim(), livre: f.livre, enCours: enCours.sort(), retard: retard.sort() };
+    return { nom, email: f.manuel ? "Envoi manuel (sans e-mail)" : masquerEmail(f.email), delai: String(f.delai || "").trim(), livre: f.livre, enCours: enCours.sort(), retard: retard.sort() };
   });
 }
 function vueFabricants(email, etat, bandeau) {
@@ -567,7 +606,7 @@ async function valider(env, email, f) {
     if (!fab) continue;
     const ficheFab = etat.fabs[fab];
     if (!ficheFab) return erreur(`Article ${l.n} : fabricant « ${fab} » inconnu (onglet Fabricants).`);
-    if (!/@/.test(ficheFab.email)) return erreur(`Article ${l.n} : le fabricant « ${fab} » n'a pas d'e-mail (onglet Fabricants).`);
+    if (!ficheFab.manuel && !/@/.test(ficheFab.email)) return erreur(`Article ${l.n} : le fabricant « ${fab} » n'a pas d'e-mail (onglet Fabricants ; ou « manuel » dans sa colonne Envoi).`);
     const lien = lienValide(saisie.stl[l.n]);
     if (lien === null) return erreur(`Article ${l.n} : le lien STL doit être une adresse https:// complète.`);
     if (!lien && !l.stl.trim() && !await fichierStandardDispo(env, l.article))
@@ -576,14 +615,17 @@ async function valider(env, email, f) {
   }
   if (!choisis.length) return erreur("Choisissez le fabricant d'au moins un article.");
 
-  /* N° CF (même règle que la tâche planifiée), puis écriture : fabricant, lien, n° CF, statut envoyee_fabricant */
+  /* N° CF (même règle que la tâche planifiée), puis écriture : fabricant, lien, n° CF, statut envoyee_fabricant
+     (fabricant « manuel » : directement acceptee, rien à notifier, le propriétaire transmet la fiche lui-même) */
   for (const c of choisis) c.l.fabricant = c.fab;
   const voulu = numerosCF(numero, toutes, cfsRendues(etat.journal));
   for (const c of choisis) {
     c.ancien = c.l.notifie || c.l.statut;
     c.l.cf = voulu[toutes.indexOf(c.l)];
-    await majArticle(env, numero, c.l.n, { Fabricant: c.fab, "Lien STL": c.lien, "Commande CF": c.l.cf, Statut: ENVOYE });
-    c.l.stl = c.lien; c.l.statut = ENVOYE;
+    c.manuel = etat.fabs[c.fab].manuel;
+    const s = c.manuel ? ACCEPTEE : ENVOYE;
+    await majArticle(env, numero, c.l.n, { Fabricant: c.fab, "Lien STL": c.lien, "Commande CF": c.l.cf, Statut: s, ...(c.manuel ? { "Dernier statut notifié": s } : {}) });
+    c.l.stl = c.lien; c.l.statut = s;
   }
 
   /* E-mail fabricant, un par CF, tout de suite */
@@ -591,6 +633,11 @@ async function valider(env, email, f) {
   for (const c of choisis) { if (!groupes.has(c.l.cf)) groupes.set(c.l.cf, []); groupes.get(c.l.cf).push(c); }
   const ok = [], attente = [];
   for (const [cf, cs] of groupes) {
+    if (cs[0].manuel) {
+      await journaliserSiNouveau(env, etat.journal, cf, cs[0].ancien, ACCEPTEE, "proprietaire");
+      ok.push(`${cf} confiée à ${cs[0].fab} (envoi manuel : fiche à transmettre sur la commande)`);
+      continue;
+    }
     const g = { cf, numero: cf, ev: numero, statut: ENVOYE, lignes: cs.map(c => c.l) };
     try {
       const r = await envoyerSelonStatut(env, g, etat.evs[numero] || { numero, client: "", sid: "" }, toutes, etat.fabs);
@@ -668,10 +715,57 @@ async function renvoyer(env, f) {
   const toutes = etat.parEV[numero] || [];
   const g = cfsRenvoyables(toutes).find(x => x.cf === cf);
   if (!g) return redirection(env, `${cf || "Commande"} : aucun e-mail à renvoyer pour ce statut.`, "err", "", numero);
+  if (g.statut === ENVOYE && (etat.fabs[g.lignes[0].fabricant.trim()] || {}).manuel) return redirection(env, `${cf} : fabricant en envoi manuel, aucun e-mail à lui envoyer.`, "err", "", numero);
   const r = await envoyerSelonStatut(env, { ...g, numero: cf, ev: numero }, etat.evs[numero] || { numero, client: "", sid: "" }, toutes, etat.fabs)
     .catch(e => { console.error("Admin : renvoi", cf, e.message); return "e-mail non parti, réessayez"; });
   if (r !== true) return redirection(env, `${cf} : e-mail non renvoyé (${r}).`, "err", "", numero);
   return redirection(env, `${cf} : e-mail ${g.statut === ENVOYE ? "renvoyé au fabricant" : "d'expédition renvoyé au client"} ✓`, "ok", "", numero);
+}
+
+/* n° CF d'une commande client (formulaire) : null si mal formé ou d'une autre commande */
+const cfDe = (f, numero) => { const cf = nettoyer(f.get("cf")); return /^CF-\d{4}-\d+-[A-Z]+$/.test(cf) && evDeCF(cf) === numero ? cf : null; };
+
+/* POST /admin/accepter : le fabricant a accepté autrement que par son lien */
+async function accepterAdmin(env, f) {
+  const numero = nettoyer(f.get("ev")), cf = cfDe(f, numero);
+  if (!cf) return redirection(env, "Commande fournisseur inconnue.", "err", "", numero);
+  const ls = await majLignesCF(env, cf, [ENVOYE], { Statut: ACCEPTEE });
+  if (!ls.length) return redirection(env, `${cf} : rien à accepter (déjà acceptée, expédiée ou retirée).`, "err", "", numero);
+  await journaliser(env, { numero: cf, ancien: ENVOYE, nouveau: ACCEPTEE, auteur: "proprietaire" });
+  return redirection(env, `${cf} marquée acceptée ✓`, "ok", "", numero);
+}
+
+/* POST /admin/expedier : expédition déclarée à la place du fabricant (ou par l'atelier) ; e-mail client tout de suite,
+   sinon la tâche planifiée le renvoie (Dernier statut notifié en retard) */
+async function expedierAdmin(env, f) {
+  const numero = nettoyer(f.get("ev")), cf = cfDe(f, numero);
+  if (!cf) return redirection(env, "Commande fournisseur inconnue.", "err", "", numero);
+  const transporteur = nettoyer(f.get("transporteur")), suivi = nettoyer(f.get("suivi"), 80);
+  if (!transporteur || !(await lireTransporteurs(env)).includes(transporteur)) return redirection(env, `${cf} : choisissez un transporteur dans la liste.`, "err", "", numero);
+  const ls = await majLignesCF(env, cf, RETIRABLES, { Transporteur: transporteur, "N° de suivi": suivi, Statut: "expediee" });
+  if (!ls.length) return redirection(env, `${cf} : rien à expédier (déjà expédiée, retirée ou annulée).`, "err", "", numero);
+  const ancien = ls.some(l => l.statut === ENVOYE) ? ENVOYE : ACCEPTEE;
+  await journaliser(env, { numero: cf, ancien, nouveau: "expediee", auteur: "proprietaire" });
+  /* E-mail client : même groupe que la tâche planifiée (lignes de la CF, avec le suivi) */
+  const etat = await lireEtat(env);
+  const lignes = (etat.parEV[numero] || []).filter(l => l.cf === cf && l.statut === "expediee");
+  let envoi;
+  try { envoi = lignes.length ? await envoyerSelonStatut(env, { cf, numero: cf, ev: numero, statut: "expediee", lignes }, etat.evs[numero] || { numero, client: "", sid: "" }, etat.parEV[numero], etat.fabs) : "lignes relues introuvables"; }
+  catch (e) { console.error("Admin : expédition", cf, e.message); envoi = "e-mail non parti"; }
+  if (envoi === true) {
+    for (const l of lignes) await majArticle(env, numero, l.n, { "Dernier statut notifié": "expediee" });
+    return redirection(env, `${cf} expédiée (${transporteur}${suivi ? " · " + suivi : ""}) ; client prévenu ✓`, "ok", "", numero);
+  }
+  return redirection(env, `${cf} expédiée ; e-mail client en attente (${envoi}), renvoi automatique sous 10 min.`, "err", "", numero);
+}
+
+/* POST /admin/reference : n° de commande chez le fournisseur (colonne facultative « Référence externe ») */
+async function reference(env, f) {
+  const numero = nettoyer(f.get("ev")), cf = cfDe(f, numero), ref = nettoyer(f.get("ref"), 80);
+  if (!cf) return redirection(env, "Commande fournisseur inconnue.", "err", "", numero);
+  const ls = await majLignesCF(env, cf, null, { [REF_EXTERNE]: ref });
+  if (!ls.length) return redirection(env, `${cf} : commande fournisseur introuvable.`, "err", "", numero);
+  return redirection(env, ref ? `${cf} : référence externe « ${ref} » enregistrée ✓` : `${cf} : référence externe effacée.`, "ok", "", numero);
 }
 
 /* POST /admin/retirer : CF envoyée ou acceptée retirée au fabricant (articles de nouveau à valider), fabricant prévenu */
@@ -684,6 +778,7 @@ async function retirer(env, f) {
   if (!rendu) return redirection(env, `${cf} : rien à retirer (déjà expédiée, retirée ou annulée).`, "err", "", numero);
   const fiche = etat.fabs[rendu.fabricant], test = estTest(env, (etat.evs[numero] || {}).sid);
   let souci = "";
+  if (fiche && fiche.manuel) return redirection(env, `${cf} retirée à ${rendu.fabricant} : ${pluriel(rendu.lignes.length, "article")} de nouveau à valider (envoi manuel : prévenez-le si besoin).`, "ok", "", numero);
   if (!env.BREVO_API_KEY || !fiche || !/@/.test(fiche.email)) souci = "fabricant non prévenu (pas d'e-mail ou Brevo non configuré) : prévenez-le";
   else {
     const m = contenuRetrait({ numero: cf, motif, test, piece: rendu.lignes.map(l => l.article).join("\n") });
@@ -709,7 +804,7 @@ export async function routeAdmin(req, env, url) {
   const icone = /^\/admin\/([a-z0-9-]+\.(?:svg|png|webmanifest))$/.exec(url.pathname);
   if (icone && req.method === "GET") { const r = ressource(icone[1]); if (r) return r; }
   const route = `${req.method} ${url.pathname}`;
-  const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/cloturer", "POST /admin/renvoyer", "POST /admin/retirer", "POST /admin/tache"];
+  const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/cloturer", "POST /admin/renvoyer", "POST /admin/retirer", "POST /admin/accepter", "POST /admin/expedier", "POST /admin/reference", "POST /admin/tache"];
   if (!routes.includes(route)) return simple("Introuvable", "Page introuvable.", 404);
 
   let email;
@@ -743,6 +838,9 @@ export async function routeAdmin(req, env, url) {
     if (url.pathname === "/admin/cloturer") return await cloturer(env, f);
     if (url.pathname === "/admin/renvoyer") return await renvoyer(env, f);
     if (url.pathname === "/admin/retirer") return await retirer(env, f);
+    if (url.pathname === "/admin/accepter") return await accepterAdmin(env, f);
+    if (url.pathname === "/admin/expedier") return await expedierAdmin(env, f);
+    if (url.pathname === "/admin/reference") return await reference(env, f);
     if (url.pathname === "/admin/tache") return await tacheMaintenant(env);
     return await debloquer(env, f);
   } catch (e) {

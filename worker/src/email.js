@@ -195,7 +195,7 @@ export function contenuExpedition({ numero, nom, transporteur, suivi, test, arti
     ...(articles ? [reste
       ? "Le reste de la commande est fabriqué séparément et vous sera envoyé dans un autre colis : vous recevrez un e-mail à son expédition."
       : "Votre commande est expédiée en plusieurs colis : avec celui-ci, elle est entièrement en route."] : []),
-    `Transporteur : ${transporteur || "—"}\nN° de suivi : ${suivi || "—"}`,
+    `Transporteur : ${transporteur || "—"}${suivi ? `\nN° de suivi : ${suivi}` : ""}`,
     "Une question ? Répondez simplement à cet e-mail en rappelant votre n° de commande.", "Evarysth"
   ];
   return { sujet: titre, texte: texteBrut(p), html: page(titre, p) };

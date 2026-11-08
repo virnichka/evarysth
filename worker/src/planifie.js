@@ -16,7 +16,7 @@ import { creerJeton, jetonConfigure } from "./jeton.js";
 import { liensStandards } from "./fichier.js";
 import { EVARYSTH } from "./catalogue.js";
 import { contenuExpedition, contenuFabricant, contenuRelance, envoyerEmail } from "./email.js";
-import { A_VALIDER, CF, dateParis, FABRICANTS, REFUSEE, STL_A_INDIQUER, JOURNAL, journaliser, majArticle, ONGLET, ONGLET_CF } from "./sheet.js";
+import { A_VALIDER, CF, dateParis, FABRICANTS, REF_EXTERNE, REFUSEE, STL_A_INDIQUER, JOURNAL, journaliser, majArticle, ONGLET, ONGLET_CF } from "./sheet.js";
 
 export const STATUTS = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree", "incident", "remboursee", "annulee"];
 export const STATUTS_EV = ["payee", "en_fabrication", "partiellement_expediee", "expediee", "livree", "incident", "remboursee", "annulee"];
@@ -29,6 +29,7 @@ const pasEnvoye = l => A_ENVOYER.includes(l.statut) || (l.statut === "envoyee_fa
 export const RELANCE = "relance_48h";               /* valeur « Nouveau statut » de la ligne de Journal qui marque la relance */
 export const DELAI_RELANCE_MS = 48 * 3600_000;
 const URL_WORKER = "https://evarysth-checkout.virnichka.workers.dev";
+export const baseWorker = env => (env.WORKER_URL || URL_WORKER).replace(/\/+$/, "");
 const COLS_CF = [CF.num, CF.ev, CF.art, "Statut", "Article", "Fabricant", "Lien STL", "Transporteur", "N° de suivi", "Dernier statut notifié"];
 const COLS_EV = ["Commande", "Date", "Statut", "Type", "Client", "Cadeau / message", "Stripe session id"];
 const oui = v => /^oui$/i.test(String(v || "").trim());
@@ -48,11 +49,14 @@ export function parisVersMs(s) {
 }
 
 /* Fiche du fabricant par son nom (onglet Fabricants) */
-const COLS_FAB = ["Nom", "E-mail", "Délai (jours)", "Livre le client"];
+const COLS_FAB = ["Nom", "E-mail", "Délai (jours)", "Livre le client", "Envoi"];
+/* Colonne facultative « Envoi » de l'onglet Fabricants : « manuel » = commande transmise par le propriétaire (atelier
+   interne, plateforme, téléphone…) : ni e-mail ni liens au fabricant, ni relance ; tout autre valeur (ou vide) = e-mail */
+export const estManuel = v => /^\s*manuel/i.test(String(v || ""));
 const COLS_JOURNAL = ["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"];
 function fabricantsDe(v) {
   const fabs = {};
-  (v.Nom || []).forEach((n, i) => { if (n.trim()) fabs[n.trim()] = { email: (v["E-mail"] || [])[i] || "", delai: (v["Délai (jours)"] || [])[i] || "", livre: oui((v["Livre le client"] || [])[i]) }; });
+  (v.Nom || []).forEach((n, i) => { if (n.trim()) fabs[n.trim()] = { email: (v["E-mail"] || [])[i] || "", delai: (v["Délai (jours)"] || [])[i] || "", livre: oui((v["Livre le client"] || [])[i]), manuel: estManuel((v.Envoi || [])[i]) }; });
   return fabs;
 }
 
@@ -114,7 +118,7 @@ export function statutEV(statuts) {
 /* Liens STL d'un groupe d'articles : Lien STL saisi sur la ligne, sinon fichier standard de R2 (bloc E) ;
    un seul lien → l'URL seule, sinon « produit taille : URL » par article. Renvoie { texte, manquants } :
    manquants = articles sans aucun lien (l'e-mail fabricant ne part jamais sans fichier). */
-async function liensGroupe(env, lignes, base) {
+export async function liensGroupe(env, lignes, base) {
   const liens = [], manquants = [];
   for (const l of lignes) {
     const url = l.stl.trim() || await liensStandards(env, l.article, base).catch(e => { console.warn("R2", e.message); return ""; });
@@ -129,6 +133,7 @@ export async function envoyerSelonStatut(env, g, ev, tous, fabs) {
   const test = estTest(env, ev.sid);
   if (g.statut === "envoyee_fabricant") {
     if (!g.cf) return "fabricant à choisir";
+    if ((fabs[g.lignes[0].fabricant.trim()] || {}).manuel) return true;     /* envoi manuel : le propriétaire transmet lui-même */
     if (!env.BREVO_API_KEY || !jetonConfigure(env)) return "secret BREVO_API_KEY ou HMAC_SECRET manquant";
     const nom = g.lignes[0].fabricant.trim(), f = fabs[nom];
     if (!f || !/@/.test(f.email)) return `fabricant « ${nom || "—"} » sans e-mail dans l'onglet Fabricants`;
@@ -181,8 +186,8 @@ export async function journaliserSiNouveau(env, journal, numero, ancien, nouveau
 /* État du Sheet utile à la tâche et à la page /admin : commandes EV, articles CF (avec leur n° de ligne), fabricants, Journal */
 export async function lireEtat(env) {
   /* 2 appels au Sheet en tout (en-têtes des 4 onglets, puis leurs colonnes) : moins de quota, moins de ratés */
-  const [{ v }, { v: e }, { v: vFab }, { v: vJournal }] = await lireOnglets(env, [
-    { onglet: ONGLET_CF, noms: COLS_CF, options: ["Notes"] }, { onglet: ONGLET, noms: COLS_EV },
+  const [{ v, cols: colsCF }, { v: e }, { v: vFab }, { v: vJournal }] = await lireOnglets(env, [
+    { onglet: ONGLET_CF, noms: COLS_CF, options: ["Notes", REF_EXTERNE] }, { onglet: ONGLET, noms: COLS_EV },
     { onglet: FABRICANTS, noms: COLS_FAB, facultatif: true }, { onglet: JOURNAL, noms: COLS_JOURNAL }]);
   const fabs = fabricantsDe(vFab), journal = journalDe(vJournal);
 
@@ -191,10 +196,10 @@ export async function lireEtat(env) {
     date: e.Date[i] || "", type: e.Type[i] || "", cadeau: e["Cadeau / message"][i] || "" }; });
   const lignes = v[CF.ev].map((n, i) => ({ ev: n.trim(), n: (v[CF.art][i] || "").trim(), cf: (v[CF.num][i] || "").trim(), statut: (v.Statut[i] || "").trim(),
     article: v.Article[i] || "", fabricant: v.Fabricant[i] || "", stl: v["Lien STL"][i] || "", transporteur: v.Transporteur[i] || "",
-    suivi: v["N° de suivi"][i] || "", notes: (v.Notes || [])[i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim(), ligne: i + 2 })).filter(l => l.ev && l.n);
+    suivi: v["N° de suivi"][i] || "", notes: (v.Notes || [])[i] || "", ref: (v[REF_EXTERNE] || [])[i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim(), ligne: i + 2 })).filter(l => l.ev && l.n);
   const parEV = {};
   for (const l of lignes) (parEV[l.ev] ||= []).push(l);
-  return { evs, lignes, parEV, fabs, journal };
+  return { evs, lignes, parEV, fabs, journal, refExterne: REF_EXTERNE in colsCF };
 }
 
 /* Un passage. Renvoie un bilan { attribuees, notifiees, attente, erreurs, relances, commandes } (ou { inactive: true }). */
@@ -257,6 +262,7 @@ export async function tachePlanifiee(env, maintenant = Date.now()) {
   }
   for (const [cf, ls] of Object.entries(parCF)) {
     if (!ls.some(l => l.statut === "envoyee_fabricant" && l.notifie === "envoyee_fabricant")) continue;
+    if ((fabs[ls[0].fabricant.trim()] || {}).manuel) continue;          /* envoi manuel : pas de relance */
     try { if (await relancer(env, cf, ls[0].fabricant, (evs[ls[0].ev] || {}).sid, journal, maintenant)) bilan.relances.push(cf); }
     catch (x) { bilan.erreurs.push(`${cf} : ${x.message}`); }
   }

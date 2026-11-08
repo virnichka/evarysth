@@ -181,6 +181,7 @@ export async function journaliserCreation(env, numero, statut) {
    « Notes » (fabricant, motif), une ligne de Journal « refusee_fabricant » (n° CF jamais réattribué, voir numerosCF).
    Lignes relues juste avant l'écriture, une écriture par ligne. Renvoie { lignes, fabricant, ancien } ou null (rien à rendre). */
 export const REFUSEE = "refusee_fabricant";
+export const REF_EXTERNE = "Référence externe";     /* colonne facultative de Commandes CF : n° de commande chez le fournisseur */
 export const RETIRABLES = ["envoyee_fabricant", "acceptee"];
 export async function rendreCF(env, cf, { auteur, motif = "" }) {
   const cols = await entetes(env, ONGLET_CF);
@@ -213,4 +214,19 @@ export async function refusDe(env, cf) {
   const j = await lireColonnes(env, JOURNAL, cj, ["Commande", "Nouveau statut", "Auteur"]);
   const i = j.Commande.findIndex((n, k) => n === cf && j["Nouveau statut"][k] === REFUSEE);
   return i < 0 ? null : { auteur: (j.Auteur[i] || "").trim() };
+}
+
+/* Lignes d'une CF (statut dans `depuis`, ou toutes hors annulées/remboursées si null), relues juste avant l'écriture ;
+   une écriture par ligne : valeurs, ou fonction ligne → valeurs. Renvoie les lignes écrites (état d'avant). */
+export async function majLignesCF(env, cf, depuis, valeurs) {
+  const cols = await entetes(env, ONGLET_CF);
+  const lu = await lireColonnes(env, ONGLET_CF, cols, [CF.num, CF.ev, CF.art, "Statut", "Fabricant", "Article"]);
+  const lignes = [];
+  lu[CF.num].forEach((n, i) => {
+    const statut = (lu.Statut[i] || "").trim();
+    if (n.trim() === cf && (depuis ? depuis.includes(statut) : !["annulee", "remboursee"].includes(statut)))
+      lignes.push({ ligne: i + 2, statut, ev: lu[CF.ev][i], n: lu[CF.art][i], fabricant: (lu.Fabricant[i] || "").trim(), article: lu.Article[i] || "" });
+  });
+  for (const l of lignes) await ecrireLigne(env, ONGLET_CF, cols, l.ligne, typeof valeurs === "function" ? valeurs(l) : valeurs);
+  return lignes;
 }
