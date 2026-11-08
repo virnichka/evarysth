@@ -34,139 +34,54 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `.github/workflows/worker.yml` | Teste puis déploie le Worker à chaque changement de `worker/` ou de `data.js`. |
 | `CLAUDE.md` | Méthode pour ajouter un produit 3D à partir de fichiers STL. |
 
-## Paiement (Stripe Checkout, mode test)
-Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes ouvrent bientôt » (panier conservé).
-- Activer sur son navigateur : ouvrir `https://www.evarysth.fr/?checkout=test` (désactiver : `?checkout=off`).
-- Parcours : panier → `worker/` (`https://evarysth-checkout.virnichka.workers.dev`) → page Stripe → `commande/merci/`.
-  Le navigateur n'envoie que produit, taille ou cotes, coloris et quantité ; **les prix sont recalculés par le Worker**
-  depuis `data.js`, les cotes vérifiées (min/max/pas). Codes promo : ceux créés dans Stripe.
-- Chaque ligne Stripe porte en métadonnées `produit`, `mode`, `cotes_mm` (JSON), `coloris`, `catalogue` (empreinte de `data.js`).
-- **Emballage cadeau** (3 € par commande, case `#gift-on` du panier, mémorisée dans `evarysth.cadeau`) : le navigateur n'envoie que
-  `cadeau: true` et `message` (200 caractères max, refusé au-delà). Le Worker ajoute lui-même la ligne Stripe « Emballage cadeau »
-  au prix de `CADEAU_CENTS` (`worker/src/commande.js`, même valeur que `GIFT` dans `cart.js`). Métadonnées de session :
-  `cadeau` (`oui`/`non`) et `message_cadeau` ; repris dans la fiche de fabrication et sur `commande/merci/`.
-  Comme chez Stripe, un code promo porte sur les articles et l'emballage, jamais sur la livraison : le total du panier est celui de Stripe.
-- **CGV** : pages `cgv/`, `mentions-legales/`, `confidentialite/` générées depuis `tools/pages-legales/<id>.html`
-  (repères `[À COMPLÉTER : …]` surlignés en jaune, classe `.todo`). Le Worker demande la case « J'accepte les CGV »
-  (`consent_collection.terms_of_service`) ; si l'URL des CGV n'est pas renseignée dans Stripe (Paramètres → Informations publiques),
-  Stripe refuse et le Worker repasse au texte seul (`custom_text.submit`). La réponse de `/checkout` indique `cgv: "case"` ou `"texte"`.
-  `CGV_STRIPE = "non"` dans `wrangler.toml` coupe l'essai. Sur-mesure : rappel de l'exclusion du droit de rétractation (art. L221-28 3°)
-  sur la fiche, dans le panier et sur la page Stripe.
-- Cartes de test : `4242 4242 4242 4242` (accepté), `4000 0025 0000 3155` (3D Secure), `4000 0000 0000 9995` (refusé).
-- Commandes payées : tableau de bord Stripe et e-mail « Nouvelle commande ». Les journaux du Worker (Cloudflare → Workers → Logs)
-  ne gardent qu'un résumé **sans donnée personnelle** (réf., n° EV-…, total, nombre d'articles).
-- **Paiement différé** (ex. prélèvement SEPA, si activé dans Stripe) : `checkout.session.completed` arrive avec
-  `payment_status: unpaid` ; le Worker n'écrit rien dans le Sheet et n'envoie rien au client, l'atelier reçoit
-  « [PAIEMENT EN ATTENTE] Nouvelle commande … — ne pas fabriquer ». La commande est traitée à
-  `checkout.session.async_payment_succeeded` : **cocher aussi cet événement sur le webhook Stripe** si un moyen de paiement
-  différé est activé (avec les cartes seules, rien à faire).
-- **Back-office Google Sheet** (`worker/src/google.js`, `worker/src/sheet.js`, plan : `docs/traitement-commandes.md`) : deux
-  niveaux, deux numérotations. **Commande client** `EV-AAAA-NNNN` (onglet `Commandes EV`, une ligne par achat, seul n° vu
-  par le client) ; **commande fournisseur** `CF-AAAA-NNNN-X` (onglet `Commandes CF`, une ligne par article, seul n° vu par
-  le fabricant ; la lettre distingue les fabricants d'une même commande). À chaque `checkout.session.completed`, le Worker
-  ajoute la commande à `Commandes EV` (sans doublon, clé : Stripe session id ; n° attribué par « écrire puis vérifier »,
-  voir le plan, bloc B), puis une ligne par article (produit · taille ou cotes · matière · coloris · quantité) dans `Commandes CF` (statut `a_valider` si le
-  STL standard est dans R2, sinon `lien_stl_a_indiquer` ; **rien ne part chez le fabricant sans validation**), écrit une ligne dans `Journal` et envoie au
-  client l'e-mail Brevo « Commande EV-… reçue » (une seule fois). Accès par compte de service (JWT RS256 en WebCrypto,
-  jeton en cache 1 h). Google en erreur : la fiche de fabrication part quand même, puis réponse 503 (Stripe réessaie).
-  **Inactif tant que les secrets `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY` et `SHEET_ID` ne sont pas tous définis** (marche à
-  suivre : plan, « À faire par le propriétaire »).
-- **Page d'administration** (`worker/src/admin.js`, `worker/src/acces.js`, plan : bloc G) : Worker
-  `evarysth-admin` (`wrangler.toml` `[env.admin]`, simple relais sans secret vers le Worker public), `https://evarysth-admin.virnichka.workers.dev/admin`, derrière
-  Cloudflare Access (JWT revérifié par le Worker). Par article : fabricant + lien STL (obligatoire) → « Valider et envoyer »
-  → `envoyee_fabricant` et e-mail fabricant immédiat ; « Bloquer » / « Débloquer ».
-- **Liens fournisseur** (`worker/src/jeton.js`, `worker/src/fournisseur.js`) : jeton
-  `commande.action.fabricant.expiration.signature` (HMAC-SHA256, secret `HMAC_SECRET`, valable 14 jours, rien de stocké ;
-  `commande` = n° **CF** obligatoire ; création : `creerJeton(env, { commande, action, fabricant })`). `GET /f/<jeton>`
-  affiche seulement une page avec un bouton et les articles de la CF (ne modifie rien) ; `POST /f/<jeton>` revérifie le
-  jeton et le fabricant de **toutes les lignes de la CF**, puis leur applique la seule transition prévue : `accepter`
-  (`envoyee_fabricant` → `acceptee`) ou `expedier` (`acceptee` ou `envoyee_fabricant` → `expediee`, transporteur choisi
-  dans `Listes!C` + n° de suivi obligatoires, écrits dans le Sheet), puis une ligne de `Journal` (n° CF, auteur
-  `fabricant`). Lignes `annulee`/`remboursee` ignorées, une ligne en `incident` bloque. 2e clic : « déjà confirmée »,
-  sans 2e ligne. Lien falsifié ou ligne confiée à un autre fabricant 403, expiré 410, transition interdite 409.
-  **Sans `HMAC_SECRET` ou sans secrets Google : `/f/` répond 503**, le reste du Worker est inchangé.
-- **Tâche planifiée** (`worker/src/planifie.js`, cron `*/10 * * * *` dans `worker/wrangler.toml`, handler `scheduled`) :
-  lit `Commandes CF` et `Commandes EV`, puis 1. **attribue les n° CF** : articles pas encore envoyés d'une même commande EV
-  et d'un même fabricant → même n° (lettre stable ; article déjà envoyé jamais renuméroté ; fabricant effacé → n°
-  effacé) ; 2. recopie transporteur + n° de suivi sur les lignes de la même CF qui n'en ont pas ; 3. pour les lignes où
-  `Statut` ≠ `Dernier statut notifié`, groupées par CF, envoie l'e-mail dû (Brevo), puis **seulement après un envoi
-  réussi** écrit cette colonne et journalise (une ligne par CF, auteur `proprietaire` s'il n'est pas déjà dans
-  `Journal`) : `envoyee_fabricant` → **un e-mail par CF** au fabricant (onglet `Fabricants` : e-mail, délai ; articles,
-  liens STL, boutons accepter/expédier signés `creerJeton`, liens vers `WORKER_URL` ; nom et adresse du client
-  **seulement si `Livre le client` = oui**) ; `expediee` → e-mail client par colis (n° EV, transporteur, suivi ;
-  « un colis de votre commande… », « le reste suivra » s'il y a plusieurs CF) ; fabricant non choisi → la ligne attend ;
-  autres statuts : colonne mise à jour, sans e-mail. Relance à `ORDER_EMAIL` si pas d'`acceptee` 48 h après le passage
-  en `envoyee_fabricant` (date du `Journal`), **une seule par CF** (ligne `Journal` « → `relance_48h` ») ;
-  4. journalise les changements du **statut client** de `Commandes EV`, qui est une **formule du Sheet** calculée à
-  partir des articles (`payee` → `en_fabrication` → `partiellement_expediee` → `expediee` → `livree`, `incident`),
-  sauf si `Statut forcé` est rempli (`incident`, `remboursee`, `annulee`) ; la liste des n° CF est aussi une formule.
-  Le Worker n'écrit dans aucune de ces colonnes. Sans secrets Google : ne fait rien ; sans `BREVO_API_KEY`/`HMAC_SECRET` ou fabricant
-  sans e-mail : la ligne attend (avertissement dans les journaux) ; Brevo en erreur : colonne inchangée, nouvel essai
-  10 min plus tard. La fiche « Nouvelle commande » du webhook est inchangée.
-  **Vérification manuelle** : ouvrir `$W/maj`, saisir la clé `ADMIN_KEY` dans le formulaire (envoyée en POST, jamais dans
-  l'adresse ni l'historique) : la même tâche est lancée tout de suite et un bilan s'affiche (secret absent → 503, clé
-  fausse → 403). L'ancien lien `?cle=…` ne lance plus rien.
-- **STL standards** (`worker/src/fichier.js`, bucket R2 `evarysth-stl`, binding `STL` **commenté** dans `worker/wrangler.toml`
-  tant que le bucket n'existe pas) : `GET /fichier/<jeton>` sert l'objet R2 en pièce jointe ; jeton
-  `fichier.<clé>.<expiration>.<signature>` (HMAC_SECRET, 14 jours, même mécanique que les liens fournisseur, non
-  interchangeable avec eux) ; falsifié → 403, expiré → 410, absent → 404, sans binding ou sans `HMAC_SECRET` → 503.
-  Clés : `<produit>/<taille>.stl` (ou `.3mf`, `.zip`), taille en minuscules sans accents (`boite-rugged/m.stl`,
-  `…/moyenne.stl`, `Ø 12` → `12`). E-mail fabricant : pour chaque article de la CF, son `Lien STL`, sinon le lien R2 du
-  fichier standard s'il existe ; aucun lien → « fourni séparément » (R2 en panne : idem, l'e-mail part quand même).
-- Secrets (dans Cloudflare, jamais dans le dépôt) : `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (+ `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET`) ; binding R2 `STL` facultatif. En mode test, une clé live est refusée.
-- Tests : `cd worker && node --test` (dont `test/parcours.test.mjs` : recette de bout en bout webhook → tâche planifiée → liens fournisseur → expédition).
-- Passage en production (checklist, dans l'ordre) :
-  1. Pages légales sans `[À COMPLÉTER]` ; Stripe → activer le compte (identité, SIRET, IBAN) ; Paramètres → Informations
-     publiques : URL CGV `https://www.evarysth.fr/cgv/`, confidentialité `https://www.evarysth.fr/confidentialite/`,
-     e-mail support `contact@evarysth.fr` (active aussi la case CGV, `cgv: "case"`).
-  2. Paramètres → E-mails clients : « Paiements réussis » et « Remboursements » cochés (reçus Stripe).
-  3. En mode live : clé `sk_live_` (ou `rk_live_` restreinte) → secret `STRIPE_SECRET_KEY` ; webhook live
-     `https://evarysth-checkout.virnichka.workers.dev/webhook` sur `checkout.session.completed` (+ `checkout.session.async_payment_succeeded`
-     si un paiement différé est activé) → secret `STRIPE_WEBHOOK_SECRET`.
-  4. Recréer les coupons/codes promo en live (ex. `BRABOU78`, mêmes conditions qu'en test).
-  5. `CHECKOUT_MODE = "live"` dans `worker/wrangler.toml` (déploiement auto) ; retirer le drapeau `?checkout=test` dans `cart.js`.
-  6. Commande réelle à petit prix puis remboursement : e-mail reçu, webhook 200, reçu client.
+## Paiement et commandes (mode test)
+Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes ouvrent bientôt ». Tester :
+`https://www.evarysth.fr/?checkout=test` (désactiver : `?checkout=off`). Cartes : `4242 4242 4242 4242` (OK),
+`4000 0025 0000 3155` (3D Secure), `4000 0000 0000 9995` (refusée). Détails et historique : `docs/traitement-commandes.md`.
 
-### E-mails de commande (Brevo) — configuration faite le 7 novembre 2026
-À chaque commande payée, le Worker doit m'envoyer par l'API Brevo un e-mail « Nouvelle commande » avec la fiche de fabrication.
-Le code d'envoi est **en cours dans une autre session (pas encore dans le dépôt)** ; les comptes et le DNS sont prêts :
-- **Compte Brevo** : offre gratuite (300 e-mails/jour), aucune validation en attente.
-- **Domaine evarysth.fr authentifié** dans Brevo. Zone DNS OVH : ajout du TXT `brevo-code:…` (racine), des CNAME DKIM
-  `brevo1._domainkey` → `b1.evarysth-fr.dkim.brevo.com.` et `brevo2._domainkey` → `b2.evarysth-fr.dkim.brevo.com.`,
-  du TXT `_dmarc` `v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com` ; SPF unique complété :
-  `v=spf1 include:mx.ovh.com include:spf.brevo.com -all`. A/AAAA (GitHub Pages), `www` et MX OVH inchangés.
-- **Expéditeur** : `Evarysth <commandes@evarysth.fr>` (validé). Reply-to : l'e-mail du client, sinon `REPLY_TO`
-  (`contact@evarysth.fr`, `worker/wrangler.toml`).
-- **Adresses du projet** : boîte `evarysth@gmail.com` ; redirections OVH (MX Plan → Redirections) `contact@evarysth.fr`
-  (clients, affichée sur les pages légales) et `commandes@evarysth.fr` (expéditeur) → `evarysth@gmail.com`.
-  Aucune adresse personnelle dans le dépôt.
-- **Clé API v3** `evarysth-worker`, restreinte à « E-mails transactionnels » ; enregistrée dans Cloudflare comme secret
-  **`BREVO_API_KEY`** du Worker `evarysth-checkout`. Blocage des IP non autorisées **désactivé** pour les clés API
-  (le Worker appelle depuis des IP Cloudflare variables).
-- Test de réception d'une redirection : écrire depuis une **autre** boîte que `evarysth@gmail.com` (Gmail masque un
-  message qui revient vers l'expéditeur : il n'apparaît que dans « Envoyés »). Contrôle SPF/DKIM/DMARC « PASS » :
-  « Afficher l'original » de l'e-mail « [TEST] Nouvelle commande ».
-- **Envoi branché** (`worker/src/email.js`) : à chaque `checkout.session.completed`, e-mail « Nouvelle commande EV-… »
-  (« [TEST] » en mode test) avec la fiche de fabrication (cotes en mm avec leurs libellés, coloris, emballage cadeau et
-  message, adresse, lien Stripe). Répondre à l'e-mail écrit au client (reply-to). Expéditeur : `EMAIL_FROM` dans
-  `worker/wrangler.toml`. **Destinataire : secret Cloudflare `ORDER_EMAIL`** (une ou plusieurs adresses séparées par des
-  virgules), jamais dans le dépôt, qui est public. Sans `ORDER_EMAIL` ou `BREVO_API_KEY`, aucun e-mail (avertissement dans
-  les journaux) ; si Brevo refuse, le webhook répond 500 et Stripe renvoie l'événement plus tard.
-- Attention : la clé expire après **90 jours sans aucun appel** ; tant que les ventes sont fermées, la recréer si besoin.
+**Circuit d'une commande**
+1. Panier → Worker `evarysth-checkout` (`worker/`) → page Stripe → `commande/merci/`. Le navigateur n'envoie que produit,
+   taille ou cotes, coloris, quantité, cadeau ; **le Worker recalcule les prix depuis `data.js`** et vérifie les cotes.
+2. Webhook Stripe payé → Sheet back-office : une ligne `Commandes EV` (n° client `EV-AAAA-NNNN`) et une ligne par article
+   dans `Commandes CF` ; e-mail client « Commande reçue » et fiche « Nouvelle commande » au propriétaire (Brevo).
+   Article en `a_valider` (STL standard présent dans R2) ou `lien_stl_a_indiquer`. **Rien ne part sans validation.**
+3. Le propriétaire valide sur la page d'administration `https://evarysth-admin.virnichka.workers.dev/admin` (téléphone,
+   derrière Cloudflare Access) : fabricant + lien STL (obligatoire) → « Valider et envoyer » → `envoyee_fabricant`,
+   n° fournisseur `CF-AAAA-NNNN-X` (seul n° vu par le fabricant ; lettre = fabricant), e-mail fabricant immédiat.
+   Boutons « Bloquer » / « Débloquer » (`incident`).
+4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours).
+5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas
+   d'acceptation sous 48 h, renvoi des e-mails en échec, Journal. Statut client (`Commandes EV`) = formule du Sheet.
 
-### Sécurité du Worker (audit du 7 novembre 2026)
-- Webhook : signature HMAC Stripe vérifiée en temps constant, 5 min de tolérance ; rejeu sans doublon dans le Sheet
-  (clé : session id ; seul l'e-mail interne peut repartir). Commande traitée seulement si `payment_status` = `paid`.
-- Prix et cotes toujours recalculés depuis `data.js` ; ≤ 30 lignes, quantité 1–99, corps ≤ 20 Ko.
-- Jetons fabricant et `/fichier` : HMAC-SHA256 (`HMAC_SECRET`), comparaison en temps constant, 14 jours.
-- E-mails et pages HTML : tout texte inséré est échappé ; Sheet écrit en `RAW` (pas de formule injectée).
-- Visiteur : erreurs Stripe génériques (détail dans les journaux) ; `/session` renvoie l'e-mail masqué (`c•••@domaine`).
-- `/maj` : clé en POST ; **après ce changement, changer la valeur de `ADMIN_KEY`** (l'ancienne a pu passer dans l'historique
-  ou les journaux) : `cd worker && npx wrangler secret put ADMIN_KEY`.
-- Workflows : actions GitHub épinglées par empreinte (SHA, version en commentaire) ; mettre à jour SHA et commentaire ensemble.
-- Tests : `worker/test/securite.test.mjs`, `worker/test/maj.test.mjs`.
-- Restent à faire hors code : limite d'appels Cloudflare sur `/checkout` et `/promo` (Sécurité → WAF → règles de limitation),
-  jeton `CLOUDFLARE_API_TOKEN` limité à « Workers Scripts : Edit », purge annuelle du Sheet (> 5 ans).
+**Fichiers** (`worker/src/`) : `index.js` (routes), `commande.js` (panier → Stripe), `sheet.js` / `google.js` (Sheet,
+lecture/écriture par nom de colonne, jamais par position), `planifie.js` (tâche), `admin.js` + `acces.js` (page
+d'administration, jeton Access revérifié), `fournisseur.js` + `jeton.js` (liens fabricant), `fichier.js` (STL R2),
+`email.js` (contenus Brevo). Tests : `cd worker && node --test`.
+
+**Deux Workers** (`worker/wrangler.toml`) : `evarysth-checkout` (tout le code et les secrets ; sert `/admin` seulement
+pour l'adresse `ADMIN_HOST`) et `evarysth-admin` (`[env.admin]`, simple relais sans secret, protégé par Access :
+équipe `ACCESS_TEAM_DOMAIN`, application `ACCESS_AUD`, autorisé `ADMIN_EMAILS`). Déployés par
+`.github/workflows/worker.yml` à chaque push sur `main` touchant `worker/` ou `data.js`.
+
+**Secrets** (Cloudflare, Worker `evarysth-checkout`, jamais dans le dépôt public) : `STRIPE_SECRET_KEY`,
+`STRIPE_WEBHOOK_SECRET`, `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET`,
+`ADMIN_KEY` (`/maj` : lance la tâche à la main). En mode test, une clé Stripe live est refusée.
+
+**Points d'attention**
+- Ne jamais supprimer une ligne de commande dans le Sheet : statut `annulee` / `remboursee`. Ne pas écrire dans les colonnes
+  grises (formules, « Dernier statut notifié »).
+- R2 (STL standards) pas encore activé : binding `STL` commenté dans `wrangler.toml` ; clés `<produit>/<taille>.stl`.
+- Brevo : domaine `evarysth.fr` authentifié (DNS OVH), expéditeur `commandes@evarysth.fr`, réponses vers le client ou
+  `contact@evarysth.fr`. La clé API expire après 90 jours sans appel.
+- Paiement différé (SEPA) : cocher aussi `checkout.session.async_payment_succeeded` sur le webhook Stripe.
+- Sécurité : signature Stripe vérifiée, jetons HMAC en temps constant, textes échappés, Sheet écrit en `RAW`, actions
+  GitHub épinglées par SHA. Reste hors code : limite d'appels WAF sur `/checkout` et `/promo`.
+- Reporté : livre des recettes et remboursements Stripe synchronisés (`charge.refunded`) ; STL sur-mesure automatiques.
+
+**Passage en production** : pages légales sans `[À COMPLÉTER]` ; compte Stripe activé, URL CGV et confidentialité dans
+Stripe (Informations publiques), reçus clients cochés ; clé `sk_live_` + webhook live → secrets ; codes promo recréés en
+live ; `CHECKOUT_MODE = "live"` dans `wrangler.toml` et retrait de `?checkout=test` dans `cart.js` ;
+commande réelle à petit prix puis remboursement.
 
 ## Sécurité du site (CSP)
 
