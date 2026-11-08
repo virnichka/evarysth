@@ -21,9 +21,11 @@ import { A_VALIDER, CF, dateParis, FABRICANTS, STL_A_INDIQUER, JOURNAL, journali
 export const STATUTS = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree", "incident", "remboursee", "annulee"];
 export const STATUTS_EV = ["payee", "en_fabrication", "partiellement_expediee", "expediee", "livree", "incident", "remboursee", "annulee"];
 export const A_ENVOYER = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire"];   /* avant l'envoi au fabricant */
-/* Article pas encore envoyé au fabricant (son n° CF peut encore changer) : statut d'avant l'envoi, ou e-mail
-   fabricant pas encore parti (fabricant et envoyee_fabricant choisis d'un coup, avant le passage de la tâche) */
-const pasEnvoye = l => A_ENVOYER.includes(l.statut) || !l.notifie || A_ENVOYER.includes(l.notifie);
+/* Article pas encore envoyé au fabricant (son n° CF peut encore changer) : statut d'avant l'envoi, ou
+   envoyee_fabricant dont l'e-mail fabricant n'est pas encore parti (fabricant et statut choisis d'un coup, avant le
+   passage de la tâche). Un article plus avancé (acceptee, expediee…) n'est jamais renuméroté, même si
+   « Dernier statut notifié » a du retard. */
+const pasEnvoye = l => A_ENVOYER.includes(l.statut) || (l.statut === "envoyee_fabricant" && (!l.notifie || A_ENVOYER.includes(l.notifie)));
 export const RELANCE = "relance_48h";               /* valeur « Nouveau statut » de la ligne de Journal qui marque la relance */
 export const DELAI_RELANCE_MS = 48 * 3600_000;
 const URL_WORKER = "https://evarysth-checkout.virnichka.workers.dev";
