@@ -89,9 +89,39 @@ si un choix est mauvais, dis-le et explique pourquoi.
 - Génération automatique des STL sur-mesure (idée V2 : GitHub Action OpenSCAD → R2).
 - Proposition automatique du fabricant (idée V2 : capacités par fabricant).
 
-### Prérequis encore non faits
-Compte de service Google et secrets Cloudflare non posés, R2 non activé, ligne fabricant vide : **le circuit
-n'a jamais tourné en réel**. C'est donc le bon moment pour changer d'approche si nécessaire.
+### État réel du Sheet (relevé le 8 novembre 2026)
+Le circuit **tourne en mode test** (paiements Stripe test, vrais e-mails) : 6 commandes EV, 7 lignes CF,
+4 fabricants de test, Journal rempli. Onglets présents : `Mode d'emploi`, `Commandes EV`, `Commandes CF`,
+`Journal`, `Fabricants`, `Listes`, `Checklist`, `Modèles d'e-mails`. Les anciens onglets `Synthèse` et
+`Livre des recettes` **n'existent plus**. R2 n'est toujours pas activé. Ce qu'on observe :
+- Sans R2, le propriétaire **colle aussi un lien Drive pour des articles standard** (le même lien sur plusieurs
+  commandes) : le geste manuel du sur-mesure s'étend au standard.
+- Le Journal montre des **retours en arrière manuels** (`expediee` → `envoyee_fabricant`, puis `acceptee` saisi
+  par le propriétaire à la place du fabricant) : le statut se modifie trop facilement dans un menu déroulant,
+  sans confirmation, et chaque retour déclenche à nouveau des e-mails.
+- Une nouvelle commande reste en « Choisir le fabricant » tant que le propriétaire n'a pas ouvert le Sheet :
+  rien ne le prévient, à part l'e-mail « fiche de fabrication ».
+- Une commande à deux fabricants est bien suivie (`partiellement_expediee`), mais il faut lire deux onglets
+  pour comprendre où elle en est.
+- Des fautes de saisie passent sans contrôle (nom de fabricant mal orthographié, pays incohérent avec le code
+  postal dans une adresse client).
+- **L'onglet `Checklist` décrit encore l'ancien processus manuel**, où le propriétaire fabriquait lui-même :
+  saisie manuelle dans `Commandes`, statuts `1. Reçue` … `7. Close`, compta mensuelle depuis `Synthèse`, qui
+  n'existe plus. Plusieurs étapes utiles de cet ancien processus **n'ont pas d'équivalent aujourd'hui** :
+  - **vérifier les cotes** du sur-mesure avant fabrication (faute de frappe : 5 mm au lieu de 50) et écrire au
+    client en cas de doute ;
+  - **rappeler les cotes dans l'e-mail de confirmation** (les CGV le promettent) ;
+  - **contrôle qualité** avant envoi (mesure, photo de preuve), alors que c'est désormais le fabricant qui expédie ;
+  - date « expédier avant le », e-mail de retard, frais d'envoi réels ;
+  - **date de livraison** (début du délai de rétractation pour le standard), puis clôture ;
+  - rapprochement mensuel avec Stripe et montant à déclarer à l'URSSAF.
+- `Modèles d'e-mails` : 9 textes à copier à la main dans Gmail (retard, question sur une cote, rétractation
+  standard/sur-mesure, remboursement, pièce défectueuse, colis perdu). Le SAV est entièrement hors système, et
+  les réponses partent de l'adresse Gmail perso et non de `contact@`.
+- `Mode d'emploi` : une page de texte dense (codes couleur, cases grises/blanches, colonnes repliées), signe que
+  l'outil demande un apprentissage.
+
+Rien n'est encore en production : c'est donc le bon moment pour changer d'approche si nécessaire.
 
 ## 4. Points faibles déjà identifiés (par Claude)
 
@@ -107,6 +137,10 @@ n'a jamais tourné en réel**. C'est donc le bon moment pour changer d'approche 
    des recettes débranché.
 7. **Notifications dispersées** : fiche de fabrication par e-mail + Sheet + relances par e-mail.
 8. **Statut `livree` manuel**, donc souvent oublié ; pas d'alerte de retard.
+9. **Étapes perdues dans le passage à la sous-traitance** : vérification des cotes, rappel des cotes au client
+   (promis par les CGV), contrôle qualité, délai de rétractation, compta mensuelle (voir « État réel »).
+10. **Statuts trop faciles à modifier** (menu déroulant, sans confirmation) : un retour en arrière renvoie des e-mails.
+11. **SAV hors système** : modèles Gmail copiés à la main, aucun statut ni historique.
 
 ## 5. Pistes envisagées (non tranchées)
 
@@ -121,6 +155,11 @@ n'a jamais tourné en réel**. C'est donc le bon moment pour changer d'approche 
 - E. **Synchroniser l'argent** : webhooks Stripe `charge.refunded` → statut automatique ; livre des recettes
   généré depuis Stripe ; colonnes coût fournisseur / payé le.
 - F. **Suivi transporteur** automatique (API agrégateur) pour passer `livree` seul et alerter les retards.
+- G. **Contrôles avant fabrication** : alerte automatique sur les cotes hors plage habituelle, e-mail de
+  confirmation qui rappelle les cotes (conformité CGV), photo de contrôle demandée au fabricant via son lien
+  « Expédier ».
+- H. **SAV et e-mails ponctuels dans le système** : statuts SAV, e-mails retard/remboursement déclenchés depuis
+  la ligne au lieu de modèles Gmail ; remplacer `Checklist` et `Mode d'emploi` par l'outil lui-même.
 
 ## 6. Ce que j'attends de toi
 
@@ -130,7 +169,7 @@ Réponds **en français**, dans **exactement** cette structure Markdown (Claude 
 Ce qui est bien conçu et à garder ; ce qui est mal conçu, sur-conçu ou risqué. Classe les points faibles
 (les miens + ceux que tu ajoutes) par impact sur le temps du propriétaire et sur le risque d'erreur client.
 
-### 2. Critique des pistes A à F
+### 2. Critique des pistes A à H
 Pour chacune : verdict (garder / adapter / rejeter), justification, coût de mise en place estimé, coût récurrent,
 risque. Dis clairement si le Sheet doit rester l'outil principal **à ce volume**, et à partir de quel volume
 ou de quel signal il faudrait en changer.
