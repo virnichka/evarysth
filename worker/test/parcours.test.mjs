@@ -57,15 +57,16 @@ async function fauxFetch(url, init = {}) {
 }
 const silence = async f => { const s = [console.log, console.warn, console.error]; console.log = console.warn = console.error = () => {}; try { return await f(); } finally { [console.log, console.warn, console.error] = s; } };
 
-async function webhook(id) {
+async function requeteWebhook(id) {
   const session = { id, created: 1793000000, payment_status: "paid", payment_intent: "pi_1", amount_total: 5490, metadata: { ref: "EV-X", cadeau: "non" },
     customer_details: { name: "Camille Test", email: "client@example.com" },
     collected_information: { shipping_details: { name: "Camille Test", address: { line1: "1 rue des Lilas", postal_code: "75011", city: "Paris", country: "FR" } } } };
   const corps = JSON.stringify({ type: "checkout.session.completed", livemode: false, data: { object: session } });
   const t = Math.floor(Date.now() / 1000);
   const entete = `t=${t},v1=${await signer(env.STRIPE_WEBHOOK_SECRET, `${t}.${corps}`)}`;
-  return silence(() => worker.fetch(new Request("https://w.dev/webhook", { method: "POST", headers: { "Stripe-Signature": entete }, body: corps }), env));
+  return new Request("https://w.dev/webhook", { method: "POST", headers: { "Stripe-Signature": entete }, body: corps });
 }
+const webhook = async id => { const r = await requeteWebhook(id); return silence(() => worker.fetch(r, env)); };
 /* Commande client par session Stripe ; ses articles (onglet Commandes CF) ; saisie à la main du propriétaire */
 const ligne = sid => (appliquerFormules(sheet), 0) || objet(ENTETES_EV, sheet["Commandes EV"].find(l => l[COL_EV["Stripe session id"]] === sid));
 const articles = sid => sheet["Commandes CF"].filter(l => l[COL_CF["Commande EV"]] === ligne(sid).Commande).map(l => objet(ENTETES_CF, l));
@@ -111,7 +112,7 @@ async function suiteFabricant(sid, verifierEmail) {
   return sheet.Journal.slice(1).filter(l => l[1] === num || l[1] === cf).map(l => `${l[1].slice(0, 2)}:${l[3]}/${l[4]}`);
 }
 
-test("Parcours standard : paiement → payee → validation → e-mail fabricant avec lien STL R2 → acceptee → expediee → e-mail client", async () => {
+test("Parcours standard : paiement → a_valider → validation → e-mail fabricant avec lien STL R2 → acceptee → expediee → e-mail client", async () => {
   lignesStripe = [{ description: "Boîte rugged — M", quantity: 1, amount_total: 4900,
     price: { product: { metadata: { produit: "boite-rugged", mode: "standard", taille: "M", cotes_mm: '{"a":150,"b":100,"c":50}', coloris: "noir" } } } }];
   assert.equal((await webhook("cs_test_std")).status, 200);
@@ -141,13 +142,13 @@ test("Parcours standard : paiement → payee → validation → e-mail fabricant
     "CF:expediee/fabricant", "EV:expediee/worker"]);
 });
 
-test("Parcours sur-mesure : paiement → fichier_a_produire → lien Drive → e-mail fabricant (livre le client) → acceptee → expediee", async () => {
+test("Parcours sur-mesure : paiement → lien_stl_a_indiquer → lien Drive → e-mail fabricant (livre le client) → acceptee → expediee", async () => {
   sheet.Fabricants[1][3] = "oui";
   lignesStripe = [{ description: "Boîte rugged — Sur-mesure", quantity: 1, amount_total: 5900,
     price: { product: { metadata: { produit: "boite-rugged", mode: "custom", cotes_mm: '{"a":142,"b":60,"c":45}', coloris: "noir" } } } }];
   assert.equal((await webhook("cs_test_sm")).status, 200);
   assert.equal(ligne("cs_test_sm").Statut, "payee");
-  assert.equal(articles("cs_test_sm")[0].Statut, "fichier_a_produire");
+  assert.equal(articles("cs_test_sm")[0].Statut, "lien_stl_a_indiquer");
   assert.match(articles("cs_test_sm")[0].Article, /a=142 b=60 c=45/);
 
   ecrire("cs_test_sm", 1, { Fabricant: FAB, "Lien STL": "https://drive.google.com/file/d/abc/view" });
@@ -163,14 +164,20 @@ test("Parcours sur-mesure : paiement → fichier_a_produire → lien Drive → e
     "CF:expediee/fabricant", "EV:expediee/worker"]);
 });
 
-test("Standard sans binding R2 : e-mail fabricant envoyé quand même, « fourni séparément »", async () => {
+test("Standard sans binding R2 : pas d'e-mail fabricant sans lien STL ; parti dès que le lien est saisi", async () => {
   lignesStripe = [{ description: "Boîte rugged — M", quantity: 1, amount_total: 4900,
     price: { product: { metadata: { produit: "boite-rugged", mode: "standard", taille: "M", cotes_mm: "{}", coloris: "noir" } } } }];
   const sansR2 = { ...env }; delete sansR2.STL;
-  await webhook("cs_test_r2");
+  const req = await requeteWebhook("cs_test_r2");
+  await silence(() => worker.fetch(req, sansR2));
+  assert.equal(articles("cs_test_r2")[0].Statut, "lien_stl_a_indiquer");
   ecrire("cs_test_r2", 1, { Fabricant: FAB, Statut: "envoyee_fabricant" });
+  const b = await silence(() => tachePlanifiee(sansR2));
+  assert.match(b.attente.join(), /lien STL manquant/);
+  assert.ok(!emails.some(m => m.tags[0] === "fabricant"));
+  ecrire("cs_test_r2", 1, { "Lien STL": "https://drive.google.com/file/d/std/view" });
   await silence(() => tachePlanifiee(sansR2));
-  assert.match(emails.find(m => m.tags[0] === "fabricant").textContent, /Fichier STL : fourni séparément/);
+  assert.match(emails.find(m => m.tags[0] === "fabricant").textContent, /Fichier STL : https:\/\/drive\.google\.com\/file\/d\/std\/view/);
   assert.equal((await silence(() => worker.fetch(new Request("https://w.dev/fichier/fichier.a.1.b"), sansR2))).status, 503);
 });
 

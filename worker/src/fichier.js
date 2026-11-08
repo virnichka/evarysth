@@ -69,6 +69,15 @@ export async function trouverCle(env, produit, taille) {
   return null;
 }
 
+/* Article standard (« produit · taille · … ») dont le fichier est dans R2 : true ; sinon (sur-mesure, R2 absent ou
+   en panne) false. Ne demande pas HMAC_SECRET : sert seulement à choisir le statut de départ. */
+export async function fichierStandardDispo(env, article) {
+  if (!env.STL || typeof env.STL.head !== "function") return false;
+  const [produit, taille] = String(article || "").split(" · ").map(x => (x || "").trim());
+  if (!produit || !taille || taille === "—" || taille.includes("=")) return false;
+  try { return Boolean(await trouverCle(env, produit, taille)); } catch (e) { console.warn("R2", e.message); return false; }
+}
+
 /* Colonne Pièce (« produit · taille · coloris · ×qté » par ligne) → texte des liens STL des lignes standard.
    Une ligne sur-mesure (cotes « a=… ») ou sans fichier dans R2 est ignorée ; "" si aucun lien (ou rien de configuré). */
 export async function liensStandards(env, piece, base) {

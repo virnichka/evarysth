@@ -3,6 +3,7 @@
    - onglet « Commandes CF » : une ligne par article de la commande (clé = Commande EV + Article n°), fabricant choisi
      par le propriétaire ; la tâche planifiée attribue le n° de commande fournisseur CF-AAAA-NNNN-X (planifie.js). */
 import { EVARYSTH } from "./catalogue.js";
+import { fichierStandardDispo } from "./fichier.js";
 import { ajouterLigne, ecrireCellule, ecrireLigne, entetes, ErreurGoogle, lireColonnes } from "./google.js";
 
 export const ONGLET = "Commandes EV", ONGLET_CF = "Commandes CF", JOURNAL = "Journal", FABRICANTS = "Fabricants";
@@ -23,7 +24,10 @@ export function dateParis(d = new Date()) {
 
 const lignesArticles = fiche => fiche.lignes.filter(l => (l.meta || {}).produit !== "emballage-cadeau");
 export const typeCommande = fiche => (lignesArticles(fiche).some(l => (l.meta || {}).mode === "custom") ? "sur-mesure" : "standard");
-export const statutInitial = type => (type === "sur-mesure" ? "fichier_a_produire" : "payee");
+/* Point de verrou : aucun article ne part chez le fabricant sans validation du propriétaire (page /admin).
+   Départ : a_valider si le fichier STL est connu (standard présent dans R2), sinon lien_stl_a_indiquer. */
+export const A_VALIDER = "a_valider", STL_A_INDIQUER = "lien_stl_a_indiquer";
+export const statutInitial = async (env, a) => (a.type === "standard" && await fichierStandardDispo(env, a.texte) ? A_VALIDER : STL_A_INDIQUER);
 
 /* Un article : « <produit> · <taille M | a=45 b=32> · <matière> · <coloris> · ×<qté> » (matière : celle du catalogue) */
 function ligneArticle(l) {
@@ -127,7 +131,7 @@ async function enregistrerArticles(env, numero, fiche, date) {
     const ecrites = [];
     for (const [k, a] of manquants.entries()) {
       const ligne = vides[k];
-      const statut = statutInitial(a.type);             /* noté comme notifié : pas d'e-mail ni de Journal pour l'état initial */
+      const statut = await statutInitial(env, a);             /* noté comme notifié : pas d'e-mail ni de Journal pour l'état initial */
       await ecrireLigne(env, ONGLET_CF, cols, ligne, { [CF.ev]: numero, [CF.art]: a.n, Date: date, Statut: statut, Type: a.type, Article: a.texte, "Dernier statut notifié": statut });
       ecrites.push({ ligne, n: a.n });
     }
