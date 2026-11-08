@@ -11,7 +11,7 @@
    POST /admin/valider    fabricant + lien STL par article → envoyee_fabricant, e-mail fabricant envoyé tout de suite
    POST /admin/bloquer    articles pas encore envoyés d'une commande → incident
    POST /admin/debloquer  articles bloqués jamais envoyés → retour à a_valider / lien_stl_a_indiquer
-   POST /admin/cloturer   articles de la commande → annulee (pas encore expédiés) ou remboursee (après remboursement fait
+   POST /admin/cloturer   articles cochés de la commande → annulee (pas encore expédiés) ou remboursee (après remboursement fait
                           dans Stripe) ; case « Je confirme » obligatoire, aucun e-mail, liens fabricant devenus sans effet
    POST /admin/renvoyer   renvoie l'e-mail dû pour une CF (fabricant si envoyée/acceptée, client si expédiée), sans changer de statut
    POST /admin/tache      lance tout de suite la tâche planifiée (même code que le cron des 10 minutes)
@@ -37,6 +37,8 @@ const LIBELLES = {
 };
 const LIBELLES_EV = { payee: "Payée", en_fabrication: "En fabrication", partiellement_expediee: "Partiellement expédiée", expediee: "Expédiée",
   livree: "Livrée", incident: "Bloquée", remboursee: "Remboursée", annulee: "Annulée" };
+const ATTENTE_EV = "attente_fabricant";
+LIBELLES_EV[ATTENTE_EV] = "En attente fabricant";
 const libelleEV = s => LIBELLES_EV[s] || libelle(s);
 const VALIDITE_CSRF_S = 12 * 3600;
 
@@ -111,7 +113,8 @@ button.danger{background:transparent;border:1px solid #f0c7c2;color:var(--err);f
 nav.filtres{margin:0 0 4px}nav.filtres a{font-size:13px;padding:6px 10px}.compte{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-size:12px;font-weight:600;text-align:center;color:var(--muted)}
 nav a[aria-current] .compte{background:#fff;color:var(--text);border-color:#fff}h2 .compte{vertical-align:2px}
 details.pli,details.pli:first-child{border-top:1px solid var(--line);padding:0 16px}details.bord,details.bord:first-child{border-left-width:4px}
-details.pli>summary{padding:14px 0}details.pli[open]>summary{border-bottom:1px solid var(--line)}details.pli .detail{padding:4px 0 14px}details.pli summary .nom{white-space:normal}
+details.pli>summary{padding:14px 0}details.pli[open]>summary{border-bottom:1px solid var(--line)}details.pli .detail{padding:4px 0 14px}details.pli summary .nom{white-space:normal}details.pli>summary{flex-wrap:wrap}details.pli>summary::after{order:1}
+details.pli>summary>.attend{order:2;flex-basis:100%;margin:-4px 0 0}label.confirme span{flex:1}label.confirme.sep{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
 .zone>summary .nom{color:var(--err)}.zone form+form{border-top:1px solid var(--line);margin-top:14px;padding-top:14px}.retour{margin:0 0 -6px;font-size:14px}.valider .art:first-of-type{border-top:0;margin-top:0;padding-top:0}summary .nom .muted{font-weight:400}
 label.confirme{display:flex;gap:8px;align-items:center;font-weight:400;margin:4px 0 8px}label.confirme input{width:auto;margin:0}
 .bandeau{border-radius:10px;padding:12px 14px;margin:0 0 16px;font-weight:600}.ok{background:#e6f2ea;color:var(--ok)}.err{background:#fbe9e7;color:var(--err)}
@@ -181,7 +184,7 @@ function cfsRenvoyables(arts) {
 }
 
 /* Couleur d'un statut (badge et trait) : à traiter, chez le fabricant, parti, bloqué, clos */
-const TON = s => (A_ENVOYER.includes(s) || s === "payee" ? "t-att" : [ENVOYE, "acceptee", "en_fabrication", "partiellement_expediee"].includes(s) ? "t-fab"
+const TON = s => (s === ATTENTE_EV ? "t-wait" : A_ENVOYER.includes(s) || s === "payee" ? "t-att" : [ENVOYE, "acceptee", "en_fabrication", "partiellement_expediee"].includes(s) ? "t-fab"
   : ["expediee", "livree"].includes(s) ? "t-ok" : s === INCIDENT ? "t-err" : "t-clos");
 const badge = (s, lib = libelle) => `<span class="badge ${TON(s)}">${esc(lib(s))}</span>`;
 const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
@@ -200,7 +203,10 @@ const texteAttente = a => (a.retard ? `Sans réponse ${depuis(a)}${a.relance ? "
 /* Résumé d'une commande client (n° EV) : statut calculé comme la formule du Sheet (statutEV), à défaut celui du Sheet */
 function resumeEV(etat, numero) {
   const ev = etat.evs[numero] || { numero }, arts = etat.parEV[numero] || [];
-  return { numero, ev, arts, statut: statutEV(arts.map(l => l.statut)) || ev.statut || "",
+  const calcule = statutEV(arts.map(l => l.statut)) || ev.statut || "";
+  /* Affichage seul (le statut du Sheet reste en_fabrication) : rien d'accepté chez le fabricant → « En attente fabricant » */
+  const statut = calcule === "en_fabrication" && !arts.some(l => ["acceptee", "expediee", "livree"].includes(l.statut)) ? ATTENTE_EV : calcule;
+  return { numero, ev, arts, statut,
     aValider: arts.filter(l => A_ENVOYER.includes(l.statut)).length, bloques: arts.filter(l => l.statut === INCIDENT).length,
     attentes: [...new Set(arts.filter(l => l.cf && l.statut === ENVOYE).map(l => l.cf))].map(cf => attente(etat, cf)) };
 }
@@ -300,7 +306,7 @@ ${bloques.map(l => `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>`).jo
     const suivi = [ls[0].transporteur, ls[0].suivi].map(x => String(x || "").trim()).filter(Boolean).join(" · ");
     const g = renvoyables[cf];
     const a = s === ENVOYE ? attente(etat, cf) : null, ton = a ? (a.retard ? "t-att" : "t-wait") : TON(s);
-    return `<details class="carte pli bord ${ton}"${cfs.length === 1 ? " open" : ""}><summary><span class="nom">${esc(cf)} <span class="muted">· ${esc(ls[0].fabricant.trim() || "—")} · ${pluriel(ls.length, "article")}</span>${a ? `<span class="attend${a.retard ? " retard" : ""}">${esc(texteAttente(a))}</span>` : ""}</span><span class="resume"><span class="badge ${ton}">${esc(libelle(s))}</span></span></summary>
+    return `<details class="carte pli bord ${ton}"${cfs.length === 1 ? " open" : ""}><summary><span class="nom">${esc(cf)}<br><span class="muted">${esc(ls[0].fabricant.trim() || "—")} · ${pluriel(ls.length, "article")}</span></span><span class="resume"><span class="badge ${ton}">${esc(libelle(s))}</span></span>${a ? `<span class="attend${a.retard ? " retard" : ""}">${esc(texteAttente(a))}</span>` : ""}</summary>
 <div class="detail">${suivi ? `<p class="muted">Suivi : ${esc(suivi)}</p>` : ""}${ls.map(l => {
       const lien = lienValide(l.stl);
       return `<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${memes ? "" : badge(l.statut)}</div><div class="piece">${esc(l.article)}</div>
@@ -323,10 +329,12 @@ ${histo.map(j => `<div class="ligne"><span><b>${esc(j.n)}</b> · ${esc(j.ancien 
   const a = annulables(arts).length, rb = remboursables(arts).length;
   if (aValider.length || a || rb) blocs.push(`<details class="carte pli zone"><summary><span class="nom">Bloquer, annuler ou rembourser</span></summary><div class="detail">
 ${aValider.length ? `<form method="post" action="/admin/bloquer">${champs}<p class="muted">Met de côté les articles à valider (réversible).</p><button class="second" type="submit">Bloquer cette commande</button></form>` : ""}
-${a || rb ? `<form method="post" action="/admin/cloturer">${champs}
-<label class="confirme"><input type="checkbox" name="confirmer" value="oui" required> Je confirme (définitif, aucun e-mail envoyé)</label>
-${a ? `<button class="danger" type="submit" name="statut" value="annulee">Annuler la commande</button>` : ""}
-${rb ? `<button class="danger" type="submit" name="statut" value="remboursee">Marquer remboursée (après remboursement dans Stripe)</button>` : ""}</form>` : ""}</div></details>`);
+${a || rb ? `<form method="post" action="/admin/cloturer">${champs}<p class="muted">Articles concernés :</p>
+${remboursables(arts).map(l => `<label class="confirme"><input type="checkbox" name="art" value="${esc(l.n)}"> <span>Article ${esc(l.n)} · ${esc(String(l.article).split("·")[0].trim())} ${badge(l.statut)}</span></label>`).join("")}
+<label class="confirme sep"><input type="checkbox" name="confirmer" value="oui" required> Je confirme (définitif, aucun e-mail envoyé)</label>
+${a ? `<button class="danger" type="submit" name="statut" value="annulee">Annuler les articles cochés</button>` : ""}
+${rb ? `<button class="danger" type="submit" name="statut" value="remboursee">Marquer remboursés (après remboursement dans Stripe)</button>` : ""}
+<p class="muted">Geste commercial sans retour de l'article : remboursement partiel dans Stripe seulement, rien à cocher ici.</p></form>` : ""}</div></details>`);
 
   return page(numero, cadre("", email, { message, type }, `${RECHERCHE()}<p class="retour"><a href="/admin">← Commandes</a></p><h1>${esc(numero)}</h1>${blocs.join("\n")}`, versFiche(numero)), statut);
 }
@@ -611,19 +619,22 @@ async function cloturer(env, f) {
   const numero = nettoyer(f.get("ev")), statut = f.get("statut");
   const retour = (m, t = "ok") => redirection(env, m, t, "", numero);
   if (!CLOS.includes(statut)) return retour("Action inconnue.", "err");
+  const coches = new Set(f.getAll("art").map(x => nettoyer(x, 10)));
+  if (!coches.size) return retour("Cochez au moins un article : rien n'a été modifié.", "err");
   if (f.get("confirmer") !== "oui") return retour("Cochez « Je confirme » : rien n'a été modifié.", "err");
   const etat = await lireEtat(env);
-  const toutes = etat.parEV[numero] || [];
-  const ls = (statut === "annulee" ? annulables : remboursables)(toutes);
-  if (!ls.length) return retour(statut === "annulee" && remboursables(toutes).length
-    ? `Commande ${numero} : déjà expédiée, elle ne peut plus être annulée (seulement marquée remboursée).`
-    : `Commande ${numero} : rien à modifier.`, "err");
+  const cibles = (etat.parEV[numero] || []).filter(l => coches.has(l.n));
+  const ls = (statut === "annulee" ? annulables : remboursables)(cibles);
+  const exclus = cibles.filter(l => !ls.includes(l));
+  if (!cibles.length || exclus.length) return retour(!cibles.length ? `Commande ${numero} : rien à modifier.`
+    : `Article ${exclus.map(l => l.n).join(", ")} : ${statut === "annulee" && exclus.every(l => PARTIS.includes(l.statut))
+      ? "déjà expédié, il ne peut plus être annulé (seulement marqué remboursé)" : "déjà clos"}. Rien n'a été modifié.`, "err");
   for (const l of ls) {
     await majArticle(env, numero, l.n, { Statut: statut, "Dernier statut notifié": statut });
     await journaliserSiNouveau(env, etat.journal, l.cf || numero, l.statut, statut, "proprietaire");
   }
   const chez = [...new Set(ls.filter(l => l.cf && [ENVOYE, "acceptee"].includes(l.statut)).map(l => `${l.cf} (${l.fabricant.trim() || "fabricant"})`))];
-  return retour(`Commande ${numero} ${statut === "annulee" ? "annulée" : "marquée remboursée"} (${pluriel(ls.length, "article")}).`
+  return retour(`Commande ${numero} : ${pluriel(ls.length, "article")} ${statut === "annulee" ? "annulé" : "marqué remboursé"}${ls.length > 1 ? "s" : ""} (${ls.map(l => l.n).join(", ")}).`
     + (chez.length ? ` Prévenez le fabricant : ${chez.join(", ")} (ses liens Accepter / Expédier n'ont plus d'effet).` : "")
     + (statut === "annulee" ? " Remboursement éventuel : à faire dans Stripe." : ""));
 }
