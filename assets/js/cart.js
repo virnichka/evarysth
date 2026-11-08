@@ -230,6 +230,6 @@
       : `<li class="empty"><p>Votre panier est vide.</p><a class="btn" href="catalogue/" data-cart-close>Voir le catalogue</a></li>`;
   }
 
-  EVARYSTH.cart = { add, open, close };
+  EVARYSTH.cart = { add };
   document.addEventListener("DOMContentLoaded", mount);
 })();

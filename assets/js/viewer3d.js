@@ -244,5 +244,5 @@
   }
 
   window.EVARYSTH = window.EVARYSTH || {};
-  EVARYSTH.viewer3d = { mount, define, models: MODELS };
+  EVARYSTH.viewer3d = { mount, define };
 })();

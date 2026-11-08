@@ -39,7 +39,7 @@ function page({ base, bodyAttr, head, main }) {
   const m1 = s.indexOf("  <main>"), m2 = s.indexOf("</main>\n") + "</main>\n".length;
   if (a < 0 || b < a || m1 < 0 || m2 < m1) throw new Error("index.html : repères <!-- seo --> ou <main> introuvables");
   s = s.slice(0, a) + head + s.slice(b, m1) + main + s.slice(m2);
-  /* base : tous les chemins relatifs (assets/…, #catalogue, produits/…) partent de la racine du site */
+  /* base : tous les chemins relatifs (assets/…, catalogue/, produits/…) partent de la racine du site */
   s = s.replace('<meta charset="utf-8">\n', `<meta charset="utf-8">\n  <base href="${base}">\n`);
   s = s.replace("<body>", `<body${bodyAttr}>`);
   return s.replace("<!DOCTYPE html>\n", "<!DOCTYPE html>\n" + BANNER);
