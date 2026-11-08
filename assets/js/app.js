@@ -59,20 +59,31 @@
 
   /* Vignette : photos à faire défiler au doigt (scroll-snap), points = nombre de photos */
   const cardPhotos = p => {
-    const ph = p.photos || [];
-    /* Sans photo : 2 rendus 3D (tools/captures-og.cjs), le 2e angle apparaît au survol */
-    if (!ph.length) return p.model ? `<div class="card__renders">${[1, 2].map(n =>
-      `<img class="card__render" src="assets/vignettes/${p.id}-${n}.webp" alt="${n > 1 ? "" : `Aperçu 3D de ${p.name}`}" loading="lazy" decoding="async" draggable="false">`).join("")}</div>` : "";
-    return `<div class="card__photos" data-href="produits/${p.id}/">${ph.map((x, i) =>
+    /* Sans photo : 2 rendus 3D (tools/captures-og.cjs), même carrousel que les photos ;
+       sur ordinateur, le 2e angle apparaît au survol */
+    const renders = !(p.photos || []).length && p.model;
+    const ph = renders ? [1, 2].map(n => ({ src: `assets/vignettes/${p.id}-${n}.webp`, alt: `Aperçu 3D de ${p.name}` })) : p.photos || [];
+    if (!ph.length) return "";
+    return `<div class="card__photos${renders ? " card__photos--renders" : ""}" data-href="produits/${p.id}/">${ph.map((x, i) =>
       `<img class="card__photo" src="${x.src}" alt="${i ? "" : x.alt}" loading="lazy" decoding="async" draggable="false" style="object-position:${x.pos || "50% 50%"}">`).join("")}</div>${ph.length > 1 ? `
       <button class="card__step card__step--prev" data-step="-1" aria-label="Photo précédente" hidden>‹</button><button class="card__step card__step--next" data-step="1" aria-label="Photo suivante">›</button>
       <div class="card__dots" aria-hidden="true">${ph.map((_, i) => `<i${i ? "" : ' class="is-on"'}></i>`).join("")}</div>` : ""}`;
   };
   /* Rendu 3D manquant : on revient à l'icône */
   document.addEventListener("error", e => {
-    const r = e.target instanceof Element && e.target.closest(".card__renders");
-    if (r) { r.parentElement.classList.remove("has-photo"); r.remove(); }
+    const r = e.target instanceof Element && e.target.closest(".card__photos--renders");
+    if (!r) return;
+    const m = r.parentElement; m.classList.remove("has-photo");
+    m.querySelectorAll(".card__photos, .card__step, .card__dots").forEach(x => x.remove());
   }, true);
+  /* Survol (souris) d'une carte à rendus : 2e angle, retour au 1er en sortant */
+  const hoverRender = (e, i) => {
+    if (!matchMedia("(hover: hover)").matches || !(e.target instanceof Element)) return;
+    const c = e.target.closest(".card"), t = c && c.querySelector(".card__photos--renders");
+    if (t && !(e.relatedTarget instanceof Node && c.contains(e.relatedTarget))) t.scrollTo({ left: i * t.clientWidth, behavior: "smooth" });
+  };
+  document.addEventListener("mouseover", e => hoverRender(e, 1));
+  document.addEventListener("mouseout", e => hoverRender(e, 0));
   /* Défilement des photos dans les vignettes (délégué : marche pour toutes les grilles) */
   const photoIndex = t => Math.round(t.scrollLeft / Math.max(1, t.clientWidth));
   document.addEventListener("scroll", e => {
