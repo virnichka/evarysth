@@ -95,6 +95,10 @@ test("n° CF : regroupement par commande et fabricant, lettre stable, article d�
   assert.deepEqual(numerosCF("EV-2026-0002", [l("payee", FAB, "CF-2026-0002-A"), l("payee", FAB2, "CF-2026-0002-A")]), ["CF-2026-0002-A", "CF-2026-0002-B"]);
   /* fabricant et envoyee_fabricant choisis d'un coup (e-mail pas encore parti) : n° attribué */
   assert.deepEqual(numerosCF("EV-2026-0002", [l("envoyee_fabricant", FAB, "", "payee")]), ["CF-2026-0002-A"]);
+  /* article déjà accepté ou expédié dont « Dernier statut notifié » a du retard : jamais renuméroté */
+  assert.deepEqual(numerosCF("EV-2026-0002", [l("expediee", FAB, "CF-2026-0002-A", "lien_stl_a_indiquer"), l("expediee", FAB, "CF-2026-0002-A", "envoyee_fabricant")]),
+    ["CF-2026-0002-A", "CF-2026-0002-A"]);
+  assert.deepEqual(numerosCF("EV-2026-0002", [l("acceptee", FAB, "CF-2026-0002-A", ""), l("a_valider", FAB)]), ["CF-2026-0002-A", "CF-2026-0002-B"]);
   /* fabricant effacé : n° effacé */
   assert.deepEqual(numerosCF("EV-2026-0002", [l("payee", "", "CF-2026-0002-A")]), [""]);
 });
