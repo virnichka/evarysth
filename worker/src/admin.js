@@ -102,6 +102,9 @@ button.second{background:transparent;border:1px solid var(--line);color:var(--mu
 button.danger{background:transparent;border:1px solid #f0c7c2;color:var(--err);font-size:14px;padding:10px}button.danger:hover{background:#fbe9e7}
 .badge.t-att{background:#fff1ea;border-color:#ffc9b3;color:#a33a0f}.badge.t-fab{background:#eaf1fb;border-color:#c3d6f0;color:#1f4f8f}
 .badge.t-ok{background:#e6f2ea;border-color:#bfdcc8;color:var(--ok)}.badge.t-err{background:#fbe9e7;border-color:#f0c7c2;color:var(--err)}.badge.t-clos{color:var(--muted)}
+.badge.t-wait{background:#fff7dc;border-color:#ecd38a;color:#7a5600}.bord.t-wait{border-left-color:#e0a800}
+.attend{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#7a5600;margin-top:4px;white-space:normal}
+.attend::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:#e0a800}.attend.retard{color:#a33a0f}.attend.retard::before{background:var(--accent)}
 .bord{border-left-width:4px}.bord.t-att{border-left-color:var(--accent)}.bord.t-fab{border-left-color:#3b74c4}.bord.t-ok{border-left-color:var(--ok)}.bord.t-err{border-left-color:var(--err)}
 .cmds{display:grid;gap:8px;margin:0 0 14px}.cmd{display:block;text-decoration:none;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
 .cmd:hover{border-color:var(--muted)}.cmd .muted{display:block;margin-top:2px}.a-faire{display:block;font-size:14px;font-weight:600;color:#a33a0f;margin-top:2px}
@@ -177,7 +180,7 @@ function cfsRenvoyables(arts) {
     .map(([cf, ls]) => ({ cf, lignes: ls, statut: ls[0].statut === "acceptee" ? ENVOYE : ls[0].statut }));
 }
 
-/* Couleur d'un statut (badge et liseré) : à traiter, chez le fabricant, parti, bloqué, clos */
+/* Couleur d'un statut (badge et trait) : à traiter, chez le fabricant, parti, bloqué, clos */
 const TON = s => (A_ENVOYER.includes(s) || s === "payee" ? "t-att" : [ENVOYE, "acceptee", "en_fabrication", "partiellement_expediee"].includes(s) ? "t-fab"
   : ["expediee", "livree"].includes(s) ? "t-ok" : s === INCIDENT ? "t-err" : "t-clos");
 const badge = (s, lib = libelle) => `<span class="badge ${TON(s)}">${esc(lib(s))}</span>`;
@@ -185,11 +188,21 @@ const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août"
 const dateCourte = d => { const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(d || ""); return m ? `${Number(m[3])} ${MOIS[Number(m[2]) - 1]} ${m[1]}` : ""; };
 const versFiche = n => `/admin?${new URLSearchParams({ q: n })}`;
 
+/* CF envoyée, pas encore acceptée : jours depuis l'envoi (Journal), sans réponse après 48 h, relance faite */
+function attente(etat, cf, maintenant = Date.now()) {
+  const j = etat.journal[cf] || [], envoi = [...j].reverse().find(x => x.nouveau === ENVOYE);
+  const ms = envoi ? maintenant - parisVersMs(envoi.date) : NaN;
+  return { cf, jours: ms >= 0 ? Math.floor(ms / 86400_000) : null, retard: ms >= DELAI_RELANCE_MS, relance: j.some(x => x.nouveau === RELANCE) };
+}
+const depuis = a => (a.jours == null ? "" : a.jours < 1 ? "depuis aujourd'hui" : `depuis ${a.jours} j`);
+const texteAttente = a => (a.retard ? `Sans réponse ${depuis(a)}${a.relance ? " · relance envoyée" : ""}` : `En attente d'acceptation ${depuis(a)}`).trim();
+
 /* Résumé d'une commande client (n° EV) : statut calculé comme la formule du Sheet (statutEV), à défaut celui du Sheet */
 function resumeEV(etat, numero) {
   const ev = etat.evs[numero] || { numero }, arts = etat.parEV[numero] || [];
   return { numero, ev, arts, statut: statutEV(arts.map(l => l.statut)) || ev.statut || "",
-    aValider: arts.filter(l => A_ENVOYER.includes(l.statut)).length, bloques: arts.filter(l => l.statut === INCIDENT).length };
+    aValider: arts.filter(l => A_ENVOYER.includes(l.statut)).length, bloques: arts.filter(l => l.statut === INCIDENT).length,
+    attentes: [...new Set(arts.filter(l => l.cf && l.statut === ENVOYE).map(l => l.cf))].map(cf => attente(etat, cf)) };
 }
 
 /* Liste des commandes client : filtres ?f=… (« À traiter » par défaut), ou résultats d'une recherche */
@@ -205,8 +218,13 @@ const MAX_LISTE = 50;
 function ligneCommande(r) {
   const info = [nomVille(r.ev) || "Client inconnu", dateCourte(r.ev.date), pluriel(r.arts.length, "article")].filter(Boolean).join(" · ");
   const alerte = [r.aValider ? `${r.aValider} à valider` : "", r.bloques ? pluriel(r.bloques, "bloqué") : ""].filter(Boolean).join(" · ");
-  return `<a class="cmd bord ${TON(r.statut)}" href="${versFiche(r.numero)}"><span class="tete"><b>${esc(r.numero)}</b>${badge(r.statut, libelleEV)}</span>
-<span class="muted">${esc(info)}</span>${alerte ? `<span class="a-faire">${esc(alerte)}</span>` : ""}</a>`;
+  const retard = r.attentes.filter(a => a.retard), att = r.attentes.length;
+  const signal = att ? `<span class="attend${retard.length ? " retard" : ""}">${esc(retard.length
+    ? `${pluriel(retard.length, "envoi")} sans réponse ${depuis(retard.reduce((m, a) => (a.jours > m.jours ? a : m)))}`
+    : `${att} en attente d'acceptation`)}</span>` : "";
+  const trait = r.aValider || r.bloques || !att ? TON(r.statut) : retard.length ? "t-att" : "t-wait";
+  return `<a class="cmd bord ${trait}" href="${versFiche(r.numero)}"><span class="tete"><b>${esc(r.numero)}</b>${badge(r.statut, libelleEV)}</span>
+<span class="muted">${esc(info)}</span>${alerte ? `<span class="a-faire">${esc(alerte)}</span>` : ""}${signal}</a>`;
 }
 function vueCommandes(email, etat, filtre, bandeau, q = "", trouves = null) {
   const numeros = trouves || [...new Set([...Object.keys(etat.evs), ...Object.keys(etat.parEV)])];
@@ -281,7 +299,8 @@ ${bloques.map(l => `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>`).jo
     const s = memes ? ls[0].statut : ls.map(l => l.statut).filter(x => !CLOS.includes(x)).sort((a, b) => STATUTS.indexOf(a) - STATUTS.indexOf(b))[0] || ls[0].statut;
     const suivi = [ls[0].transporteur, ls[0].suivi].map(x => String(x || "").trim()).filter(Boolean).join(" · ");
     const g = renvoyables[cf];
-    return `<details class="carte pli bord ${TON(s)}"${cfs.length === 1 ? " open" : ""}><summary><span class="nom">${esc(cf)} <span class="muted">· ${esc(ls[0].fabricant.trim() || "—")} · ${pluriel(ls.length, "article")}</span></span><span class="resume">${badge(s)}</span></summary>
+    const a = s === ENVOYE ? attente(etat, cf) : null, ton = a ? (a.retard ? "t-att" : "t-wait") : TON(s);
+    return `<details class="carte pli bord ${ton}"${cfs.length === 1 ? " open" : ""}><summary><span class="nom">${esc(cf)} <span class="muted">· ${esc(ls[0].fabricant.trim() || "—")} · ${pluriel(ls.length, "article")}</span>${a ? `<span class="attend${a.retard ? " retard" : ""}">${esc(texteAttente(a))}</span>` : ""}</span><span class="resume"><span class="badge ${ton}">${esc(libelle(s))}</span></span></summary>
 <div class="detail">${suivi ? `<p class="muted">Suivi : ${esc(suivi)}</p>` : ""}${ls.map(l => {
       const lien = lienValide(l.stl);
       return `<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${memes ? "" : badge(l.statut)}</div><div class="piece">${esc(l.article)}</div>
@@ -360,18 +379,21 @@ export function chiffres(etat, maintenant = Date.now()) {
   }).filter(Boolean).sort((a, b) => a.cf.localeCompare(b.cf));
   const sansFabricant = aValider.map(ev => ({ ev, date: (evs[ev] || {}).date || "" }))
     .filter(x => maintenant - parisVersMs(x.date) > 24 * 3600_000);
-  return { aValider: aValider.length, chez: chez.length, expediees: expediees.length, bloquees: bloquees.length, relances, sansFabricant };
+  const attente = chez.filter(cf => cfs[cf].statut === ENVOYE).length;
+  return { aValider: aValider.length, chez: chez.length, attente, expediees: expediees.length, bloquees: bloquees.length, relances, sansFabricant };
 }
 
 function vueTableau(email, etat, bandeau) {
   const c = chiffres(etat);
-  const tuile = (n, texte, href = "/admin", alerte = false) => `<a class="carte${alerte && n ? " alerte" : ""}" href="${href}"><div class="nombre">${n}</div><div class="muted">${texte}</div></a>`;
+  const tuile = (n, texte, href = "/admin", alerte = false, plus = "") => `<a class="carte${alerte && n ? " alerte" : ""}" href="${href}"><div class="nombre">${n}</div><div class="muted">${texte}</div>${plus}</a>`;
+  const retard = c.relances.length;
+  const plus = c.attente ? `<span class="attend${retard ? " retard" : ""}">${esc(retard ? `dont ${c.attente} en attente, ${retard} sans réponse` : `dont ${c.attente} en attente d'acceptation`)}</span>` : "";
   const alertes = [
     ...c.relances.map(r => `<div class="ligne"><span><a href="${versFiche(r.cf)}"><b>${esc(r.cf)}</b></a> · ${esc(r.fabricant)}<br><span class="muted">${r.relance ? `relance 48 h envoyée le ${esc(r.relance)}` : "plus de 48 h sans acceptation, relance au prochain passage"} · envoyée le ${esc(r.depuis)}</span></span><span class="badge">Relance</span></div>`),
     ...c.sansFabricant.map(x => `<div class="ligne"><span><a href="${versFiche(x.ev)}"><b>${esc(x.ev)}</b></a><br><span class="muted">payée le ${esc(x.date)}, toujours sans fabricant</span></span><span class="badge">+ 24 h</span></div>`)
   ];
   return page("Tableau de bord", cadre("tableau", email, bandeau, `<h1>Tableau de bord</h1>
-<div class="grille">${tuile(c.aValider, "à valider", "/admin", true)}${tuile(c.chez, "chez le fabricant", "/admin?f=fabricant")}${tuile(c.expediees, "expédiées ce mois", "/admin?f=expediees")}${tuile(c.bloquees, "bloquées", "/admin?f=bloquees", true)}</div>
+<div class="grille">${tuile(c.aValider, "à valider", "/admin", true)}${tuile(c.chez, "chez le fabricant", "/admin?f=fabricant", retard > 0, plus)}${tuile(c.expediees, "expédiées ce mois", "/admin?f=expediees")}${tuile(c.bloquees, "bloquées", "/admin?f=bloquees", true)}</div>
 <h2>Alertes</h2><div class="carte">${alertes.join("") || '<p class="muted">Aucune alerte.</p>'}</div>`));
 }
 

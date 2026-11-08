@@ -440,3 +440,24 @@ test("Renvoyer : e-mail fabricant renvoyé sans changer le statut ; expédiée �
   r = await envoyer("/admin/renvoyer", { cf: "CF-2026-0010-A" });
   assert.match(bandeau(r), /non renvoyé/);
 });
+
+import { dateParis } from "../src/sheet.js";
+test("Attente du fabricant : signalée dans la liste, la fiche et le tableau de bord ; orange après 48 h sans réponse", async () => {
+  sheet["Commandes CF"].splice(2, 1);
+  await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/x" });
+  let liste = await (await get("/admin?f=fabricant")).text();
+  assert.match(liste, /class="cmd bord t-wait"[\s\S]*<span class="attend">1 en attente d&#39;acceptation<\/span>/);
+  assert.match(await (await get("/admin?q=EV-2026-0010")).text(), /<details class="carte pli bord t-wait" open>[\s\S]*<span class="attend">En attente d&#39;acceptation depuis aujourd&#39;hui<\/span>[\s\S]*<span class="badge t-wait">Envoyée au fabricant/);
+  assert.match(await (await get("/admin?vue=tableau")).text(), /chez le fabricant<\/div><span class="attend">dont 1 en attente d&#39;acceptation/);
+
+  const j = sheet.Journal.findIndex(l => l[1] === "CF-2026-0010-A" && l[3] === "envoyee_fabricant");
+  sheet.Journal[j][0] = dateParis(new Date(Date.now() - 3 * 86400_000 - 3600_000));
+  liste = await (await get("/admin?f=fabricant")).text();
+  assert.match(liste, /class="cmd bord t-att"[\s\S]*<span class="attend retard">1 envoi sans réponse depuis 3 j<\/span>/);
+  assert.match(await (await get("/admin?q=EV-2026-0010")).text(), /<span class="attend retard">Sans réponse depuis 3 j<\/span>/);
+  assert.match(await (await get("/admin?vue=tableau")).text(), /class="carte alerte" href="\/admin\?f=fabricant"[\s\S]*dont 1 en attente, 1 sans réponse/);
+
+  sheet["Commandes CF"][1][COL_CF.Statut] = "acceptee";
+  liste = await (await get("/admin?f=fabricant")).text();
+  assert.doesNotMatch(liste, /class="attend/, "acceptée : plus de signal");
+});
