@@ -455,6 +455,30 @@ EVARYSTH.products = [
     custom: { surcharge: 4, params: [param("a", "Épaisseur de votre porte", 12, 50, 22)] }
   },
   {
+    id: "vide-poche-cles", universe: "meubles", matiere: "pla", shape: "hook", model: "vide-poche-cles",
+    name: "Vide-poche porte-clés", price: 19,
+    tagline: "Les clés accrochées, la monnaie dans le bac, dès l'entrée.",
+    desc: "Un dosseret qui s'enroule en haut en une tablette à crochets, posé sur un bac qui lui sert de pied : les trousseaux pendent au-dessus du bac, les pièces, écouteurs et cartes tombent dedans. Rien à fixer au mur, il se pose sur le meuble d'entrée. Réglez la largeur (un crochet tous les 20 mm), la profondeur du bac et la hauteur pour les longs trousseaux.",
+    variants: sizes("Largeur", [["Compact", "60 mm, 3 crochets", { a: 60, b: 60, c: 110 }], ["Standard", "75 mm, 4 crochets", { a: 75, b: 75, c: 120 }], ["Large", "120 mm, 6 crochets", { a: 120, b: 80, c: 130 }]]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "cacao", label: "Brun cacao", hex: "#5b463d", roughness: 0.62 },
+      { id: "blanc", label: "Blanc", hex: "#ecebe6", roughness: 0.6 }
+    ],
+    custom: { surcharge: 5, params: [
+      param("a", "Largeur", 60, 180, 75, 5, 0.06),
+      param("b", "Profondeur du bac", 55, 120, 75, 5, 0.04),
+      param("c", "Hauteur totale", 100, 180, 120, 5, 0.03)
+    ] },
+    photos: [
+      { src: "assets/photos/vide-poche-cles/1.webp", alt: "Le vide-poche sur un meuble d'entrée, clés et télécommande de voiture aux crochets, pièces et écouteurs dans le bac" },
+      { src: "assets/photos/vide-poche-cles/2.webp", alt: "Le vide-poche vu de trois quarts : quatre crochets en J sous la tablette, bac aux coins arrondis" },
+      { src: "assets/photos/vide-poche-cles/3.webp", alt: "Gros plan sur les crochets qui pendent de la tablette" },
+      { src: "assets/photos/vide-poche-cles/4.webp", alt: "Gros plan sur le bac et ses parois arrondies" }
+    ],
+    photosNote: "Photos : coloris brun cacao ; la vue 3D montre le coloris choisi"
+  },
+  {
     id: "taquets-etagere", universe: "meubles", matiere: "asa", shape: "bracket", model: "taquets-etagere",
     name: "Taquets d'étagère ×8", price: 9,
     tagline: "Les taquets perdus au déménagement, refaits à l'identique.",
