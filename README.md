@@ -27,7 +27,7 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `assets/js/ui.js` | Le confort : thème clair/sombre, recherche (touche `/`), favoris, notifications, fenêtres modales. |
 | `assets/models/<produit>/` | Fichiers STL d'origine des produits qui partent d'un modèle existant. |
 | `assets/photos/<produit>/` | Photos commerciales (`1.webp` = vignette du catalogue). |
-| `tools/` | Outils d'atelier : analyse des STL (Python), `generer-pages.mjs` (pages produit, sitemap), `captures-og.cjs` (images de partage). |
+| `tools/` | Outils d'atelier : analyse des STL (`analyse-stl.py`, `bgcode-decode.py`), `generer-pages.mjs` (pages produit, univers, catalogue, légales, 404, sitemap ; textes légaux dans `pages-legales/`), `captures-og.cjs` (images de partage et vignettes 3D), `icones-admin.mjs` (icônes de /admin). |
 | `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages (le dossier `worker/` n'est pas publié). |
 | `worker/` | **Le service de paiement** (Cloudflare Worker + Stripe Checkout, **mode test**) : reçoit le panier, recalcule les prix depuis `data.js`, crée la session Stripe, reçoit le webhook. Voir « Paiement » ci-dessous. |
 | `commande/merci/` | Page de retour après paiement (récapitulatif de la commande). |
@@ -100,7 +100,7 @@ générées), `produit.html` et `commande/merci/index.html`. Elle n'autorise que
 | `img-src` | `'self'` `data:` `blob:` | photos, textures 3D |
 | `connect-src` | `'self'` `evarysth-checkout.virnichka.workers.dev` `cloud.umami.is` `gateway.umami.is` | STL locaux, Worker de paiement, envoi des stats (`gateway.umami.is/api/send`) |
 | `worker-src` | `'self'` `blob:` | — |
-| `object-src` / `base-uri` / `form-action` | `'none'` / `'self'` / `'self'` `checkout.stripe.com` | durcissement (`base-uri 'self'` laisse passer le `<base href>`) |
+| `object-src` / `base-uri` / `form-action` | `'none'` / `'self'` / `'self'` | durcissement (`base-uri 'self'` laisse passer le `<base href>`) |
 
 `frame-ancestors` n'est pas pris en compte en meta. **Ajout d'un service externe** (CDN,
 police, stats, API…) : ajouter son hôte à la bonne directive dans les 3 fichiers ci-dessus,
@@ -125,9 +125,11 @@ Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publi
 ## 4. Comment ça fonctionne
 
 1. **Chargement** — `index.html` charge dans l'ordre : `data.js` (le catalogue) → `ui.js` → `viewer3d.js` → `app.js` → `cart.js`.
-2. **Navigation** — tout se passe sur une seule page. La fin de l'adresse décide de ce qu'on voit :
-   `#catalogue`, `#f-<univers>`, `#p-<produit>`, `#favoris`. Quand elle change, `app.js` (fonction `route`) masque la vue courante et dessine la nouvelle.
-3. **Fiche produit** — `app.js` lit le produit dans `data.js`, crée les boutons de taille et un curseur par cote sur-mesure, puis, si le produit a un champ `model`, demande à `viewer3d.js` d'afficher la pièce 3D dans `#viewer3d` (le moteur va alors chercher le plan de cette seule pièce).
+2. **Navigation** — chaque produit, univers et le catalogue ont leur vraie page (`produits/<id>/`, `univers/<id>/`, `catalogue/`),
+   générée par `tools/generer-pages.mjs` ; le `<body>` indique à `app.js` quoi dessiner (`data-product-id`, `data-universe-id`,
+   `data-page`). Sur l'accueil, seule l'ancre `#favoris` change la vue (fonction `route`) ; les anciens liens `#catalogue`,
+   `#f-<univers>`, `#p-<produit>` redirigent vers les nouvelles pages.
+3. **Fiche produit** — sur `produits/<id>/`, `app.js` lit le produit dans `data.js`, crée les boutons de taille et un curseur par cote sur-mesure, puis, si le produit a un champ `model`, demande à `viewer3d.js` d'afficher la pièce 3D dans `#viewer3d` (le moteur va alors chercher le plan de cette seule pièce).
 4. **Bouger un curseur** →
    la nouvelle valeur est enregistrée → `update()` recalcule le prix (`EVARYSTH.priceFor`), les cotes affichées et le résumé → le viewer 3D reçoit les nouvelles cotes et **redessine la pièce** à partir de son plan (`assets/js/modeles/<pièce>.js`).
 5. **Ajouter au panier** — le bouton `#add` transmet le produit et ses cotes à `cart.js`, qui met à jour le panier et le garde en mémoire (`localStorage`).
@@ -135,7 +137,7 @@ Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publi
 
 ## 5. Repères dans le code (IDs HTML)
 
-**Vues** (dans `index.html`) : `#home-view` (accueil), `#catalogue-view` / `#catalogue-root`, `#family-view` / `#families-root`, `#popular-root` (hacks les plus demandés), `#product-root` (fiche produit), `#toasts` (notifications).
+**Vues** : dans `index.html`, `#home-view` (accueil, avec `#families-root` = carrousel des univers et `#popular-root` = hacks les plus demandés), `#family-view` (favoris), `#toasts` (notifications) ; dans les pages générées, `#catalogue-view` / `#catalogue-root` (catalogue), `#family-view` (univers), `#product-root` (fiche produit).
 
 **Fiche produit** (créée par `app.js`) :
 - `#stage` : zone visuelle ; `#viewer3d` : rendu 3D ; `#photos` / `#views` : photos et vignettes ; `#open3d` : curseur d'ouverture (pièces articulées)
