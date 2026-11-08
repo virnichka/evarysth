@@ -102,6 +102,10 @@ nav a[aria-current]{background:var(--text);border-color:var(--text);color:#fff}
 .grille .alerte{border-color:var(--accent)}.ligne{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-top:1px solid var(--line);padding:9px 0}.ligne:first-child{border-top:0;padding-top:0}
 .voyant{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;background:var(--muted)}.v-ok{background:var(--ok)}.v-err{background:var(--err)}.v-att{background:#c98a00}
 .recherche{margin:0 0 18px}.recherche button{margin-top:0}.journal{font-size:14px}
+details{border-top:1px solid var(--line)}details:first-child{border-top:0}summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 0}
+summary::-webkit-details-marker{display:none}summary::after{content:"";flex:none;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);margin:0 4px 0 2px;transition:transform .15s}
+details[open]>summary::after{transform:rotate(45deg)}summary .nom{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}summary .resume{color:var(--muted);font-size:14px;white-space:nowrap}
+.detail{padding:0 0 14px}.ligne>span:last-child{text-align:right}.liste{padding-top:6px;padding-bottom:6px}
 .pastille{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid var(--line);vertical-align:-2px;margin-right:4px}.manque{color:var(--err);border-color:#f0c7c2}.present{color:var(--ok);border-color:#bfdcc8}
 </style></head><body><main><div class="marque">Evarysth · back-office</div>${corps}</main></body></html>`, { status: statut, headers: ENTETES });
 }
@@ -248,14 +252,14 @@ export function chargeFabricants(etat, maintenant = Date.now()) {
 }
 function vueFabricants(email, etat, bandeau) {
   const liste = chargeFabricants(etat);
-  const cartes = liste.map(f => `<div class="carte"><div class="tete"><b>${esc(f.nom)}</b>${f.retard.length ? `<span class="badge manque">${f.retard.length} en retard</span>` : ""}</div>
+  const cartes = liste.map(f => `<details><summary><span class="nom">${esc(f.nom)}</span>${f.retard.length ? `<span class="badge manque">${f.retard.length} en retard</span>` : `<span class="resume">${f.enCours.length} en cours</span>`}</summary><div class="detail">
 <p class="muted">${esc(f.email)}</p>
 <div class="ligne"><span>Délai</span><span>${f.delai ? `${esc(f.delai)} j` : "—"}</span></div>
 <div class="ligne"><span>Livre le client</span><span>${f.livre ? "oui" : "non"}</span></div>
 <div class="ligne"><span>En cours</span><span>${f.enCours.length}</span></div>
-<div class="ligne"><span>En retard</span><span>${f.retard.length}${f.retard.length ? `<br><span class="muted">${f.retard.map(esc).join(", ")}</span>` : ""}</span></div></div>`);
+<div class="ligne"><span>En retard</span><span>${f.retard.length}${f.retard.length ? `<br><span class="muted">${f.retard.map(esc).join(", ")}</span>` : ""}</span></div></div></details>`);
   return page("Fabricants", cadre("fabricants", email, bandeau, `<h1>${pluriel(liste.length, "fabricant")}</h1>
-${cartes.join("") || '<div class="carte"><p class="muted">Onglet Fabricants vide.</p></div>'}`));
+<div class="carte liste">${cartes.join("") || '<p class="muted">Onglet Fabricants vide.</p>'}</div>`));
 }
 
 /* Tableau de bord : compteurs et alertes, calculés depuis le Sheet (aucune écriture) */
@@ -312,22 +316,24 @@ async function vueCatalogue(env, email, bandeau) {
   let manquants = 0, total = 0;
   const parUnivers = EVARYSTH.universes.map(u => {
     const produits = EVARYSTH.products.filter(p => p.universe === u.id).map(p => {
+      let presents = 0;
       const tailles = ((p.variants || {}).options || []).map(o => {
         let etatStl = "";
         if (cles) {
           const ok = EXTENSIONS.some(x => cles.has(`${p.id}/${segmentTaille(o.label)}.${x}`));
-          total++; if (!ok) manquants++;
+          total++; if (!ok) manquants++; else presents++;
           etatStl = ok ? '<span class="badge present">STL présent</span>' : '<span class="badge manque">STL manquant</span>';
         }
         return `<div class="ligne"><span>${esc(o.label)} <span class="muted">${esc(o.hint || "")}</span></span>${etatStl}</div>`;
       });
       const sm = p.custom ? `Sur-mesure +${prix(p.custom.surcharge || 0)} : ${(p.custom.params || []).map(x => `${esc(x.label)} ${x.min}–${x.max} mm`).join(" ; ")}` : "";
-      return `<div class="carte"><div class="tete"><b>${esc(p.name)}</b><b>${prix(p.price)}</b></div>
+      const stl = cles ? `<span class="badge ${presents === tailles.length ? "present" : "manque"}">STL ${presents}/${tailles.length}</span>` : "";
+      return `<details><summary><span class="nom">${esc(p.name)}</span>${stl}<span class="resume">${prix(p.price)}</span></summary><div class="detail">
 <p class="muted">${esc(p.id)} · <a href="${SITE}/produits/${encodeURIComponent(p.id)}/" target="_blank" rel="noopener noreferrer">fiche ↗</a></p>
 <p class="muted">${(p.colors || []).map(c => `<span class="pastille" style="background:${/^#[0-9a-f]{3,8}$/i.test(c.hex) ? c.hex : "#ccc"}"></span>${esc(c.label)}`).join(" · ")}</p>
-<p class="muted">${esc((p.variants || {}).label || "Tailles")}</p>${tailles.join("")}${sm ? `<p class="muted" style="margin-top:8px">${sm}</p>` : ""}</div>`;
+<p class="muted">${esc((p.variants || {}).label || "Tailles")}</p>${tailles.join("")}${sm ? `<p class="muted" style="margin-top:8px">${sm}</p>` : ""}</div></details>`;
     });
-    return produits.length ? `<h2>${esc(u.name)}</h2>${produits.join("")}` : "";
+    return produits.length ? `<h2>${esc(u.name)}</h2><div class="carte liste">${produits.join("")}</div>` : "";
   });
   const resume = erreurR2 || (cles ? `${pluriel(total - manquants, "fichier")} STL présent${total - manquants > 1 ? "s" : ""} sur ${total} tailles standard.` : "Binding R2 « STL » absent : présence des STL non vérifiable.");
   return page("Catalogue", cadre("catalogue", email, bandeau, `<h1>${pluriel(EVARYSTH.products.length, "produit")}</h1>

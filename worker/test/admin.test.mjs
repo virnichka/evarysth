@@ -252,6 +252,8 @@ test("Catalogue : STL présent / manquant par taille standard (une liste R2), sa
   const html = await (await vue("catalogue", { ...env, STL })).text();
   assert.match(html, /Crochet de balcon[\s\S]*?>S <[\s\S]*?STL manquant[\s\S]*?>M <[\s\S]*?STL présent/);
   assert.match(html, /produits\/crochet-balcon\//);
+  assert.match(html, /<details><summary><span class="nom">Crochet de balcon<\/span><span class="badge manque">STL 1\/3<\/span><span class="resume">12 €<\/span><\/summary>/, "une ligne repliée");
+  assert.doesNotMatch(html, /<details open/);
   assert.match(await (await vue("catalogue")).text(), /Binding R2 « STL » absent/);
 });
 
@@ -369,5 +371,7 @@ test("Fabricants : e-mail masqué, CF en cours et en retard (délai dépassé d'
   assert.match(html, /<h1>2 fabricants<\/h1>/);
   assert.match(html, /Atelier Dupont[\s\S]*1 en retard[\s\S]*a•••@example\.com[\s\S]*5 j[\s\S]*Livre le client<\/span><span>non[\s\S]*En cours<\/span><span>2[\s\S]*En retard<\/span><span>1[\s\S]*CF-2026-0010-A/);
   assert.doesNotMatch(html, /atelier@example\.com/);
+  assert.match(html, /<summary><span class="nom">Atelier Dupont<\/span><span class="badge manque">1 en retard<\/span><\/summary>/);
+  assert.match(html, /<summary><span class="nom">Sans Mail<\/span><span class="resume">0 en cours<\/span><\/summary>/);
   assert.doesNotMatch(html, /<form method="post"/);
 });
