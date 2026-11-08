@@ -123,7 +123,8 @@ test("Page : commandes à valider, sans script, en-têtes de sécurité, adresse
   assert.match(r.headers.get("Content-Security-Policy"), /default-src 'none'.*frame-ancestors 'none'/);
   assert.equal(r.headers.get("Cache-Control"), "no-store");
   assert.doesNotMatch(html, /<script/i);
-  assert.match(html, /<h1>À traiter<\/h1>/);
+  assert.doesNotMatch(html, /<h1>/, "filtre actif : pas de titre");
+  assert.match(html, /<nav class="filtres" aria-label="Filtres"><a href="\/admin" aria-current="page">À traiter/);
   assert.match(html, /À traiter <span class="compte">1<\/span>[\s\S]*Toutes <span class="compte">1<\/span>/);
   assert.match(html, /<a class="cmd bord t-att" href="\/admin\?q=EV-2026-0010"><span class="tete"><b>EV-2026-0010<\/b><span class="badge t-att">Payée/);
   assert.match(html, /Camille Test · 75011 Paris · 8 nov\. 2026 · 2 articles[\s\S]*2 à valider/);
@@ -359,10 +360,12 @@ test("Recherche : par n° EV, n° CF ou nom (sans accents) → fiche avec articl
     assert.match(html, /Bloquer, annuler ou rembourser[\s\S]*action="\/admin\/cloturer"[\s\S]*value="annulee"[\s\S]*value="remboursee"/);
   }
   const vide = await (await get(`/admin?q=${encodeURIComponent('<script>x</script>')}`)).text();
-  assert.match(vide, /Aucune commande/);
+  assert.match(vide, /<h1>Aucune commande<\/h1>/);
   assert.doesNotMatch(vide, /<script>/);
   assert.match(vide, /&lt;script&gt;/);
-  assert.match(await (await get("/admin")).text(), /<form method="get" action="\/admin" role="search"/);
+  const liste = await (await get("/admin")).text();
+  assert.match(liste, /<form method="get" action="\/admin" role="search"[\s\S]*<label for="q" class="vh">Rechercher une commande<\/label>[\s\S]*name="q"[\s\S]*aria-label="Rechercher"/);
+  assert.doesNotMatch(await (await get("/admin?q=EV-2026-0010")).text(), /role="search"/, "fiche : pas de recherche");
 });
 
 test("Fabricants : e-mail masqué, CF en cours et en retard (délai dépassé d'après le Journal)", async () => {

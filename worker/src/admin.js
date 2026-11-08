@@ -110,7 +110,7 @@ button.danger{background:transparent;border:1px solid #f0c7c2;color:var(--err);f
 .bord{border-left-width:4px}.bord.t-att{border-left-color:var(--accent)}.bord.t-fab{border-left-color:#3b74c4}.bord.t-ok{border-left-color:var(--ok)}.bord.t-err{border-left-color:var(--err)}
 .cmds{display:grid;gap:8px;margin:0 0 14px}.cmd{display:block;text-decoration:none;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
 .cmd:hover{border-color:var(--muted)}.cmd .muted{display:block;margin-top:2px}.a-faire{display:block;font-size:14px;font-weight:600;color:#a33a0f;margin-top:2px}
-nav.filtres{margin:0 0 4px}nav.filtres a{font-size:13px;padding:6px 10px}.compte{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-size:12px;font-weight:600;text-align:center;color:var(--muted)}
+nav.filtres{margin:0 -16px 10px}nav.filtres a{font-size:13px;padding:5px 10px}.compte{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-size:12px;font-weight:600;text-align:center;color:var(--muted)}
 nav a[aria-current] .compte{background:#fff;color:var(--text);border-color:#fff}h2 .compte{vertical-align:2px}
 details.pli,details.pli:first-child{border-top:1px solid var(--line);padding:0 16px}details.bord,details.bord:first-child{border-left-width:4px}
 details.pli>summary{padding:14px 0}details.pli[open]>summary{border-bottom:1px solid var(--line)}details.pli .detail{padding:4px 0 14px}details.pli summary .nom{white-space:normal}details.pli>summary{flex-wrap:wrap}details.pli>summary::after{order:1}
@@ -119,12 +119,14 @@ details.pli>summary>.attend{order:2;flex-basis:100%;margin:-4px 0 0}label.confir
 label.confirme{display:flex;gap:8px;align-items:center;font-weight:400;margin:4px 0 8px}label.confirme input{width:auto;margin:0}
 .bandeau{border-radius:10px;padding:12px 14px;margin:0 0 16px;font-weight:600}.ok{background:#e6f2ea;color:var(--ok)}.err{background:#fbe9e7;color:var(--err)}
 a{color:inherit}table{width:100%;border-collapse:collapse;font-size:14px}td{padding:6px 4px;border-top:1px solid var(--line);vertical-align:top}
-nav{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}nav a{text-decoration:none;font-size:14px;font-weight:600;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted)}
+nav{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:6px;margin:12px -16px 4px;padding:0 16px}nav::-webkit-scrollbar{display:none}
+nav a{flex:none;white-space:nowrap;text-decoration:none;font-size:13px;font-weight:600;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted)}
 nav a[aria-current]{background:var(--text);border-color:var(--text);color:#fff}
 .grille{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}.grille .carte{margin:0;text-decoration:none;display:block}.nombre{font:600 32px/1.1 "Bricolage Grotesque",Inter,sans-serif;letter-spacing:-.02em}
 .grille .alerte{border-color:var(--accent)}.ligne{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-top:1px solid var(--line);padding:9px 0}.ligne:first-child{border-top:0;padding-top:0}
 .voyant{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;background:var(--muted)}.v-ok{background:var(--ok)}.v-err{background:var(--err)}.v-att{background:#c98a00}
-.recherche{margin:0 0 18px}.recherche button{margin-top:0}.journal{font-size:14px}
+.recherche{display:flex;margin:8px 0 10px}.recherche input{flex:1;min-width:0;margin:0;border-radius:8px 0 0 8px}.recherche button{flex:none;width:44px;margin:0;padding:0;border-radius:0 8px 8px 0;border:1px solid var(--line);border-left:0;background:var(--card);color:var(--muted);display:grid;place-items:center}.recherche button:hover{background:var(--bg)}
+.vh{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.journal{font-size:14px}
 details{border-top:1px solid var(--line)}details:first-child{border-top:0}summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 0}
 summary::-webkit-details-marker{display:none}summary::after{content:"";flex:none;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);margin:0 4px 0 2px;transition:transform .15s}
 details[open]>summary::after{transform:rotate(45deg)}summary .nom{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}summary .resume{color:var(--muted);font-size:14px;white-space:nowrap}
@@ -143,8 +145,8 @@ function cadre(vue, email, { message = "", type = "ok" } = {}, corps, ici = lien
 ${message ? `<div class="bandeau ${type === "ok" ? "ok" : "err"}" role="status">${esc(message)}</div>` : ""}${corps}
 <p class="muted"><a href="${ici}">Actualiser</a> · connecté : ${esc(email)}</p>`;
 }
-const RECHERCHE = (q = "") => `<form method="get" action="/admin" role="search" class="recherche"><label for="q">Rechercher une commande</label>
-<input id="q" name="q" type="search" autocomplete="off" placeholder="EV-2026-0012, CF-2026-0012-A ou nom" value="${esc(q)}"><button class="second" type="submit">Rechercher</button></form>`;
+const RECHERCHE = (q = "") => `<form method="get" action="/admin" role="search" class="recherche"><label for="q" class="vh">Rechercher une commande</label>
+<input id="q" name="q" type="search" autocomplete="off" placeholder="EV-2026-0012, CF-… ou nom" value="${esc(q)}"><button type="submit" aria-label="Rechercher"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button></form>`;
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 /* Client affiché sans l'adresse complète : nom · ville */
@@ -239,10 +241,9 @@ function vueCommandes(email, etat, filtre, bandeau, q = "", trouves = null) {
   const liste = choisies.slice(0, MAX_LISTE);
   const filtres = trouves ? "" : `<nav class="filtres" aria-label="Filtres">${FILTRES.map(([f, nom]) =>
     `<a href="/admin${f === "traiter" ? "" : "?f=" + f}"${f === filtre ? ' aria-current="page"' : ""}>${nom} <span class="compte">${resumes.filter(DANS[f]).length}</span></a>`).join("")}</nav>`;
-  const titre = trouves ? (liste.length ? `${pluriel(liste.length, "commande")} trouvée${liste.length > 1 ? "s" : ""}` : "Aucune commande")
-    : FILTRES.find(x => x[0] === filtre)[1];
+  const titre = trouves ? `<h1>${liste.length ? `${pluriel(liste.length, "commande")} trouvée${liste.length > 1 ? "s" : ""}` : "Aucune commande"}</h1>` : "";
   const vide = trouves ? `Rien ne correspond à « ${esc(q)} ».` : filtre === "traiter" ? "Rien à traiter : tout est validé." : "Aucune commande.";
-  return page("Commandes", cadre("", email, bandeau, `${RECHERCHE(q)}${filtres}<h1>${titre}</h1>
+  return page("Commandes", cadre("", email, bandeau, `${RECHERCHE(q)}${filtres}${titre}
 ${liste.length ? `<div class="cmds">${liste.map(ligneCommande).join("")}</div>` : `<div class="carte"><p class="muted">${vide}</p></div>`}
 ${choisies.length > MAX_LISTE ? `<p class="muted">${MAX_LISTE} plus récentes affichées sur ${choisies.length} : utilisez la recherche.</p>` : ""}`,
   trouves ? versFiche(q) : `/admin${filtre === "traiter" ? "" : "?f=" + filtre}`));
@@ -336,7 +337,7 @@ ${a ? `<button class="danger" type="submit" name="statut" value="annulee">Annule
 ${rb ? `<button class="danger" type="submit" name="statut" value="remboursee">Marquer remboursés (après remboursement dans Stripe)</button>` : ""}
 <p class="muted">Geste commercial sans retour de l'article : remboursement partiel dans Stripe seulement, rien à cocher ici.</p></form>` : ""}</div></details>`);
 
-  return page(numero, cadre("", email, { message, type }, `${RECHERCHE()}<p class="retour"><a href="/admin">← Commandes</a></p><h1>${esc(numero)}</h1>${blocs.join("\n")}`, versFiche(numero)), statut);
+  return page(numero, cadre("", email, { message, type }, `<p class="retour"><a href="/admin">← Commandes</a></p><h1>${esc(numero)}</h1>${blocs.join("\n")}`, versFiche(numero)), statut);
 }
 
 /* Fabricants : onglet du Sheet, e-mail masqué ; CF en cours (envoyée ou acceptée) et en retard (envoyée depuis plus que
