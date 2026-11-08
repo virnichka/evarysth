@@ -2,13 +2,17 @@
    derrière Cloudflare Access), qui relaie la requête à ce Worker ; le jeton Access est revérifié ici (acces.js).
    GET  /admin            onglet Commandes : à valider (point de verrou), bloquées, en cours (lecture seule)
    GET  /admin?vue=…      onglets tableau (compteurs, alertes), catalogue (data.js + STL dans R2), fabricants, systeme (voyants), liens
-   GET  /admin?q=…        recherche (n° EV, n° CF ou nom du client) → fiche de la commande avec son Journal (lecture seule)
+   GET  /admin?q=…        recherche (n° EV, n° CF ou nom du client) → fiche de la commande avec son Journal, lien vers le
+                          paiement Stripe et actions (annuler / remboursée, renvoyer un e-mail)
    GET  /admin/<icône>    icônes et manifeste (ICONES, intégrées au code : aucun appel extérieur)
    Bandeau après une action : ?m=…&t=…&ts=…&s=… signé (HMAC_SECRET), ignoré après 2 min, affiché une seule fois
    (cookie admin_flash = signature déjà affichée).
    POST /admin/valider    fabricant + lien STL par article → envoyee_fabricant, e-mail fabricant envoyé tout de suite
    POST /admin/bloquer    articles pas encore envoyés d'une commande → incident
    POST /admin/debloquer  articles bloqués jamais envoyés → retour à a_valider / lien_stl_a_indiquer
+   POST /admin/cloturer   articles de la commande → annulee (pas encore expédiés) ou remboursee (après remboursement fait
+                          dans Stripe) ; case « Je confirme » obligatoire, aucun e-mail, liens fabricant devenus sans effet
+   POST /admin/renvoyer   renvoie l'e-mail dû pour une CF (fabricant si envoyée/acceptée, client si expédiée), sans changer de statut
    POST /admin/tache      lance tout de suite la tâche planifiée (même code que le cron des 10 minutes)
    POST : Origin = celle de la page, jeton anti-falsification (HMAC lié à l'e-mail Access, 12 h), relecture du Sheet
    avant toute écriture (double clic → « déjà validée »), puis redirection 303 (un rafraîchissement ne renvoie rien).
@@ -94,6 +98,8 @@ p{margin:0 0 8px}.muted{color:var(--muted);font-size:14px}.tete{display:flex;jus
 label{display:block;font-weight:600;font-size:14px;margin:0 0 4px}input,select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin:0 0 10px;background:#fff;color:var(--text)}
 button{width:100%;font:600 16px/1 Inter,sans-serif;padding:14px;border:0;border-radius:999px;background:var(--accent);color:#151515;cursor:pointer;margin-top:4px}button:hover{background:var(--accent-hover)}
 button.second{background:transparent;border:1px solid var(--line);color:var(--muted);font-size:14px;padding:10px}
+button.danger{background:transparent;border:1px solid #f0c7c2;color:var(--err);font-size:14px;padding:10px}button.danger:hover{background:#fbe9e7}
+label.confirme{display:flex;gap:8px;align-items:center;font-weight:400;margin:4px 0 8px}label.confirme input{width:auto;margin:0}
 .bandeau{border-radius:10px;padding:12px 14px;margin:0 0 16px;font-weight:600}.ok{background:#e6f2ea;color:var(--ok)}.err{background:#fbe9e7;color:var(--err)}
 a{color:inherit}table{width:100%;border-collapse:collapse;font-size:14px}td{padding:6px 4px;border-top:1px solid var(--line);vertical-align:top}
 nav{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}nav a{text-decoration:none;font-size:14px;font-weight:600;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted)}
@@ -203,7 +209,33 @@ export function chercher(etat, q) {
   return [...new Set([...parNumero, ...parNom])].sort().reverse().slice(0, 30);
 }
 
-function vueRecherche(email, etat, q, bandeau) {
+/* Actions de la fiche : clôture (annulée / remboursée) et renvoi d'e-mail */
+const CLOS = ["annulee", "remboursee"], PARTIS = ["expediee", "livree"], RENVOYABLES = [ENVOYE, "acceptee", "expediee"];
+const annulables = ls => ls.filter(l => !CLOS.includes(l.statut) && !PARTIS.includes(l.statut));
+const remboursables = ls => ls.filter(l => !CLOS.includes(l.statut));
+const lienStripe = sid => /^cs_[A-Za-z0-9_]+$/.test(sid || "")
+  ? `https://dashboard.stripe.com/${sid.startsWith("cs_test_") ? "test/" : ""}search?query=${encodeURIComponent(sid)}` : "";
+/* CF dont un e-mail peut être renvoyé : statut commun envoyee_fabricant / acceptee (fabricant) ou expediee (client) */
+function cfsRenvoyables(arts) {
+  const parCF = {};
+  for (const l of arts) if (l.cf && !CLOS.includes(l.statut)) (parCF[l.cf] ||= []).push(l);
+  return Object.entries(parCF).filter(([, ls]) => RENVOYABLES.includes(ls[0].statut) && ls.every(l => l.statut === ls[0].statut))
+    .map(([cf, ls]) => ({ cf, lignes: ls, statut: ls[0].statut === "acceptee" ? ENVOYE : ls[0].statut }));
+}
+
+function actionsFiche(numero, arts, csrf) {
+  const champs = `<input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="ev" value="${esc(numero)}">`;
+  const renvois = cfsRenvoyables(arts).map(g => `<form method="post" action="/admin/renvoyer">${champs}<input type="hidden" name="cf" value="${esc(g.cf)}">
+<button class="second" type="submit">Renvoyer l'e-mail ${g.statut === ENVOYE ? "au fabricant" : "d'expédition au client"} (${esc(g.cf)})</button></form>`);
+  const a = annulables(arts).length, r = remboursables(arts).length;
+  const cloture = a || r ? `<form method="post" action="/admin/cloturer">${champs}
+<label class="confirme"><input type="checkbox" name="confirmer" value="oui" required> Je confirme (définitif, aucun e-mail envoyé)</label>
+${a ? `<button class="danger" type="submit" name="statut" value="annulee">Annuler la commande</button>` : ""}
+${r ? `<button class="danger" type="submit" name="statut" value="remboursee">Marquer remboursée (après remboursement dans Stripe)</button>` : ""}</form>` : "";
+  return renvois.length || cloture ? `<h2>Actions</h2><div class="carte">${renvois.join("")}${cloture}</div>` : "";
+}
+
+async function vueRecherche(env, email, etat, q, bandeau) {
   const trouves = chercher(etat, q);
   const { evs, parEV, journal } = etat;
   let corps;
@@ -221,8 +253,11 @@ function vueRecherche(email, etat, q, bandeau) {
 <p class="muted">Lien STL : ${lien ? `<a href="${esc(lien)}" target="_blank" rel="noopener noreferrer">ouvrir ↗</a>` : esc(l.stl.trim() || "—")}</p>
 ${suivi ? `<p class="muted">Suivi : ${esc(suivi)}</p>` : ""}</div>`;
     });
+    const stripe = lienStripe(ev.sid);
     corps = `<h1>${esc(numero)}</h1><div class="carte"><div class="tete"><b>${esc(nomVille(ev) || "Client inconnu")}</b><span class="badge">${esc(ev.statut ? libelleEV(ev.statut) : "—")}</span></div>
-<p class="muted">${esc(ev.date || "")}${ev.type ? " · " + esc(ev.type) : ""}${ev.cadeau ? " · Cadeau" : ""}</p>${articles.join("") || '<p class="muted">Aucun article dans Commandes CF.</p>'}</div>
+<p class="muted">${esc(ev.date || "")}${ev.type ? " · " + esc(ev.type) : ""}${ev.cadeau ? " · Cadeau" : ""}</p>
+${stripe ? `<p class="muted"><a href="${esc(stripe)}" target="_blank" rel="noopener noreferrer">Paiement dans Stripe ↗</a></p>` : ""}${articles.join("") || '<p class="muted">Aucun article dans Commandes CF.</p>'}</div>
+${actionsFiche(numero, arts, await jetonCsrf(env, email))}
 <h2>Historique</h2><div class="carte journal">${histo.map(j => `<div class="ligne"><span><b>${esc(j.n)}</b> · ${esc(j.ancien ? `${(j.n.startsWith("EV") ? libelleEV : libelle)(j.ancien)} → ` : "")}${esc((j.n.startsWith("EV") ? libelleEV : libelle)(j.nouveau))}<br><span class="muted">${esc(j.date)}${j.auteur ? " · " + esc(j.auteur) : ""}</span></span></div>`).join("") || '<p class="muted">Rien au Journal.</p>'}</div>`;
   } else if (trouves.length) {
     corps = `<h1>${pluriel(trouves.length, "commande")} trouvée${trouves.length > 1 ? "s" : ""}</h1><div class="carte">${trouves.map(n => {
@@ -395,16 +430,16 @@ const debloquable = (l, journal) => l.statut === INCIDENT && !(l.cf && (journal[
 
 /* Bandeau après une action : message daté et signé, valable 2 min, affiché une seule fois */
 const FLASH_S = 120, COOKIE_FLASH = "admin_flash";
-const signerFlash = (env, { vue, m, t, ts }) => signature(env.HMAC_SECRET, `flash|${vue}|${t}|${ts}|${m}`);
-async function redirection(env, message, type = "ok", vue = "") {
-  const f = { vue, m: message.slice(0, 300), t: type === "err" ? "err" : "ok", ts: String(Math.floor(Date.now() / 1000)) };
-  const params = new URLSearchParams({ ...(vue ? { vue } : {}), m: f.m, t: f.t, ts: f.ts, s: await signerFlash(env, f) });
+const signerFlash = (env, { vue, q = "", m, t, ts }) => signature(env.HMAC_SECRET, `flash|${vue}|${q ? q + "|" : ""}${t}|${ts}|${m}`);
+async function redirection(env, message, type = "ok", vue = "", q = "") {
+  const f = { vue, q, m: message.slice(0, 300), t: type === "err" ? "err" : "ok", ts: String(Math.floor(Date.now() / 1000)) };
+  const params = new URLSearchParams({ ...(vue ? { vue } : {}), ...(q ? { q } : {}), m: f.m, t: f.t, ts: f.ts, s: await signerFlash(env, f) });
   return new Response(null, { status: 303, headers: { Location: `/admin?${params}`, "Cache-Control": "no-store" } });
 }
 /* → { bandeau, cookie } : bandeau vide si absent, faux, périmé ou déjà affiché (cookie = sa signature) */
 export async function lireFlash(env, url, req, vue, maintenant = Date.now()) {
   const p = url.searchParams, s = p.get("s") || "", ts = p.get("ts") || "";
-  const f = { vue, m: String(p.get("m") || "").slice(0, 300), t: p.get("t") === "err" ? "err" : "ok", ts };
+  const f = { vue, q: nettoyer(p.get("q"), 80), m: String(p.get("m") || "").slice(0, 300), t: p.get("t") === "err" ? "err" : "ok", ts };
   const vide = { bandeau: {}, cookie: null };
   if (!s || !/^\d{1,12}$/.test(ts) || !f.m) return vide;
   const age = maintenant / 1000 - Number(ts);
@@ -505,6 +540,41 @@ async function debloquer(env, f) {
   return redirection(env, `Commande ${numero} débloquée : à valider.`);
 }
 
+/* POST /admin/cloturer : annulee (articles pas encore expédiés) ou remboursee (tous ceux pas encore clos) ; aucun e-mail */
+async function cloturer(env, f) {
+  const numero = nettoyer(f.get("ev")), statut = f.get("statut");
+  const retour = (m, t = "ok") => redirection(env, m, t, "", numero);
+  if (!CLOS.includes(statut)) return retour("Action inconnue.", "err");
+  if (f.get("confirmer") !== "oui") return retour("Cochez « Je confirme » : rien n'a été modifié.", "err");
+  const etat = await lireEtat(env);
+  const toutes = etat.parEV[numero] || [];
+  const ls = (statut === "annulee" ? annulables : remboursables)(toutes);
+  if (!ls.length) return retour(statut === "annulee" && remboursables(toutes).length
+    ? `Commande ${numero} : déjà expédiée, elle ne peut plus être annulée (seulement marquée remboursée).`
+    : `Commande ${numero} : rien à modifier.`, "err");
+  for (const l of ls) {
+    await majArticle(env, numero, l.n, { Statut: statut, "Dernier statut notifié": statut });
+    await journaliserSiNouveau(env, etat.journal, l.cf || numero, l.statut, statut, "proprietaire");
+  }
+  const chez = [...new Set(ls.filter(l => l.cf && [ENVOYE, "acceptee"].includes(l.statut)).map(l => `${l.cf} (${l.fabricant.trim() || "fabricant"})`))];
+  return retour(`Commande ${numero} ${statut === "annulee" ? "annulée" : "marquée remboursée"} (${pluriel(ls.length, "article")}).`
+    + (chez.length ? ` Prévenez le fabricant : ${chez.join(", ")} (ses liens Accepter / Expédier n'ont plus d'effet).` : "")
+    + (statut === "annulee" ? " Remboursement éventuel : à faire dans Stripe." : ""));
+}
+
+/* POST /admin/renvoyer : renvoie l'e-mail dû pour une CF (même contenu que l'envoi d'origine), statut inchangé */
+async function renvoyer(env, f) {
+  const numero = nettoyer(f.get("ev")), cf = nettoyer(f.get("cf"));
+  const etat = await lireEtat(env);
+  const toutes = etat.parEV[numero] || [];
+  const g = cfsRenvoyables(toutes).find(x => x.cf === cf);
+  if (!g) return redirection(env, `${cf || "Commande"} : aucun e-mail à renvoyer pour ce statut.`, "err", "", numero);
+  const r = await envoyerSelonStatut(env, { ...g, numero: cf, ev: numero }, etat.evs[numero] || { numero, client: "", sid: "" }, toutes, etat.fabs)
+    .catch(e => { console.error("Admin : renvoi", cf, e.message); return "e-mail non parti, réessayez"; });
+  if (r !== true) return redirection(env, `${cf} : e-mail non renvoyé (${r}).`, "err", "", numero);
+  return redirection(env, `${cf} : e-mail ${g.statut === ENVOYE ? "renvoyé au fabricant" : "d'expédition renvoyé au client"} ✓`, "ok", "", numero);
+}
+
 /* POST venu de la page elle-même : Origin = celle de la page ; ou, si le navigateur envoie « null » / rien
    (certaines politiques de référent sous Safari), Sec-Fetch-Site = same-origin. Toute autre valeur est refusée. */
 function memeOrigine(req, url) {
@@ -521,7 +591,7 @@ export async function routeAdmin(req, env, url) {
   const icone = /^\/admin\/([a-z0-9-]+\.(?:svg|png|webmanifest))$/.exec(url.pathname);
   if (icone && req.method === "GET") { const r = ressource(icone[1]); if (r) return r; }
   const route = `${req.method} ${url.pathname}`;
-  const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/tache"];
+  const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/cloturer", "POST /admin/renvoyer", "POST /admin/tache"];
   if (!routes.includes(route)) return simple("Introuvable", "Page introuvable.", 404);
 
   let email;
@@ -536,7 +606,7 @@ export async function routeAdmin(req, env, url) {
     if (req.method === "GET") {
       const { bandeau, cookie } = await lireFlash(env, url, req, vue);
       const q = nettoyer(url.searchParams.get("q"), 80);
-      const r = q ? vueRecherche(email, await lireEtat(env), q, bandeau)
+      const r = q ? await vueRecherche(env, email, await lireEtat(env), q, bandeau)
         : vue === "tableau" ? vueTableau(email, await lireEtat(env), bandeau)
         : vue === "catalogue" ? await vueCatalogue(env, email, bandeau)
         : vue === "fabricants" ? vueFabricants(email, await lireEtat(env), bandeau)
@@ -552,6 +622,8 @@ export async function routeAdmin(req, env, url) {
     if (!f || !await csrfValide(env, email, f.get("csrf"))) return redirection(env, "Page expirée : action non faite. Recommencez.", "err");
     if (url.pathname === "/admin/valider") return await valider(env, email, f);
     if (url.pathname === "/admin/bloquer") return await bloquer(env, f);
+    if (url.pathname === "/admin/cloturer") return await cloturer(env, f);
+    if (url.pathname === "/admin/renvoyer") return await renvoyer(env, f);
     if (url.pathname === "/admin/tache") return await tacheMaintenant(env);
     return await debloquer(env, f);
   } catch (e) {

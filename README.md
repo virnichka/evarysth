@@ -50,7 +50,10 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    n° fournisseur `CF-AAAA-NNNN-X` (seul n° vu par le fabricant ; lettre = fabricant), e-mail fabricant immédiat.
    Boutons « Bloquer » / « Débloquer » (`incident`). Autres onglets : Tableau de bord (compteurs, alertes), Catalogue
    (STL présents dans R2), Fabricants (en cours / en retard), Système (voyants, « Lancer la tâche maintenant »), Liens ;
-   recherche d'une commande (n° EV, n° CF ou nom) avec son Journal. Icônes de /admin intégrées au Worker
+   recherche d'une commande (n° EV, n° CF ou nom) avec son Journal. Sur la fiche d'une commande : lien vers le paiement
+   Stripe, « Annuler la commande » (articles pas encore expédiés) ou « Marquer remboursée » (le remboursement se fait dans
+   Stripe), case « Je confirme » obligatoire, aucun e-mail ; « Renvoyer l'e-mail » au fabricant (CF envoyée ou acceptée)
+   ou d'expédition au client (CF expédiée), sans changer le statut. Icônes de /admin intégrées au Worker
    (`worker/src/icones.js`, à régénérer par `node tools/icones-admin.mjs` si `assets/icons/` change).
 4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours).
 5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas

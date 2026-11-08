@@ -83,7 +83,8 @@ async function ouvrir({ jeton, hote = HOTE, e = env } = {}) {
 }
 const csrfDe = html => /name="csrf" value="([^"]+)"/.exec(html)[1];
 async function envoyer(chemin, champs, { origine = ORIGINE, csrf, site } = {}) {
-  const html = await (await ouvrir()).text();
+  let html = await (await ouvrir()).text();
+  if (!/name="csrf"/.test(html)) html = await (await get("/admin?q=EV-2026-0010")).text();   /* plus rien à valider : jeton de la fiche */
   const corps = new URLSearchParams({ csrf: csrf ?? csrfDe(html), ev: "EV-2026-0010", ...champs });
   const headers = { "Cf-Access-Jwt-Assertion": await jwt(), "Content-Type": "application/x-www-form-urlencoded", ...(origine ? { Origin: origine } : {}), ...(site ? { "Sec-Fetch-Site": site } : {}) };
   return silence(() => worker.fetch(new Request(`${ORIGINE}${chemin}`, { method: "POST", headers, body: corps }), env));
@@ -350,7 +351,8 @@ test("Recherche : par n° EV, n° CF ou nom (sans accents) → fiche avec articl
     assert.doesNotMatch(html, /rue des Lilas|client@example\.com/);
     assert.match(html, /Article 1 · <b>CF-2026-0010-A<\/b>[\s\S]*Atelier Dupont[\s\S]*drive\.google\.com\/fichier[\s\S]*Colissimo · 6A123/);
     assert.match(html, /Historique[\s\S]*EV-2026-0010<\/b> · Payée<br>[\s\S]*CF-2026-0010-A<\/b> · À valider → Envoyée au fabricant[\s\S]*proprietaire/);
-    assert.doesNotMatch(html, /<form method="post"/, "lecture seule");
+    assert.match(html, /href="https:\/\/dashboard\.stripe\.com\/test\/search\?query=cs_test_admin"/, "lien vers le paiement Stripe");
+    assert.match(html, /Actions[\s\S]*action="\/admin\/cloturer"[\s\S]*value="annulee"[\s\S]*value="remboursee"/);
   }
   const vide = await (await get(`/admin?q=${encodeURIComponent('<script>x</script>')}`)).text();
   assert.match(vide, /Aucune commande/);
@@ -374,4 +376,64 @@ test("Fabricants : e-mail masqué, CF en cours et en retard (délai dépassé d'
   assert.match(html, /<summary><span class="nom">Atelier Dupont<\/span><span class="badge manque">1 en retard<\/span><\/summary>/);
   assert.match(html, /<summary><span class="nom">Sans Mail<\/span><span class="resume">0 en cours<\/span><\/summary>/);
   assert.doesNotMatch(html, /<form method="post"/);
+});
+
+const fiche = async () => (await get(`/admin?q=EV-2026-0010`)).text();
+const versFiche = r => new URL(r.headers.get("Location"), ORIGINE).searchParams.get("q");
+
+test("Annuler : case « Je confirme » obligatoire ; puis articles annulés, Journal, aucun e-mail, plus rien à valider", async () => {
+  let r = await envoyer("/admin/cloturer", { statut: "annulee" });
+  assert.match(bandeau(r), /Cochez « Je confirme »/);
+  assert.equal(art(1).Statut, "lien_stl_a_indiquer");
+  r = await envoyer("/admin/cloturer", { statut: "supprimee", confirmer: "oui" });
+  assert.match(bandeau(r), /Action inconnue/);
+  r = await envoyer("/admin/cloturer", { statut: "annulee", confirmer: "oui" });
+  assert.equal(versFiche(r), "EV-2026-0010", "retour sur la fiche");
+  assert.match(bandeau(r), /annulée \(2 articles\)/);
+  assert.deepEqual([art(1).Statut, art(1)["Dernier statut notifié"], art(2).Statut], ["annulee", "annulee", "annulee"]);
+  assert.deepEqual(sheet.Journal.slice(1).map(l => l.slice(1)), [["EV-2026-0010", "lien_stl_a_indiquer", "annulee", "proprietaire"]]);
+  assert.match(await (await ouvrir()).text(), /0 commande à valider/);
+  assert.doesNotMatch(await fiche(), /action="\/admin\/cloturer"/, "plus aucune action une fois close");
+  const b = await silence(() => tachePlanifiee(env));
+  assert.equal(emails.length, 0);
+  assert.deepEqual(b.notifiees, []);
+});
+
+test("Annuler une commande chez le fabricant : rappel de le prévenir ; expédiée : seulement « remboursée »", async () => {
+  await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/x" });
+  let r = await envoyer("/admin/cloturer", { statut: "annulee", confirmer: "oui" });
+  assert.match(bandeau(r), /Prévenez le fabricant : CF-2026-0010-A \(Atelier Dupont\)/);
+  assert.equal(art(1).Statut, "annulee");
+
+  sheet["Commandes CF"][2][COL_CF.Statut] = sheet["Commandes CF"][2][COL_CF["Dernier statut notifié"]] = "expediee";
+  sheet["Commandes CF"][2][COL_CF["Commande CF"]] = "CF-2026-0010-B";
+  sheet["Commandes CF"][1][COL_CF.Statut] = sheet["Commandes CF"][1][COL_CF["Dernier statut notifié"]] = "expediee";
+  r = await envoyer("/admin/cloturer", { statut: "annulee", confirmer: "oui" });
+  assert.match(bandeau(r), /déjà expédiée.*remboursée/);
+  assert.doesNotMatch(await fiche(), /value="annulee"/);
+  r = await envoyer("/admin/cloturer", { statut: "remboursee", confirmer: "oui" });
+  assert.match(bandeau(r), /marquée remboursée \(2 articles\)/);
+  assert.deepEqual([art(1).Statut, art(2).Statut], ["remboursee", "remboursee"]);
+});
+
+test("Renvoyer : e-mail fabricant renvoyé sans changer le statut ; expédiée → e-mail client ; sinon refusé", async () => {
+  let r = await envoyer("/admin/renvoyer", { cf: "CF-2026-0010-A" });
+  assert.match(bandeau(r), /aucun e-mail à renvoyer/);
+  await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/x" });
+  assert.match(await fiche(), /Renvoyer l'e-mail au fabricant \(CF-2026-0010-A\)/);
+  const journal = sheet.Journal.length;
+  r = await envoyer("/admin/renvoyer", { cf: "CF-2026-0010-A" });
+  assert.match(bandeau(r), /renvoyé au fabricant ✓/);
+  assert.equal(emails.length, 2);
+  assert.equal(emails[1].to[0].email, "atelier@example.com");
+  assert.deepEqual([art(1).Statut, sheet.Journal.length], ["envoyee_fabricant", journal], "statut et Journal inchangés");
+
+  sheet["Commandes CF"][1][COL_CF.Statut] = sheet["Commandes CF"][1][COL_CF["Dernier statut notifié"]] = "expediee";
+  r = await envoyer("/admin/renvoyer", { cf: "CF-2026-0010-A" });
+  assert.match(bandeau(r), /d'expédition renvoyé au client ✓/);
+  assert.equal(emails[2].to[0].email, "client@example.com");
+
+  brevoEnPanne = true;
+  r = await envoyer("/admin/renvoyer", { cf: "CF-2026-0010-A" });
+  assert.match(bandeau(r), /non renvoyé/);
 });
