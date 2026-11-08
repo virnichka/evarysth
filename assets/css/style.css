@@ -156,6 +156,10 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .hero__chip--dim { left: 24px; top: 24px; padding: 12px 18px; }
 .hero__chip--dim small { display: block; font-size: 13px; color: var(--muted); }
 .hero__chip--dim b { font: 500 26px var(--mono); }
+.hero__chip--dim label { display: block; cursor: pointer; }
+.hero__chip--dim input[type=range] { display: block; width: 190px; margin: 12px 0 10px; padding: 0; border: 0; touch-action: pan-y; }
+.hero__chip-link { font-size: 13px; font-weight: 600; color: var(--accent-text); text-decoration: none; }
+.hero__chip-link:hover { text-decoration: underline; }
 .hero__chip--mode { right: 20px; bottom: 20px; padding: 6px 6px 10px; border-radius: 24px; }
 .hero__switch { display: flex; gap: 4px; }
 .hero__switch button { flex: 1; padding: 9px 16px; border: 0; border-radius: 999px; background: none; color: var(--soft); font: 600 14px var(--sans); white-space: nowrap; cursor: pointer; }
@@ -610,7 +614,9 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
   .cart-btn__count[hidden] { visibility: visible; width: auto; min-width: 28px; padding: 0 7px; }
   .hero__chip--dim { left: 12px; top: 12px; padding: 8px 12px; }
   .hero__chip--dim b { font-size: 20px; }
-  .hero__chip--mode { right: 12px; bottom: 12px; }
+  .hero__chip--dim input[type=range] { width: 140px; margin: 8px 0 2px; }
+  .hero__chip-link { display: none; }
+  .hero__chip--mode { position: static; width: fit-content; margin: 12px auto 0; box-shadow: none; }
   .hero__switch button { padding: 8px 12px; font-size: 13px; }
   .hero__chip--mode p { font-size: 12px; }
   .carousel__nav { display: none; }
