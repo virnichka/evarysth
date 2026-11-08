@@ -28,8 +28,8 @@ WORKER_URL = "https://evarysth-checkout.virnichka.workers.dev"
 # Tant que ACCESS_TEAM_DOMAIN et ACCESS_AUD sont vides, /admin répond 403 à tout le monde.
 ADMIN_HOST = "evarysth-admin.virnichka.workers.dev"
 # Cloudflare Zero Trust → Access : domaine de l'équipe (ex. evarysth.cloudflareaccess.com) et tag AUD de l'application
-ACCESS_TEAM_DOMAIN = ""
-ACCESS_AUD = ""
+ACCESS_TEAM_DOMAIN = "lively-rice-95f4.cloudflareaccess.com"
+ACCESS_AUD = "10d2ba7ddcdbe83632614d649b8a7d9b1d83b40e4b0e12b91fcaecc723ebbae6"
 ADMIN_EMAILS = "evarysth@gmail.com"
 
 # Tâche planifiée (bloc D) : e-mails selon le statut du Sheet ; sans secrets Google, elle ne fait rien
