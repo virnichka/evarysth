@@ -84,7 +84,8 @@ async function ouvrir({ jeton, hote = HOTE, e = env } = {}) {
 const csrfDe = html => /name="csrf" value="([^"]+)"/.exec(html)[1];
 async function envoyer(chemin, champs, { origine = ORIGINE, csrf, site } = {}) {
   const html = await (await get("/admin?q=EV-2026-0010")).text();   /* jeton de la fiche, où sont les actions */
-  const corps = new URLSearchParams({ csrf: csrf ?? csrfDe(html), ev: "EV-2026-0010", ...champs });
+  const corps = new URLSearchParams({ csrf: csrf ?? csrfDe(html), ev: "EV-2026-0010" });
+  for (const [k, v] of Object.entries(champs)) for (const x of [v].flat()) corps.append(k, x);   /* tableau : plusieurs valeurs (cases) */
   const headers = { "Cf-Access-Jwt-Assertion": await jwt(), "Content-Type": "application/x-www-form-urlencoded", ...(origine ? { Origin: origine } : {}), ...(site ? { "Sec-Fetch-Site": site } : {}) };
   return silence(() => worker.fetch(new Request(`${ORIGINE}${chemin}`, { method: "POST", headers, body: corps }), env));
 }
@@ -352,7 +353,7 @@ test("Recherche : par n° EV, n° CF ou nom (sans accents) → fiche avec articl
     assert.match(html, /<h1>EV-2026-0010<\/h1>/, q);
     assert.match(html, /<b>Camille Test<\/b>[\s\S]*75011 Paris · 8 nov\. 2026 à 10:00/);
     assert.doesNotMatch(html, /rue des Lilas|client@example\.com/);
-    assert.match(html, /<details class="carte pli bord t-att" open><summary><span class="nom">CF-2026-0010-A <span class="muted">· Atelier Dupont · 1 article[\s\S]*Colissimo · 6A123[\s\S]*Article 1[\s\S]*drive\.google\.com\/fichier/);
+    assert.match(html, /<details class="carte pli bord t-att" open><summary><span class="nom">CF-2026-0010-A<br><span class="muted">Atelier Dupont · 1 article[\s\S]*Colissimo · 6A123[\s\S]*Article 1[\s\S]*drive\.google\.com\/fichier/);
     assert.match(html, /Historique[\s\S]*EV-2026-0010<\/b> · Payée<br>[\s\S]*CF-2026-0010-A<\/b> · À valider → Envoyée au fabricant[\s\S]*proprietaire/);
     assert.match(html, /href="https:\/\/dashboard\.stripe\.com\/test\/search\?query=cs_test_admin"/, "lien vers le paiement Stripe");
     assert.match(html, /Bloquer, annuler ou rembourser[\s\S]*action="\/admin\/cloturer"[\s\S]*value="annulee"[\s\S]*value="remboursee"/);
@@ -384,15 +385,18 @@ test("Fabricants : e-mail masqué, CF en cours et en retard (délai dépassé d'
 const fiche = async () => (await get(`/admin?q=EV-2026-0010`)).text();
 const versFiche = r => new URL(r.headers.get("Location"), ORIGINE).searchParams.get("q");
 
-test("Annuler : case « Je confirme » obligatoire ; puis articles annulés, Journal, aucun e-mail, plus rien à valider", async () => {
-  let r = await envoyer("/admin/cloturer", { statut: "annulee" });
+test("Annuler : au moins un article coché et « Je confirme » ; puis articles annulés, Journal, aucun e-mail, plus rien à valider", async () => {
+  let r = await envoyer("/admin/cloturer", { statut: "annulee", confirmer: "oui" });
+  assert.match(bandeau(r), /Cochez au moins un article/);
+  r = await envoyer("/admin/cloturer", { statut: "annulee", art: "1" });
   assert.match(bandeau(r), /Cochez « Je confirme »/);
   assert.equal(art(1).Statut, "lien_stl_a_indiquer");
-  r = await envoyer("/admin/cloturer", { statut: "supprimee", confirmer: "oui" });
+  r = await envoyer("/admin/cloturer", { statut: "supprimee", art: "1", confirmer: "oui" });
   assert.match(bandeau(r), /Action inconnue/);
-  r = await envoyer("/admin/cloturer", { statut: "annulee", confirmer: "oui" });
+  assert.match(await fiche(), /name="art" value="1"> <span>Article 1 · boite-rugged[\s\S]*name="art" value="2">[\s\S]*Annuler les articles cochés/);
+  r = await envoyer("/admin/cloturer", { statut: "annulee", art: ["1", "2"], confirmer: "oui" });
   assert.equal(versFiche(r), "EV-2026-0010", "retour sur la fiche");
-  assert.match(bandeau(r), /annulée \(2 articles\)/);
+  assert.match(bandeau(r), /2 articles annulés \(1, 2\)/);
   assert.deepEqual([art(1).Statut, art(1)["Dernier statut notifié"], art(2).Statut], ["annulee", "annulee", "annulee"]);
   assert.deepEqual(sheet.Journal.slice(1).map(l => l.slice(1)), [["EV-2026-0010", "lien_stl_a_indiquer", "annulee", "proprietaire"]]);
   assert.match(await (await ouvrir()).text(), /Rien à traiter/);
@@ -402,21 +406,22 @@ test("Annuler : case « Je confirme » obligatoire ; puis articles annulés, Jou
   assert.deepEqual(b.notifiees, []);
 });
 
-test("Annuler une commande chez le fabricant : rappel de le prévenir ; expédiée : seulement « remboursée »", async () => {
+test("Un seul article : annulé ou remboursé sans toucher aux autres ; expédié : seulement « remboursé » ; rappel du fabricant", async () => {
   await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/x" });
-  let r = await envoyer("/admin/cloturer", { statut: "annulee", confirmer: "oui" });
-  assert.match(bandeau(r), /Prévenez le fabricant : CF-2026-0010-A \(Atelier Dupont\)/);
-  assert.equal(art(1).Statut, "annulee");
+  let r = await envoyer("/admin/cloturer", { statut: "annulee", art: "1", confirmer: "oui" });
+  assert.match(bandeau(r), /1 article annulé \(1\).*Prévenez le fabricant : CF-2026-0010-A \(Atelier Dupont\)/);
+  assert.deepEqual([art(1).Statut, art(2).Statut], ["annulee", "lien_stl_a_indiquer"], "l'autre article continue");
 
   sheet["Commandes CF"][2][COL_CF.Statut] = sheet["Commandes CF"][2][COL_CF["Dernier statut notifié"]] = "expediee";
   sheet["Commandes CF"][2][COL_CF["Commande CF"]] = "CF-2026-0010-B";
-  sheet["Commandes CF"][1][COL_CF.Statut] = sheet["Commandes CF"][1][COL_CF["Dernier statut notifié"]] = "expediee";
-  r = await envoyer("/admin/cloturer", { statut: "annulee", confirmer: "oui" });
-  assert.match(bandeau(r), /déjà expédiée.*remboursée/);
+  r = await envoyer("/admin/cloturer", { statut: "annulee", art: "2", confirmer: "oui" });
+  assert.match(bandeau(r), /Article 2 : déjà expédié.*marqué remboursé.*Rien n'a été modifié/);
+  assert.equal(art(2).Statut, "expediee");
   assert.doesNotMatch(await fiche(), /value="annulee"/);
-  r = await envoyer("/admin/cloturer", { statut: "remboursee", confirmer: "oui" });
-  assert.match(bandeau(r), /marquée remboursée \(2 articles\)/);
-  assert.deepEqual([art(1).Statut, art(2).Statut], ["remboursee", "remboursee"]);
+  r = await envoyer("/admin/cloturer", { statut: "remboursee", art: "2", confirmer: "oui" });
+  assert.match(bandeau(r), /1 article marqué remboursé \(2\)/);
+  assert.deepEqual([art(1).Statut, art(2).Statut], ["annulee", "remboursee"]);
+  assert.doesNotMatch(await fiche(), /action="\/admin\/cloturer"/, "tout est clos : plus de formulaire");
 });
 
 test("Renvoyer : e-mail fabricant renvoyé sans changer le statut ; expédiée → e-mail client ; sinon refusé", async () => {
@@ -446,8 +451,8 @@ test("Attente du fabricant : signalée dans la liste, la fiche et le tableau de 
   sheet["Commandes CF"].splice(2, 1);
   await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/x" });
   let liste = await (await get("/admin?f=fabricant")).text();
-  assert.match(liste, /class="cmd bord t-wait"[\s\S]*<span class="attend">1 en attente d&#39;acceptation<\/span>/);
-  assert.match(await (await get("/admin?q=EV-2026-0010")).text(), /<details class="carte pli bord t-wait" open>[\s\S]*<span class="attend">En attente d&#39;acceptation depuis aujourd&#39;hui<\/span>[\s\S]*<span class="badge t-wait">Envoyée au fabricant/);
+  assert.match(liste, /class="cmd bord t-wait"[\s\S]*<span class="badge t-wait">En attente fabricant<\/span>[\s\S]*<span class="attend">1 en attente d&#39;acceptation<\/span>/);
+  assert.match(await (await get("/admin?q=EV-2026-0010")).text(), /<details class="carte pli bord t-wait" open>[\s\S]*<span class="badge t-wait">Envoyée au fabricant<\/span><\/span><span class="attend">En attente d&#39;acceptation depuis aujourd&#39;hui<\/span>/);
   assert.match(await (await get("/admin?vue=tableau")).text(), /chez le fabricant<\/div><span class="attend">dont 1 en attente d&#39;acceptation/);
 
   const j = sheet.Journal.findIndex(l => l[1] === "CF-2026-0010-A" && l[3] === "envoyee_fabricant");
@@ -460,4 +465,5 @@ test("Attente du fabricant : signalée dans la liste, la fiche et le tableau de 
   sheet["Commandes CF"][1][COL_CF.Statut] = "acceptee";
   liste = await (await get("/admin?f=fabricant")).text();
   assert.doesNotMatch(liste, /class="attend/, "acceptée : plus de signal");
+  assert.match(liste, /<span class="badge t-fab">En fabrication<\/span>/, "acceptée : « En fabrication »");
 });

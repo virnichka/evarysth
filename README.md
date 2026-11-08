@@ -53,8 +53,10 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    `CF-AAAA-NNNN-X`, seul n° vu par le fabricant, lettre = fabricant, e-mail fabricant immédiat), articles bloqués
    (« Débloquer »), un pli par envoi fabricant (articles, STL, suivi, « Renvoyer l'e-mail » au fabricant ou d'expédition
    au client, sans changer le statut), Historique replié, et un pli « Bloquer, annuler ou rembourser » (« Bloquer » →
-   `incident` ; « Annuler » articles pas encore expédiés ou « Marquer remboursée » après remboursement fait dans Stripe,
-   case « Je confirme » obligatoire, aucun e-mail). Autres onglets : Tableau de bord (compteurs, alertes), Catalogue
+   `incident` ; articles à cocher un par un, puis « Annuler » (pas encore expédiés) ou « Marquer remboursés » après
+   remboursement fait dans Stripe, case « Je confirme » obligatoire, aucun e-mail ; un geste commercial sans retour se fait
+   seulement dans Stripe). Badge « En attente fabricant » (affichage seul, le Sheet garde `en_fabrication`) tant qu'aucun
+   envoi n'est accepté ; envoi non accepté signalé en jaune, en orange après 48 h sans réponse. Autres onglets : Tableau de bord (compteurs, alertes), Catalogue
    (STL présents dans R2), Fabricants (en cours / en retard), Système (voyants, « Lancer la tâche maintenant »), Liens. Icônes de /admin intégrées au Worker
    (`worker/src/icones.js`, à régénérer par `node tools/icones-admin.mjs` si `assets/icons/` change).
 4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours).
