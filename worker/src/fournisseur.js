@@ -30,7 +30,7 @@ export const TRANSITIONS = {
 /* Transporteurs : colonne « Transporteurs » de l'onglet Listes (même liste que le menu du Sheet) ; secours si illisible */
 export const LISTES = "Listes";
 export const TRANSPORTEURS_SECOURS = ["La Poste – Colissimo", "La Poste – Lettre suivie", "Mondial Relay", "Autre"];
-async function lireTransporteurs(env) {
+export async function lireTransporteurs(env) {
   try {
     const cols = await entetes(env, LISTES);
     const lu = await lireColonnes(env, LISTES, cols, ["Transporteurs"]);

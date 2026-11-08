@@ -105,7 +105,8 @@ elle journalise seulement chaque changement de `Statut` (auteur `worker`).
 | L | Transporteur | Worker (lien fournisseur) ou propriétaire | menu (`Listes!C`) |
 | M | N° de suivi | Worker (lien fournisseur) ou propriétaire | texte |
 | N | Dernier statut notifié | **Worker seulement** (protégée, avertissement, repliée) | une valeur de statut ou vide |
-| O | Notes | propriétaire | libre |
+| O | Notes | propriétaire | libre (le Worker y ajoute une note datée en cas de refus / retrait) |
+| P | Référence externe | propriétaire (/admin ou Sheet) | **facultative** : n° de commande chez le fournisseur (plateforme…) ; en-tête à ajouter pour activer le champ dans /admin |
 
 Règles d'écriture pour le Worker :
 - **Nouvelle commande** : ligne EV sur la 1re ligne dont A est vide (méthode « écrire puis vérifier », bloc B), puis une
@@ -130,8 +131,12 @@ Ajout en fin (`values.append` autorisé ici). Les changements faits à la main d
 la tâche planifiée (auteur `proprietaire`) quand elle détecte `Statut` ≠ `Dernier statut notifié`.
 
 ### Onglet `Fabricants`
-`Nom` · `E-mail` · `Délai (jours)` · `Livre le client` (`oui`/`non`, menu). Une seule ligne en V1 (ligne 2),
-pré-remplie `À renseigner` / vide / `5` / `non`.
+`Nom` · `E-mail` · `Délai (jours)` · `Livre le client` (`oui`/`non`, menu) · `Envoi` (**facultative** : `manuel`, sinon
+e-mail). Une seule ligne en V1 (ligne 2), pré-remplie `À renseigner` / vide / `5` / `non`.
+Envoi `manuel` (atelier interne, plateforme, téléphone…) : e-mail facultatif ; « Valider » dans /admin passe directement à
+`acceptee` sans rien envoyer ; le pli de la CF affiche la fiche à transmettre (pièces, STL, délai, adresse si
+`Livre le client` = oui), puis « Déclarer l'expédition » (e-mail client). Pas de relance 48 h, pas de « Renvoyer l'e-mail ».
+Si la ligne passe à `envoyee_fabricant` dans le Sheet, la tâche la marque notifiée sans e-mail.
 
 ### Onglet `Listes`
 Colonne A `Statuts` (les 9 statuts d'article, menu de `Commandes CF`), B `Types`, D `Statuts EV` (les 8 statuts client,
@@ -347,6 +352,9 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
   `Commande OpenSCAD` et `Dernier statut notifié` (Commandes CF).
 - Au quotidien, on travaille dans `Commandes CF` : choisir le fabricant, puis passer **toutes les lignes d'une même CF**
   à `envoyee_fabricant`. Le statut de `Commandes EV` se met à jour seul.
+- Fabricant qui répond autrement que par ses liens (téléphone, e-mail) : sur le pli de la CF, « Il a répondu
+  autrement » → « Marquer acceptée » et « Déclarer l'expédition » (transporteur de `Listes`, suivi facultatif, e-mail
+  client immédiat ; Journal auteur `proprietaire`).
 - Changer de fabricant après l'envoi : dans /admin, « Retirer au fabricant » sur le pli de la CF, puis valider avec
   un autre fabricant (à défaut, dans le Sheet : remettre les lignes à `payee`, choisir le nouveau fabricant, repasser à
   `envoyee_fabricant` ; l'ancien fabricant reçoit un refus s'il utilise encore ses liens).

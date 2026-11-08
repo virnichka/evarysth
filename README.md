@@ -63,6 +63,9 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours),
    ou « Je ne peux pas la fabriquer » (motif facultatif, possible tant que rien n'est expédié) : articles de nouveau à
    valider dans /admin (« fabricant à changer »), note datée dans `Notes`, e-mail au propriétaire, anciens liens sans effet.
+   Hors e-mail : fabricant `manuel` (colonne `Envoi` de `Fabricants`, ex. atelier interne ou plateforme) validé
+   directement « acceptée », fiche à transmettre sur le pli, champ « Référence externe » (colonne facultative de
+   `Commandes CF`) ; pour tout fabricant, « Marquer acceptée » / « Déclarer l'expédition » depuis /admin (e-mail client).
 5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas
    d'acceptation sous 48 h, renvoi des e-mails en échec, Journal. Statut client (`Commandes EV`) = formule du Sheet.
 
