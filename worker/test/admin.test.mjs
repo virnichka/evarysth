@@ -555,7 +555,7 @@ test("Retirer au fabricant : confirmation obligatoire ; articles à valider, fab
   for (const q of ["EV-2026-0010", "cf-2026-0010-a"]) {
     const html = await (await get(`/admin?q=${encodeURIComponent(q)}`)).text();
     assert.match(html, /<h1>EV-2026-0010<\/h1>/, q);
-    assert.match(html, /CF-2026-0010-A retirée au fabricant le \d+ [a-zé.]+ \d{4} : choisissez un autre fabricant/);
+    assert.doesNotMatch(html, /retirée au fabricant le/, "un seul message : la note, qui nomme le fabricant");
     assert.match(html, /class="note">[^<]*retirée à Atelier Dupont : pas de réponse/);
     assert.match(html, /CF-2026-0010-A<\/b> · Envoyée au fabricant → Retirée au fabricant/);
   }
@@ -643,4 +643,11 @@ test("Envoi manuel choisi dans le Sheet (envoyee_fabricant) : la tâche n'écrit
   assert.match(html, /class="fiche"/);
   assert.doesNotMatch(html, /En attente d&#39;acceptation|En attente d'acceptation/);
   assert.match(bandeau(await envoyer("/admin/renvoyer", { cf: "CF-2026-0010-A" })), /envoi manuel, aucun e-mail/);
+});
+
+test("Refus sans colonne Notes : message de secours tiré du Journal", async () => {
+  sheet["Commandes CF"][0][COL_CF.Notes] = "Ancienne colonne";
+  sheet.Journal.push(["2026-11-08 12:00", "CF-2026-0010-A", "envoyee_fabricant", "refusee_fabricant", "fabricant"]);
+  const html = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.match(html, /CF-2026-0010-A refusée par le fabricant le 8 nov\. 2026 : choisissez un autre fabricant/);
 });

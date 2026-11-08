@@ -329,7 +329,8 @@ ${stripe ? `<p class="muted"><a href="${esc(stripe)}" target="_blank" rel="noope
 <label for="stl-${esc(id)}">Lien STL${r2 ? " <span class=\"muted\">(fichier standard disponible, facultatif)</span>" : ""}</label>
 <input id="stl-${esc(id)}" name="stl_${esc(l.n)}" type="url" inputmode="url" autocomplete="off" placeholder="https://drive.google.com/…" value="${esc(cache(l.n, "stl", l.stl.trim()))}"></div>`);
     }
-    const rendus = r.rendues.map(x => `<p class="a-faire">${esc(x.cf)} ${x.auteur === "fabricant" ? "refusée par le fabricant" : "retirée au fabricant"}${x.date ? " le " + esc(dateCourte(x.date)) : ""} : choisissez un autre fabricant.</p>`).join("");
+    /* Refus / retrait : la note de l'article (fabricant, motif) suffit ; message du Journal seulement si aucune note n'en parle */
+    const rendus = r.rendues.filter(x => !aValider.some(l => l.notes.includes(x.cf))).map(x => `<p class="a-faire">${esc(x.cf)} ${x.auteur === "fabricant" ? "refusée par le fabricant" : "retirée au fabricant"}${x.date ? " le " + esc(dateCourte(x.date)) : ""} : choisissez un autre fabricant.</p>`).join("");
     blocs.push(`<h2>À valider <span class="compte">${aValider.length}</span></h2><div class="carte bord t-att">${rendus}
 <form class="valider" method="post" action="/admin/valider">${champs}${lignes.join("")}<button type="submit">Valider et envoyer au fabricant</button></form></div>`);
   }
