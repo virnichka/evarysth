@@ -48,7 +48,8 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 3. Le propriétaire valide sur la page d'administration `https://evarysth-admin.virnichka.workers.dev/admin` (téléphone,
    derrière Cloudflare Access) : fabricant + lien STL (obligatoire) → « Valider et envoyer » → `envoyee_fabricant`,
    n° fournisseur `CF-AAAA-NNNN-X` (seul n° vu par le fabricant ; lettre = fabricant), e-mail fabricant immédiat.
-   Boutons « Bloquer » / « Débloquer » (`incident`).
+   Boutons « Bloquer » / « Débloquer » (`incident`). Autres onglets : Tableau de bord (compteurs, alertes), Catalogue
+   (STL présents dans R2), Système (voyants, dernier passage de la tâche, « Lancer la tâche maintenant »), Liens.
 4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours).
 5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas
    d'acceptation sous 48 h, renvoi des e-mails en échec, Journal. Statut client (`Commandes EV`) = formule du Sheet.
@@ -64,8 +65,8 @@ pour l'adresse `ADMIN_HOST`) et `evarysth-admin` (`[env.admin]`, simple relais s
 `.github/workflows/worker.yml` à chaque push sur `main` touchant `worker/` ou `data.js`.
 
 **Secrets** (Cloudflare, Worker `evarysth-checkout`, jamais dans le dépôt public) : `STRIPE_SECRET_KEY`,
-`STRIPE_WEBHOOK_SECRET`, `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET`,
-`ADMIN_KEY` (`/maj` : lance la tâche à la main). En mode test, une clé Stripe live est refusée.
+`STRIPE_WEBHOOK_SECRET`, `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET`.
+En mode test, une clé Stripe live est refusée.
 
 **Points d'attention**
 - Ne jamais supprimer une ligne de commande dans le Sheet : statut `annulee` / `remboursee`. Ne pas écrire dans les colonnes
