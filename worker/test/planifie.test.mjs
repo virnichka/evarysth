@@ -305,9 +305,13 @@ test("Relance : une seule par CF, 48 h après l'envoi au fabricant, au propriét
 test("Sans secrets Google : aucune action, aucune erreur ; handler scheduled ne lève jamais", async () => {
   globalThis.fetch = () => { throw new Error("aucun appel attendu"); };
   assert.deepEqual(await tachePlanifiee({ CHECKOUT_MODE: "test" }), { inactive: true });
-  let attendu;
-  await worker.scheduled({ cron: "*/10 * * * *" }, { CHECKOUT_MODE: "test" }, { waitUntil: p => { attendu = p; } });
-  assert.deepEqual(await attendu, { inactive: true });
+  const attendus = [];
+  await worker.scheduled({ cron: "*/10 * * * *" }, { CHECKOUT_MODE: "test" }, { waitUntil: p => { attendus.push(p); } });
+  const [tache, ...autres] = await Promise.all(attendus);
+  assert.deepEqual(tache, { inactive: true });
+  /* fabrication éteinte, entretien (Brevo, sauvegarde) inactif sans R2 ni secrets : aucun appel, aucune erreur */
+  assert.ok(autres.some(r => r && r.inactive === true));
+  assert.ok(autres.some(r => r && r.brevo && r.brevo.inactif && r.sauvegarde.inactif));
   /* Google en panne : erreur journalisée, pas d'exception */
   const r = await silence(() => lancerTache(env));
   assert.ok(r.erreur);

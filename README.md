@@ -99,7 +99,9 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    « Lancer la tâche maintenant »), Liens. Tableau de bord :
    alerte par génération en échec d'un article pas encore envoyé. Icônes de /admin intégrées au Worker
    (`worker/src/icones.js`, à régénérer par `node tools/icones-admin.mjs` si `assets/icons/` change).
-4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours),
+4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours) ;
+   **s'il ne livre pas le client** (`Livre le client` = non), « Expédier » signifie « pièce envoyée à l'atelier » : l'article
+   passe à `a_reexpedier`, le client n'est pas prévenu, et il l'est quand le propriétaire déclare la réexpédition dans /admin ;
    ou « Je ne peux pas la fabriquer » (motif facultatif, possible tant que rien n'est expédié) : articles de nouveau à
    valider dans /admin (« fabricant à changer »), note datée dans `Notes`, e-mail au propriétaire, anciens liens sans effet.
    Hors e-mail : fabricant `manuel` ou `atelier` (colonne `Envoi` de `Fabricants`) validé
@@ -109,10 +111,28 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas
    d'acceptation sous 48 h, renvoi des e-mails en échec, Journal. Statut client (`Commandes EV`) = formule du Sheet.
 
+**Montants, entretien et pilotage** (9 nov. 2026, tout est facultatif côté Sheet : colonnes absentes → ignorées)
+- `Commandes EV` : `Environnement`, `Total TTC (€)`, `dont livraison (€)`, `Remise (€)` écrits à la commande, `Frais Stripe (€)`
+  lus chez Stripe (`finances.js`, repris par l'entretien s'ils manquent) ; `Commandes CF` : `Coût fabricant (€)` et
+  `Frais d'envoi (€)` saisis dans /admin (pli « Coûts » d'un n° CF, un montant par CF) ; sommes et `Marge TTC (€)` = formules
+  du Sheet ; la fiche /admin a un pli « Montants » (marge, ou ce qui manque pour la calculer).
+- Tâche planifiée → `entretien()` (`systeme.js`) : un appel de maintien par jour de la clé Brevo (elle expire après 90 jours
+  sans appel), **sauvegarde hebdomadaire du Sheet** dans R2 (`sauvegardes/evarysth-AAAA-MM-JJ.zip` : un CSV par onglet, formules
+  d'en-têtes, manifeste ; 12 semaines gardées ; téléchargeable et « Sauvegarder maintenant » dans /admin → Système), frais Stripe manquants. États dans
+  R2 (`systeme/*.json`) ; sans R2, tout est inactif.
+- **Pause des ventes** : /admin → Système → « Mettre les ventes en pause » (R2 `systeme/pause.json`) ; `POST /checkout`
+  répond 503 avec le message (affiché tel quel dans le panier), le webhook n'est pas concerné.
+- **Tableau de bord** (aucun e-mail en plus) : à valider, à réexpédier, chez le fabricant, hors délai (délai du fabricant,
+  y compris atelier / envoi manuel), expédiées ce mois, bloquées ; alertes : échéance légale de livraison (CGV, 30 jours :
+  alerte dès le 21e jour), hors délai, à réexpédier, relances 48 h, fichiers en échec, sans fabricant depuis 24 h, coûts
+  fabricant à saisir, ventes en pause, clé Brevo refusée, sauvegarde en échec ou en retard.
+- **Passage en production** : partir d'une copie du Sheet vidée de ses lignes de test (garder en-têtes et formules de la
+  ligne 1), nouveau `SHEET_ID` dans Cloudflare ; la colonne `Environnement` distingue test et live pendant la transition.
+
 **Fichiers** (`worker/src/`) : `index.js` (routes), `commande.js` (panier → Stripe), `sheet.js` / `google.js` (Sheet,
 lecture/écriture par nom de colonne, jamais par position ; en-têtes affichés → noms du code : `NOMS_AFFICHES`), `planifie.js` (tâche), `admin.js` + `acces.js` (page
 d'administration, jeton Access revérifié), `fournisseur.js` + `jeton.js` (liens fabricant), `fichier.js` (STL R2),
-`email.js` (contenus Brevo), `fabrication.js` (déclenchement de la génération, rappel HMAC, liens des fichiers générés,
+`email.js` (contenus Brevo), `systeme.js` (entretien, sauvegarde, pause), `finances.js` (frais Stripe, marge), `fabrication.js` (déclenchement de la génération, rappel HMAC, liens des fichiers générés,
 relance depuis /admin, état GitHub), `zip.js` (archive des STL d'un article, faite à la demande). Tests : `cd worker && node --test`.
 
 **Deux Workers** (`worker/wrangler.toml`) : `evarysth-checkout` (tout le code et les secrets ; sert `/admin` seulement

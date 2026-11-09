@@ -9,6 +9,7 @@ import { viderCacheAcces } from "../src/acces.js";
 import { lienValide } from "../src/admin.js";
 import { tachePlanifiee } from "../src/planifie.js";
 import { COL_CF, ENTETES_CF, ENTETES_EV, objet, appliquerFormules } from "./entetes.mjs";
+import { fauxBucket } from "./r2.mjs";
 
 const b64 = o => Buffer.from(typeof o === "string" ? o : JSON.stringify(o)).toString("base64url");
 const gen = () => crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
@@ -46,11 +47,12 @@ beforeEach(() => {
 });
 
 const col = l => [...l].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
-const plage = a1 => { const [, o, ref] = /^'(.+)'!(.+)$/.exec(a1); return { onglet: o.replace(/''/g, "'"), ref }; };
+const plage = a1 => { const [, o, ref = ""] = /^'(.+?)'(?:!(.+))?$/.exec(a1); return { onglet: o.replace(/''/g, "'"), ref }; };
 async function fauxFetch(url, init = {}) {
   const u = new URL(url), rep = (d, s = 200) => new Response(JSON.stringify(d), { status: s });
   if (u.host === "equipe.cloudflareaccess.com" && u.pathname === "/cdn-cgi/access/certs") return rep({ keys: [JWK] });
   if (u.host === "oauth2.googleapis.com") return rep({ access_token: "ya29.test", expires_in: 3599 });
+  if (u.host === "api.brevo.com" && u.pathname === "/v3/account") return rep({ email: "x" });
   if (u.host === "api.brevo.com") { if (brevoEnPanne) return rep({ message: "panne" }, 500); emails.push(JSON.parse(init.body)); return rep({ messageId: "m" }, 201); }
   if (u.host !== "sheets.googleapis.com") throw new Error("Appel réseau inattendu : " + url);
   if (u.pathname === "/v4/spreadsheets/id-factice:batchUpdate") {
@@ -59,11 +61,14 @@ async function fauxFetch(url, init = {}) {
       if (r.createDeveloperMetadata) { meta = r.createDeveloperMetadata.developerMetadata.metadataValue; return rep({ replies: [{}] }); }
     }
   }
+  if (u.pathname === "/v4/spreadsheets/id-factice") return rep({ sheets: Object.keys(sheet).map(title => ({ properties: { title } })) });   /* liste des onglets */
   const chemin = decodeURIComponent(u.pathname.replace("/v4/spreadsheets/id-factice/", ""));
   if (chemin.startsWith("developerMetadata/")) return meta ? rep({ metadataValue: meta }) : rep({ error: { message: "introuvable" } }, 404);
   if (chemin === "values:batchGet") { appliquerFormules(sheet); return rep({ valueRanges: u.searchParams.getAll("ranges").map(r => {
     const { onglet, ref } = plage(r);
     if (ref === "1:1") return { range: r, values: [sheet[onglet][0]] };
+    if (ref === "") return { range: r, values: sheet[onglet].map(l => Array.from(l, c => c ?? "")) };        /* onglet entier (sauvegarde) */
+    if (ref === "1:3") return { range: r, values: sheet[onglet].slice(0, 3).map(l => Array.from(l, c => c ?? "")) };
     const v = sheet[onglet].map(l => l[col(ref.split(":")[0])] ?? "");
     while (v.length && v[v.length - 1] === "") v.pop();
     return { range: r, values: [v] };
@@ -286,6 +291,145 @@ test("Système : voyants sans valeur de secret ; « Lancer la tâche » protég�
   assert.doesNotMatch(html, /aucun passage noté/);
   await envoyer("/admin/tache", {});
   assert.ok(JSON.parse(meta).t > 0, "2e passage : mise à jour");
+});
+
+test("Système : maintien Brevo, sauvegarde du Sheet et pause des ventes pilotés depuis /admin (R2 simulé)", async () => {
+  env.STL = fauxBucket();
+  try {
+    let html = await (await vue("systeme")).text();
+    assert.match(html, /pas encore d&#39;appel de maintien/);
+    assert.match(html, /pas encore de sauvegarde/);
+    assert.match(html, /mode test \(fermées au public\)/);
+    assert.doesNotMatch(html, /sauvegarde\.zip/, "rien à télécharger avant la première sauvegarde");
+    assert.equal((await get("/admin/sauvegarde.zip")).status, 404);
+    assert.equal((await silence(() => worker.fetch(new Request(`${ORIGINE}/admin/sauvegarde.zip`), env))).status, 403, "sans jeton Access : refusé");
+
+    /* Sauvegarde à la demande : protégée (Origin), puis voyant vert et archive téléchargeable */
+    assert.equal((await envoyer("/admin/sauvegarde", {}, { origine: "https://pirate.dev" })).status, 403);
+    assert.equal([...env.STL.m.keys()].filter(k => k.startsWith("sauvegardes/")).length, 0, "requête étrangère : rien sauvegardé");
+    const r = await envoyer("/admin/sauvegarde", {});
+    assert.equal(r.status, 303);
+    assert.match(bandeau(r), /Sauvegarde faite ✓ \(4 onglets/);
+    html = await (await vue("systeme")).text();
+    assert.match(html, /voyant v-ok"><\/span>Sauvegarde du Sheet/);
+    assert.match(html, /href="\/admin\/sauvegarde\.zip"/);
+    const z = await get("/admin/sauvegarde.zip");
+    assert.equal(z.headers.get("Content-Type"), "application/zip");
+    assert.match(z.headers.get("Content-Disposition"), /evarysth-\d{4}-\d{2}-\d{2}\.zip/);
+    assert.equal(z.headers.get("Cache-Control"), "no-store");
+    assert.ok(Buffer.from(await z.arrayBuffer()).toString("latin1").includes("Commandes-EV.csv"));
+
+    /* Pause des ventes : message libre, voyant orange, puis réouverture */
+    assert.equal((await envoyer("/admin/pause", { etat: "pause" }, { origine: "https://pirate.dev" })).status, 403);
+    assert.equal(env.STL.m.has("systeme/pause.json"), false);
+    const p = await envoyer("/admin/pause", { etat: "pause", message: "Vacances jusqu'au 20 novembre <b>" });
+    assert.match(bandeau(p), /Ventes en pause/);
+    assert.equal(JSON.parse(env.STL.m.get("systeme/pause.json")).message, "Vacances jusqu'au 20 novembre <b>");
+    html = await (await vue("systeme")).text();
+    assert.match(html, /en pause depuis le/);
+    assert.match(html, /Vacances jusqu&#39;au 20 novembre &lt;b&gt;/, "message échappé");
+    assert.match(html, /Rouvrir les ventes/);
+    const o = await envoyer("/admin/pause", { etat: "ouvrir" });
+    assert.match(bandeau(o), /Ventes rouvertes/);
+    html = await (await vue("systeme")).text();
+    assert.doesNotMatch(html, /en pause depuis/);
+    assert.match(html, /Mettre les ventes en pause/);
+
+    /* « Lancer la tâche » fait aussi l'entretien du jour (clé Brevo) */
+    assert.match(html, /pas encore d&#39;appel de maintien/);
+    await envoyer("/admin/tache", {});
+    html = await (await vue("systeme")).text();
+    assert.match(html, /voyant v-ok"><\/span>Clé Brevo/);
+  } finally { delete env.STL; }
+});
+
+test("Montants et coûts : pli « Montants » de la fiche, saisie des coûts par CF, marge TTC calculée ; valeurs invalides refusées", async () => {
+  const hEV = sheet["Commandes EV"][0], hCF = sheet["Commandes CF"][0];
+  hEV.push("Environnement", "Total TTC (€)", "dont livraison (€)", "Remise (€)", "Frais Stripe (€)");
+  hCF.push("Coût fabricant (€)", "Frais d'envoi (€)");
+  const iEV = n => hEV.indexOf(n), iCF = n => hCF.indexOf(n);
+  Object.assign(sheet["Commandes EV"][1], { [iEV("Environnement")]: "test", [iEV("Total TTC (€)")]: "86,90 €", [iEV("dont livraison (€)")]: 4.9, [iEV("Frais Stripe (€)")]: "1,40 €" });
+  for (const n of [1, 2]) Object.assign(sheet["Commandes CF"][n], { [COL_CF.Statut]: "acceptee", [COL_CF["Dernier statut notifié"]]: "acceptee", [COL_CF["Commande CF"]]: "CF-2026-0010-A", [COL_CF.Fabricant]: FAB });
+  let html = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.match(html, /<span class="nom">Montants<\/span><span class="resume">marge à calculer<\/span>/);
+  assert.match(html, /Total payé \(TTC\)<\/span><span>86,90 €/, "« 86,90 € » du Sheet relu comme un nombre");
+  assert.match(html, /coût manquant : CF-2026-0010-A/);
+  assert.match(html, /action="\/admin\/couts"/);
+
+  /* Valeurs invalides : rien n'est écrit */
+  const mauvais = await envoyer("/admin/couts", { cf: "CF-2026-0010-A", cout: "abc", envoi: "" });
+  assert.match(bandeau(mauvais), /montants invalides/);
+  assert.equal(sheet["Commandes CF"][1][iCF("Coût fabricant (€)")], undefined);
+  assert.equal((await envoyer("/admin/couts", { cf: "CF-2026-0010-A", cout: "12", envoi: "" }, { origine: "https://pirate.dev" })).status, 403);
+  assert.equal(sheet["Commandes CF"][1][iCF("Coût fabricant (€)")], undefined);
+
+  /* Coûts valides : sur la première ligne de la CF seulement (2 articles, un seul montant) */
+  sheet["Commandes CF"][2][iCF("Coût fabricant (€)")] = 99;
+  const ok = await envoyer("/admin/couts", { cf: "CF-2026-0010-A", cout: "40,5", envoi: "4.9" });
+  assert.match(bandeau(ok), /coûts enregistrés \(40,50 € · envoi 4,90 €\)/);
+  assert.equal(sheet["Commandes CF"][1][iCF("Coût fabricant (€)")], 40.5);
+  assert.equal(sheet["Commandes CF"][1][iCF("Frais d'envoi (€)")], 4.9);
+  assert.equal(sheet["Commandes CF"][2][iCF("Coût fabricant (€)")], "", "ancien montant de la 2e ligne effacé");
+  html = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.match(html, /<span class="nom">Montants<\/span><span class="resume">marge 40,10 €<\/span>/);
+  assert.match(html, /<b>40,10 €<\/b>/);
+  assert.match(html, /name="cout" [^>]*value="40,5"/);
+
+  /* Sans colonnes de coûts dans le Sheet : pas de formulaire, message clair si on force la requête */
+  hCF.splice(iCF("Coût fabricant (€)"), 2);
+  html = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.doesNotMatch(html, /action="\/admin\/couts"/);
+  assert.match(html, /marge non calculée/);
+  assert.match(bandeau(await envoyer("/admin/couts", { cf: "CF-2026-0010-A", cout: "1", envoi: "" })), /absentes de l'onglet Commandes CF/);
+});
+
+test("Tableau de bord : échéance légale, hors délai (même atelier / envoi manuel), à réexpédier, coût manquant et alertes système, sans e-mail", async () => {
+  const jours = n => dateParis(new Date(Date.now() - n * 86400_000));
+  const iEV = sheet["Commandes EV"][0], hCF = sheet["Commandes CF"][0];
+  hCF.push("Coût fabricant (€)", "Frais d'envoi (€)");
+  sheet["Commandes EV"][1][1] = jours(25);
+  const cf = (n, statut, lettre) => Object.assign(sheet["Commandes CF"][n] || (sheet["Commandes CF"][n] = sheet["Commandes CF"][1].slice()), { [COL_CF.Statut]: statut, [COL_CF["Dernier statut notifié"]]: statut, [COL_CF["Commande CF"]]: `CF-2026-0010-${lettre}`, [COL_CF.Fabricant]: FAB, [COL_CF["Article n°"]]: String(n), [COL_CF["Commande EV"]]: "EV-2026-0010" });
+  cf(1, "acceptee", "A"); cf(2, "a_reexpedier", "B"); cf(3, "expediee", "C");
+  sheet.Journal.push([jours(8), "CF-2026-0010-A", "a_valider", "envoyee_fabricant", "proprietaire"], [jours(7), "CF-2026-0010-A", "envoyee_fabricant", "acceptee", "fabricant"],
+    [jours(1), "CF-2026-0010-B", "acceptee", "a_reexpedier", "fabricant"]);
+  const nombre = (html, texte) => new RegExp(`<div class="nombre">(\\d+)</div><div class="muted">${texte}`).exec(html)[1];
+  const emailsAvant = emails.length;
+  let html = await (await vue("tableau")).text();
+  assert.equal(nombre(html, "à réexpédier"), "1");
+  assert.equal(nombre(html, "hors délai"), "1");
+  assert.match(html, /CF-2026-0010-A<\/b><\/a><br><span class="muted">Atelier Dupont : 8 j depuis l(?:'|&#39;)envoi, délai convenu 5 j<\/span>[\s\S]*Hors délai/);
+  assert.match(html, /CF-2026-0010-B<\/b><\/a><br><span class="muted">pièce chez Evarysth, à contrôler puis réexpédier au client/);
+  assert.match(html, /EV-2026-0010<\/b><\/a><br><span class="muted">échéance légale \(30 j\) dans 5 j · 2 articles pas encore partis · payée il y a 25 j/);
+  assert.match(html, /CF-2026-0010-C<\/b><\/a><br><span class="muted">expédiée, coût du fabricant à saisir/);
+  assert.equal(emails.length, emailsAvant, "aucun e-mail : tout reste dans le tableau de bord");
+
+  /* Coût saisi → plus d'alerte ; échéance dépassée ; atelier interne : jamais d'alerte de coût */
+  sheet["Commandes CF"][3][hCF.indexOf("Coût fabricant (€)")] = 30;
+  sheet["Commandes EV"][1][1] = jours(31);
+  html = await (await vue("tableau")).text();
+  assert.doesNotMatch(html, /coût du fabricant à saisir/);
+  assert.match(html, /échéance légale dépassée de 1 j/);
+  assert.match(html, /Légal : dépassé/);
+
+  /* Alertes système lues dans R2 */
+  env.STL = fauxBucket({
+    "systeme/pause.json": JSON.stringify({ active: true, message: "Vacances", depuis: "2026-11-09 10:00" }),
+    "systeme/brevo.json": JSON.stringify({ t: Date.now(), ok: false, detail: "clé refusée (HTTP 401)" }),
+    "systeme/sauvegarde.json": JSON.stringify({ t: Date.now(), ok: false, detail: "Sheets 500", tOk: Date.now() - 20 * 86400_000 })
+  });
+  try {
+    html = await (await vue("tableau")).text();
+    assert.match(html, /Ventes en pause<\/b><\/a><br><span class="muted">depuis le 2026-11-09 10:00 · « Vacances »/);
+    assert.match(html, /Clé Brevo refusée[\s\S]*clé refusée \(HTTP 401\) : aucun e-mail ne partirait/);
+    assert.match(html, /Sauvegarde du Sheet en échec/);
+    env.STL.m.set("systeme/sauvegarde.json", JSON.stringify({ t: Date.now(), ok: true, tOk: Date.now() - 20 * 86400_000 }));
+    html = await (await vue("tableau")).text();
+    assert.match(html, /Sauvegarde du Sheet en retard/);
+    env.STL.m.set("systeme/sauvegarde.json", JSON.stringify({ t: Date.now(), ok: true, tOk: Date.now() - 3600_000 }));
+    env.STL.m.delete("systeme/pause.json"); env.STL.m.delete("systeme/brevo.json");
+    html = await (await vue("tableau")).text();
+    assert.doesNotMatch(html, /Ventes en pause|Clé Brevo refusée|Sauvegarde du Sheet/);
+  } finally { delete env.STL; }
 });
 
 test("/maj n'existe plus", async () => {
@@ -626,9 +770,45 @@ test("Fabricant par e-mail qui répond autrement : « Marquer acceptée » puis 
   assert.equal(art(1).Statut, "acceptee");
   assert.deepEqual(sheet.Journal.at(-1).slice(1), ["CF-2026-0010-A", "envoyee_fabricant", "acceptee", "proprietaire"]);
   assert.match(bandeau(await envoyer("/admin/accepter", { cf: "CF-2026-0010-A" })), /rien à accepter/);
+  /* Ce fabricant ne livre pas le client (« Livre le client » = non) : son expédition est l'envoi de la pièce à Evarysth */
+  assert.match(html, /Pièce expédiée à Evarysth \(pas d'e-mail au client\)/);
+  assert.match(html, /Ce fabricant ne livre pas le client|Transporteur <span class="muted">\(facultatif\)/);
+  r = await envoyer("/admin/expedier", { cf: "CF-2026-0010-A", transporteur: "Colissimo", suivi: "IN-FAB-1" });
+  assert.match(bandeau(r), /pièce en route vers l'atelier\. Aucun e-mail au client/);
+  assert.equal(art(1).Statut, "a_reexpedier");
+  assert.equal(art(1).Transporteur, "", "le suivi du colis client reste vide");
+  assert.match(art(1).Notes, /CF-2026-0010-A expédiée par Atelier Dupont à l'atelier Evarysth \(Colissimo · IN-FAB-1\)/);
+  assert.equal(emails.length, 1, "aucun e-mail au client à l'envoi de la pièce à Evarysth");
+  assert.deepEqual(sheet.Journal.at(-1).slice(1), ["CF-2026-0010-A", "acceptee", "a_reexpedier", "proprietaire"]);
+  assert.match(bandeau(await envoyer("/admin/expedier", { cf: "CF-2026-0010-A", transporteur: "", suivi: "" })), /choisissez un transporteur/, "réexpédition : transporteur obligatoire");
+  assert.equal(art(1).Statut, "a_reexpedier");
+  /* À réexpédier : bien visible dans la liste « À traiter » et sur la fiche, la commande reste « en fabrication » */
+  const liste = await (await get("/admin")).text();
+  assert.match(liste, /EV-2026-0010[\s\S]*1 à réexpédier au client/);
+  const fiche = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.match(fiche, /Pièce à réexpédier au client\.<\/b> Le fabricant l'a envoyée à l'atelier Evarysth/);
+  assert.match(fiche, /Déclarer l'expédition au client \(e-mail au client\)/);
+  await silence(() => tachePlanifiee(env));
+  assert.equal(emails.length, 1, "la tâche planifiée n'écrit pas non plus au client");
+  assert.equal(art(1)["Dernier statut notifié"], "a_reexpedier");
   r = await envoyer("/admin/expedier", { cf: "CF-2026-0010-A", transporteur: "Colissimo", suivi: "6A999" });
   assert.match(bandeau(r), /expédiée \(Colissimo · 6A999\) ; client prévenu ✓/);
   assert.match(emails.at(-1).textContent, /Transporteur : Colissimo\nN° de suivi : 6A999/);
+  assert.deepEqual(sheet.Journal.at(-1).slice(1), ["CF-2026-0010-A", "a_reexpedier", "expediee", "proprietaire"]);
+  assert.equal(emails.length, 2);
+});
+
+test("Fabricant qui livre le client : « Déclarer l'expédition » part directement chez le client (e-mail aussitôt), sans étape à réexpédier", async () => {
+  avecManuel();
+  sheet.Fabricants[1][3] = "oui";
+  await envoyer("/admin/valider", { fab_1: FAB, stl_1: "https://drive.google.com/file/d/sm/view", fab_2: "" });
+  const html = await (await get("/admin?q=EV-2026-0010")).text();
+  assert.doesNotMatch(html, /Pièce expédiée à Evarysth/);
+  assert.match(html, /Déclarer l'expédition au client \(e-mail au client\)/);
+  const r = await envoyer("/admin/expedier", { cf: "CF-2026-0010-A", transporteur: "Colissimo", suivi: "6A777" });
+  assert.match(bandeau(r), /expédiée \(Colissimo · 6A777\) ; client prévenu ✓/);
+  assert.equal(art(1).Statut, "expediee");
+  assert.equal(emails.length, 2);
 });
 
 test("Envoi manuel choisi dans le Sheet (envoyee_fabricant) : la tâche n'écrit pas au fabricant et ne relance pas", async () => {

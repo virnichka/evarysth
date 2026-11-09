@@ -85,11 +85,13 @@ Deux niveaux, deux numérotations qui ne se croisent jamais :
 | J | Dernier statut notifié | **Worker seulement** (repliée avec K) | `payee` une fois l'e-mail « commande reçue » parti |
 | K | Stripe session id | Worker | `cs_test_…` |
 | L | Notes | propriétaire | libre |
+| M à Q | Environnement · Total TTC (€) · dont livraison (€) · Remise (€) · Frais Stripe (€) | Worker | **facultatives** (9 nov. 2026) : `test` / `live`, puis montants en nombres (euros, TTC). Total, livraison, remise écrits avec la ligne ; frais Stripe lus chez Stripe juste après (sinon complétés par l'entretien de la tâche planifiée, `finances.js`). Absentes → ignorées sans erreur |
+| R à T | Coûts fabricants (€) · Frais d'envoi (€) · Marge TTC (€) | **formules** (en-tête, `MAP` + `SUMIFS` sur `Commandes CF`) | ne jamais écrire ; marge = total − frais Stripe − coûts − envois, vide tant que les frais Stripe ou un coût manquent |
 
 Statut client (formule, même règle que `statutEV` dans `planifie.js`, à garder identiques), calculé sur les articles de
 la commande hors `annulee`/`remboursee` : `incident` si un article l'est ; `livree` si tous livrés ; `expediee` si
 tous partis ; `partiellement_expediee` si une partie est partie ; `en_fabrication` si au moins un est
-`envoyee_fabricant`/`acceptee` ; sinon `payee`. Tout annulé → `annulee` (`remboursee` s'il y en a un). Un
+`envoyee_fabricant`/`acceptee`/`a_reexpedier` ; sinon `payee`. Tout annulé → `annulee` (`remboursee` s'il y en a un). Un
 `Statut forcé` remplace le calcul (à vider pour revenir au calcul). La tâche planifiée n'écrit rien dans cet onglet :
 elle journalise seulement chaque changement de `Statut` (auteur `worker`).
 
@@ -101,7 +103,7 @@ elle journalise seulement chaque changement de `Statut` (auteur `worker`).
 | B | Commande EV | Worker | `EV-AAAA-NNNN` |
 | C | Article n° | Worker | `1`, `2`… dans la commande ; clé de la ligne = Commande EV + Article n° |
 | D | Date | Worker | celle de la commande EV |
-| E | Statut | Worker puis propriétaire / fabricant (liens) | menu (`Listes!A`, les 9 statuts) |
+| E | Statut | Worker puis propriétaire / fabricant (liens) | menu (`Listes!A2:A13`, les 12 statuts, dont `a_reexpedier` : pièce envoyée par un fabricant qui ne livre pas le client, à contrôler puis réexpédier) |
 | F | Type | Worker | `standard` ou `sur-mesure` |
 | G | Action requise | **formule** (en-tête, `MAP`) | ne jamais écrire |
 | H | Article | Worker | `<produit> · <taille M \| a=45 b=32> · <matière> · <coloris> · ×<qté>` (matière du catalogue) |
@@ -118,9 +120,20 @@ elle journalise seulement chaque changement de `Statut` (auteur `worker`).
 | S | Temps min | Worker (rappel du workflow) | temps d'impression estimé |
 | T | Plateaux | Worker (rappel du workflow) | nombre de plateaux |
 | U | Motif génération | Worker | raison d'un `echec`, vide sinon |
+| V | Coût fabricant (€) | /admin (pli « Coûts » de la CF) | **facultative** : devis ou facture TTC, **un seul montant par n° CF, sur sa première ligne** (les autres lignes sont vidées) |
+| W | Frais d'envoi (€) | /admin (pli « Coûts ») | **facultative** : port payé par Evarysth (réexpédition…), même règle |
 
-Colonnes P à U (`docs/chaine-fabrication.md`, Fabrication · phase 2) : lues et écrites **par leur nom** (ordre libre) ;
-absentes → ignorées sans erreur.
+Colonnes P à U (`docs/chaine-fabrication.md`, Fabrication · phase 2) et V à W (coûts) : lues et écrites **par leur nom**
+(ordre libre) ; absentes → ignorées sans erreur (pas de formulaire de coûts dans /admin).
+
+**Fabricant qui ne livre pas le client** (`Livre le client` = non, hors `atelier`) : sa pièce vient chez Evarysth. Son
+bouton / sa page « Déclarer l'expédition » devient « Confirmer l'envoi à l'atelier » (e-mail fabricant : « Pièce à nous
+renvoyer ») : l'article passe à `a_reexpedier`, le transporteur et le suivi vont dans `Notes` (les colonnes `Transporteur`
+et `N° de suivi` restent celles du colis du client), **aucun e-mail au client**. Le propriétaire contrôle la pièce, puis
+« Déclarer l'expédition au client » dans /admin (transporteur obligatoire) → `expediee` + e-mail client. Même décision
+côté /admin : `expedierAdmin` regarde le statut de la CF et la fiche du fabricant, jamais le formulaire. Fabricant qui
+livre le client (`oui`) ou `atelier` : inchangé (`expediee` + e-mail client directement). Un article `a_reexpedier`
+reste « en fabrication » pour le client (formule et `statutEV`), est annulable / remboursable, pas retirable.
 
 Règles d'écriture pour le Worker :
 - **Nouvelle commande** : ligne EV sur la 1re ligne dont A est vide (méthode « écrire puis vérifier », bloc B), puis une
@@ -153,7 +166,7 @@ Envoi `manuel` (atelier interne, plateforme, téléphone…) : e-mail facultatif
 Si la ligne passe à `envoyee_fabricant` dans le Sheet, la tâche la marque notifiée sans e-mail.
 
 ### Onglet `Listes`
-Colonne A `Statuts` (les 9 statuts d'article, menu de `Commandes CF`), B `Types`, D `Statuts EV` (les 8 statuts client,
+Colonne A `Statuts` (les 12 statuts d'article, menu de `Commandes CF`, plage `A2:A13`), B `Types`, D `Statuts EV` (les 8 statuts client,
 pour mémoire : `payee`, `en_fabrication`, `partiellement_expediee`, `expediee`, `livree`, `incident`,
 `remboursee`, `annulee`), C `Transporteurs` (menu de la page fabricant « Expédier », lu à chaque
 affichage ; valeur hors liste refusée ; onglet illisible → liste de secours dans `fournisseur.js`).
