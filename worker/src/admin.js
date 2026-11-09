@@ -151,6 +151,13 @@ nav a[aria-current]{background:var(--text);border-color:var(--text);color:#fff}
 .grille{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}.grille .carte{margin:0;text-decoration:none;display:block}.nombre{font:600 32px/1.1 "Bricolage Grotesque",Inter,sans-serif;letter-spacing:-.02em}
 .grille .alerte{border-color:var(--accent)}.ligne{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-top:1px solid var(--line);padding:9px 0}.ligne:first-child{border-top:0;padding-top:0}
 .voyant{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;background:var(--muted)}.v-ok{background:var(--ok)}.v-err{background:var(--err)}.v-att{background:#c98a00}
+details.aide>summary.ligne{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:9px 0}
+details.aide:first-child>summary.ligne{padding-top:0}
+details.aide>summary.ligne>span:first-child{white-space:nowrap;flex:none}
+details.aide>summary::after{display:none}
+.q{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:6px;border-radius:50%;border:1px solid var(--line);font-size:11px;font-weight:700;color:var(--muted);vertical-align:1px}
+details.aide[open] .q{background:var(--text);border-color:var(--text);color:#fff}
+.aide-texte{margin:0 0 10px;padding:10px 12px;border-radius:8px;background:var(--bg);font-size:14px;line-height:1.45}
 .note{white-space:pre-line;font-size:13px;color:#7a5600;background:#fff7dc;border-radius:8px;padding:6px 10px;margin:-4px 0 10px}
 form.retirer,form.agir,details.agir{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}details.agir>summary{padding:0 0 4px}details.agir form.agir:first-of-type{border-top:0;margin-top:4px;padding-top:0}
 textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin:0 0 10px;background:#fff;color:var(--text)}textarea.fiche{font:13px/1.45 ui-monospace,"JetBrains Mono",monospace;background:var(--bg);resize:vertical}
@@ -559,13 +566,32 @@ async function vueCatalogue(env, email, bandeau) {
 <div class="carte"><p class="muted">${esc(resume)}</p></div>${parUnivers.join("")}`));
 }
 
+/* Aide des voyants de Système : texte affiché en touchant le « ? » (élément details, sans script) */
+const AIDE = {
+  "Google Sheet": "Le tableau Google où sont enregistrées toutes les commandes. Vert : le site le lit et l'écrit. Rouge : plus aucune commande n'est enregistrée ni affichée ici ; réglage des secrets Google à refaire dans Cloudflare.",
+  "Brevo (e-mails)": "Le service qui envoie les e-mails (client, fabricant, relances). Rouge : aucun e-mail ne part ; ils seront renvoyés automatiquement une fois réparé. La clé Brevo expire après 90 jours sans aucun envoi.",
+  "HMAC (liens signés)": "La clé secrète qui protège les liens des e-mails (boutons du fabricant, téléchargement des fichiers) : personne ne peut fabriquer un faux lien. Rouge : ces liens ne fonctionnent plus.",
+  "R2 (fichiers)": "Le stockage Cloudflare des fichiers d'impression (STL des tailles standard et fichiers fabriqués pour chaque commande). Vert : lisible. Rouge : les liens de fichiers ne répondent pas ; réessayer un peu plus tard.",
+  "Paiement": "Mode du paiement Stripe. Orange en mode test : normal tant que les ventes sont fermées (aucun vrai paiement). Vert : ventes ouvertes, vrais paiements. Rouge : clé Stripe absente ou du mauvais mode.",
+  "Tâche planifiée": "Le programme automatique qui passe toutes les 10 minutes : e-mails d'expédition, relances 48 h, renvoi des e-mails ratés, nouvel essai des fichiers. Vert : passé il y a moins de 30 min. Orange : en retard ou avec erreurs ; « Lancer la tâche maintenant » ci-dessous.",
+  "Fabrication automatique": "La fabrication des fichiers d'impression à chaque commande payée (GitHub les prépare en 1 minute environ, rangés dans R2). Vert : réglages présents. Orange : éteinte, les commandes arrivent sans fichiers et il faut coller un lien STL.",
+  "Jeton GitHub": "La clé qui permet au site de demander la fabrication des fichiers à GitHub. Elle a une date d'expiration : orange 30 jours avant, il faut alors en créer une nouvelle et la coller dans Cloudflare (secret GH_ACTIONS_TOKEN, guide des réglages de fabrication, étape 6). Rouge : expirée ou refusée, plus aucun fichier n'est fabriqué.",
+  "Dernière fabrication": "La fabrication de fichiers la plus récente, toutes commandes confondues (son n° d'article est affiché). Vert : elle a réussi. Rouge : elle a échoué ; ouvrir la commande concernée dans /admin (motif, « Relancer la génération ») ou le run sur GitHub. Les autres commandes ont leur propre état dans leur fiche."
+};
+
 /* Système : un voyant par brique (aucune valeur de secret affichée), dernier passage de la tâche, lancement manuel */
 async function vueSysteme(env, email, bandeau) {
   const live = env.CHECKOUT_MODE === "live", k = env.STRIPE_SECRET_KEY || "";
   const cleOk = live ? /^(sk|rk)_live_/.test(k) : /^(sk|rk)_test_/.test(k);
   const passage = googleConfigure(env) ? await lirePassage(env) : null;
   const age = passage ? Date.now() - passage.t : Infinity;
-  const v = (etat, nom, detail) => `<div class="ligne"><span><span class="voyant v-${etat}"></span>${nom}</span><span class="muted">${esc(detail)}</span></div>`;
+  /* Voyant : ligne entière à toucher pour afficher l'aide (« ? ») ; sans aide, ligne simple */
+  const v = (etat, nom, detail) => {
+    const aide = AIDE[nom.split(" :")[0]];
+    const ligne = `<span><span class="voyant v-${etat}"></span>${nom}${aide ? '<span class="q" aria-hidden="true">?</span>' : ""}</span><span class="muted">${esc(detail)}</span>`;
+    return aide ? `<details class="aide"><summary class="ligne" title="À quoi sert cet indicateur ?">${ligne}</summary><p class="aide-texte">${esc(aide)}</p></details>`
+      : `<div class="ligne">${ligne}</div>`;
+  };
   /* R2 : une vraie lecture (liste d'une clé du dossier des commandes), pas seulement la présence du binding */
   let r2 = { etat: "att", detail: "binding STL absent" };
   if (env.STL && typeof env.STL.list === "function") {

@@ -6,8 +6,9 @@
 > sans écran **oui** ; points machine B1 oui probable, B2 et B3 incertains).
 > **Fabrication · phase 3 publiée (9 novembre 2026)** : fichiers générés visibles et relançables dans /admin, e-mail
 > fabricant avec 3 liens, fabricant « atelier » selon la matière, voyants GitHub et R2 ; voir § « Résultats Fabrication ·
-> phase 3 ». Reste : vérifications du propriétaire sur téléphone avec EV-2026-0004 et passage de la ligne
-> « Atelier Evarysth » à `Envoi` = `atelier`. Prochaine étape : Fabrication · phase 4 (agent d'atelier).
+> phase 3 ». Vérifié par le propriétaire sur téléphone (EV-2026-0004) ; « Atelier Evarysth » passé à `Envoi` = `atelier`
+> (menu du Sheet complété) : reste à revoir l'atelier proposé pour un article PLA. Prochaine étape : Fabrication · phase 4
+> (agent d'atelier).
 > Fabrication · phase 1b à l'achat de la machine.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
@@ -426,7 +427,20 @@ test) → 200 OK, **aucun second run** (toujours 7 « Fabrication »), aucune li
 acceptée, e-mail à 3 liens valides 14 jours, atelier PLA / ASA, relance et rappel, régénération au SHA actuel, refus
 GitHub, Tableau de bord, Système, tâche planifiée) ; géométrie 237 ; tout vert.
 
-**Acceptation en ligne** (propriétaire, sur téléphone, EV-2026-0004) : à faire, liste dans le compte rendu de la session.
+**Acceptation en ligne** (propriétaire, sur téléphone, EV-2026-0004, 9 nov. 2026) : fichiers prêts en vert, téléchargements
+OK, échec simulé (motif affiché, refus de validation), « Relancer la génération » → prête en ~1 min avec ligne d'Historique,
+e-mail fabricant à 3 liens, section Fabrication de Système au vert. Bloquant trouvé : le menu `Envoi` du Sheet ne
+proposait pas `atelier` → menu complété (e-mail, manuel, atelier) et ligne « Atelier Evarysth » passée à `atelier`.
+
+**Suite (même jour)** :
+- /admin, onglet Système : chaque voyant se touche pour afficher son explication (« ? », élément `details`, sans
+  script ; textes dans `AIDE` de `worker/src/admin.js`).
+- Sheet remis en forme (aucune donnée ni colonne déplacée, le Worker lit par nom) : `Commandes CF` colonnes O à U
+  (notes d'en-tête, en-têtes gris « automatique », largeurs, SHA en police fixe, couleurs de `Génération` : vert prête,
+  jaune en cours, rouge échec, protection en avertissement), filtre sur tout l'onglet, note de « Lien STL » mise à jour ;
+  `Journal` : couleurs dès la ligne 2 (elles commençaient ligne 33) et pour les nouveaux statuts (fichiers, relances) ;
+  `Fabricants` : notes d'en-tête, menu `Envoi` à 3 valeurs, `manuel` / `atelier` colorés ; `Mode d'emploi` : étapes avec
+  les fichiers prêts, atelier PLA/PETG, fichiers en échec, colonnes de fabrication.
 
 ### Phase 4 — agent d'atelier
 - Programme Node sans dépendance lourde (`atelier/agent/`), service systemd ; interroge le Worker toutes les 30 s

@@ -277,19 +277,24 @@ test("Tableau de bord : génération en échec signalée ; Système : jeton GitH
   const tab = await (await get("/admin?vue=tableau")).text();
   assert.match(tab, /CF-2026-0004-2<\/b><\/a><br><span class="muted">génération des fichiers en échec : génération : erreur simulée/);
   let sys = await (await get("/admin?vue=systeme")).text();
-  assert.match(sys, /v-ok"><\/span>Jeton GitHub<\/span><span class="muted">expire le 1 mars 2027/);
-  assert.match(sys, /Dernière fabrication<\/span><span class="muted">Fabrication CF-2026-0004-1 · 9 nov\. 2026 à 18:40 UTC · réussie/);
-  assert.match(sys, /v-ok"><\/span>R2 \(fichiers\)<\/span><span class="muted">bucket lisible/);
+  assert.match(sys, /v-ok"><\/span>Jeton GitHub<span class="q" aria-hidden="true">\?<\/span><\/span><span class="muted">expire le 1 mars 2027/);
+  assert.match(sys, /Dernière fabrication<span class="q" aria-hidden="true">\?<\/span><\/span><span class="muted">Fabrication CF-2026-0004-1 · 9 nov\. 2026 à 18:40 UTC · réussie/);
+  assert.match(sys, /v-ok"><\/span>R2 \(fichiers\)<span class="q" aria-hidden="true">\?<\/span><\/span><span class="muted">bucket lisible/);
   const dans = new Date(Date.now() + 10 * 86400_000).toISOString().replace("T", " ").slice(0, 19);
   ghExpiration = `${dans} UTC`;
   sys = await (await get("/admin?vue=systeme")).text();
-  assert.match(sys, /v-att"><\/span>Jeton GitHub<\/span><span class="muted">expire le .* \(dans (9|10) jours : à renouveler\)/);
+  assert.match(sys, /v-att"><\/span>Jeton GitHub<span class="q" aria-hidden="true">\?<\/span><\/span><span class="muted">expire le .* \(dans (9|10) jours : à renouveler\)/);
   ghExpiration = "2020-01-02 00:00:00 +0100";
   sys = await (await get("/admin?vue=systeme")).text();
-  assert.match(sys, /v-err"><\/span>Jeton GitHub<\/span><span class="muted">expiré le 1 janv\. 2020/);
+  assert.match(sys, /v-err"><\/span>Jeton GitHub<span class="q" aria-hidden="true">\?<\/span><\/span><span class="muted">expiré le 1 janv\. 2020/);
+  /* Aide « ? » sur chaque voyant (details/summary, sans script) */
+  for (const nom of ["Google Sheet", "Brevo \\(e-mails\\)", "R2 \\(fichiers\\)", "Paiement : mode test", "Tâche planifiée", "Fabrication automatique", "Jeton GitHub", "Dernière fabrication"])
+    assert.match(sys, new RegExp(`<details class="aide"><summary class="ligne"[^>]*><span><span class="voyant v-[a-z]+"></span>${nom}<span class="q" aria-hidden="true">\\?</span>[\\s\\S]*?<p class="aide-texte">[^<]{40,}</p></details>`), nom);
+  assert.match(sys, /Jeton GitHub[\s\S]*?orange 30 jours avant, il faut alors en créer une nouvelle/);
+  assert.doesNotMatch(sys, /<script/i);
   env.STL = { ...env.STL, list: async () => { throw new Error("panne"); } };
   sys = await (await get("/admin?vue=systeme")).text();
-  assert.match(sys, /v-err"><\/span>R2 \(fichiers\)<\/span><span class="muted">R2 ne répond pas/);
+  assert.match(sys, /v-err"><\/span>R2 \(fichiers\)<span class="q" aria-hidden="true">\?<\/span><\/span><span class="muted">R2 ne répond pas/);
 });
 
 test("Tâche planifiée : fichiers prêts → « Lien STL à indiquer » devient « À valider » (aucun e-mail) ; en échec : inchangé", async () => {

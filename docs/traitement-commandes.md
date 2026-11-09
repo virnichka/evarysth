@@ -139,8 +139,8 @@ Ajout en fin (`values.append` autorisé ici). Les changements faits à la main d
 la tâche planifiée (auteur `proprietaire`) quand elle détecte `Statut` ≠ `Dernier statut notifié`.
 
 ### Onglet `Fabricants`
-`Nom` · `E-mail` · `Délai (jours)` · `Livre le client` (`oui`/`non`, menu) · `Envoi` (**facultative** : `manuel`, sinon
-e-mail). Une seule ligne en V1 (ligne 2), pré-remplie `À renseigner` / vide / `5` / `non`.
+`Nom` · `E-mail` · `Délai (jours)` · `Livre le client` (`oui`/`non`, menu) · `Envoi` (**facultative**, menu : `e-mail`,
+`manuel` ou `atelier` ; `atelier` = comme `manuel`, réservé aux articles en PLA ou PETG, Fabrication · phase 3). Une seule ligne en V1 (ligne 2), pré-remplie `À renseigner` / vide / `5` / `non`.
 Envoi `manuel` (atelier interne, plateforme, téléphone…) : e-mail facultatif ; « Valider » dans /admin passe directement à
 `acceptee` sans rien envoyer ; le pli de la CF affiche la fiche à transmettre (pièces, STL, délai, adresse si
 `Livre le client` = oui), puis « Déclarer l'expédition » (e-mail client). Pas de relance 48 h, pas de « Renvoyer l'e-mail ».
