@@ -3,7 +3,7 @@
    (ext, box, cyl, join, tray, overHook, sideClamp), mais chaque brique est un solide Manifold
    et join() est une vraie union booléenne : maillage étanche, sans faces internes.
    Module ES sans dépendance : il reçoit THREE et le module WASM déjà chargés.
-     navigateur : viewer3d.js, seulement avec ?geo=manifold (mémorisé, ?geo=off le coupe) ;
+     navigateur : viewer3d.js, moteur par défaut (?geo=ancien : ancien kit three.js, jusqu’à la phase 4) ;
      Node       : tools/lib/moteur.mjs (tools/generer-stl.mjs, tools/comparer-kits.mjs).
    Unités : mm. Les solides se manipulent comme des BufferGeometry (translate, rotateX/Y/Z,
    scale, applyMatrix4, clone, center, dispose), en place, et se convertissent pour l'aperçu. */
@@ -17,7 +17,8 @@ export const segments = r => Math.ceil(Math.max(SEG_MIN, Math.ceil(2 * Math.PI *
 
 /* Profils 2D utilisés par les compositions (mêmes définitions que viewer3d.js) */
 const rad = d => d * Math.PI / 180;
-const arc = (ri, ro, a0, a1, n = 32) => {
+/* Arc et cercle sans n explicite (viewer3d.js, ici overHook) : même règle de corde, jamais moins fin que l'ancien kit */
+const arc = (ri, ro, a0, a1, n = Math.max(32, Math.ceil(segments(Math.max(ri, ro)) * Math.abs(a1 - a0) / 360 / 4) * 4)) => {
   const at = (r, i) => [r * Math.cos(rad(a0 + (a1 - a0) * i / n)), r * Math.sin(rad(a0 + (a1 - a0) * i / n))];
   return [...Array.from({ length: n + 1 }, (_, i) => at(ro, i)), ...Array.from({ length: n + 1 }, (_, i) => at(ri, n - i))];
 };
@@ -75,6 +76,40 @@ export function createKit(THREE, wasm) {
   /* Jeu d'assemblage : la cavité grandit de j sur tout son contour, angles vifs conservés */
   const jeu = (src, j, holes) => offset(src, j, "Miter", holes);
 
+  /* Extrusion aux arêtes arrondies (remplace le biseau d'ExtrudeGeometry) : profil cœur grossi de r (coins Round),
+     épaisseur d (centrée en z), arêtes des deux faces arrondies au rayon r en n segments. Même forme qu'une somme de
+     Minkowski avec une sphère, sans son coût : extrusion du profil grossi en 2n + 2 niveaux, puis chaque sommet est
+     ramené vers son point le plus proche du profil cœur (homothétie de rapport cos φ). Boîte : profil + r, épaisseur d. */
+  const extArrondi = (pts, d, r, n = 2, holes = []) => {
+    const coeur = section(pts, holes), segs = coeur.polygons().flatMap(p => p.map((a, i) => [a, p[(i + 1) % p.length]]));
+    const niv = Array.from({ length: 2 * n + 2 }, (_, k) => {
+      const bas = k <= n, phi = (bas ? -90 + 90 * k / n : 90 * (k - n - 1) / n) * Math.PI / 180;
+      return [(bas ? -d / 2 + r : d / 2 - r) + r * Math.sin(phi), Math.max(0.05, Math.cos(phi))];
+    });
+    /* Point le plus proche du profil cœur ; dans un angle rentrant (deux pieds équidistants), le sommet commun */
+    const proche = (x, y) => {
+      let best = Infinity, q = null, best2 = Infinity, q2 = null;
+      for (const [[ax, ay], [bx, by]] of segs) {
+        const ux = bx - ax, uy = by - ay, l2 = ux * ux + uy * uy || 1;
+        const t = Math.min(1, Math.max(0, ((x - ax) * ux + (y - ay) * uy) / l2)), px = ax + t * ux, py = ay + t * uy;
+        const dd = (x - px) ** 2 + (y - py) ** 2;
+        if (dd < best) { best2 = best; q2 = q; best = dd; q = [px, py, ax, ay, bx, by]; } else if (dd < best2) { best2 = dd; q2 = [px, py, ax, ay, bx, by]; }
+      }
+      if (q2 && best2 - best < 1e-6 * r * r && Math.hypot(q[0] - q2[0], q[1] - q2[1]) > 1e-6) {
+        const c = [[q[2], q[3]], [q[4], q[5]]].find(([vx, vy]) => (vx === q2[2] && vy === q2[3]) || (vx === q2[4] && vy === q2[5]));
+        if (c) return c;
+      }
+      return q;
+    };
+    const mf = own(offset(coeur, r, "Round").cs.extrude(2 * n + 1, 2 * n, 0, [1, 1], false)).warpBatch((v, count) => {
+      for (let i = 0; i < count; i++) {
+        const [z, f] = niv[Math.round(v[3 * i + 2])], q = proche(v[3 * i], v[3 * i + 1]);
+        v[3 * i] = q[0] + (v[3 * i] - q[0]) * f; v[3 * i + 1] = q[1] + (v[3 * i + 1] - q[1]) * f; v[3 * i + 2] = z;
+      }
+    });
+    return solid(mf);
+  };
+
   /* Briques : mêmes signatures et même repère que le kit three.js */
   const ext = (pts, d, holes = []) => solid(section(pts, holes).cs.extrude(d, 0, 0, [1, 1], true));
   const box = (w, h, d, x = 0, y = 0, z = 0) => solid(Manifold.cube([w, h, d], true)).translate(x, y, z);
@@ -84,6 +119,10 @@ export function createKit(THREE, wasm) {
     const ring = own(own(CrossSection.circle(r, segments(r))).subtract(own(CrossSection.circle(ri, segments(ri)))));
     return solid(ring.extrude(h, 0, 0, [1, 1], true)).rotateX(-Math.PI / 2);
   };
+
+  /* Révolution d'un profil (points [rayon, hauteur], rayon ≥ 0) autour de l'axe Y : une pièce tournée d'un seul tenant,
+     sans booléen (bague, collerette, épaulement…). Segments : règle de corde sur le plus grand rayon. */
+  const rev = pts => solid(Manifold.revolve(section(pts).cs, segments(Math.max(...pts.map(q => q[0]))))).rotateX(-Math.PI / 2);
 
   /* BufferGeometry → Manifold : sommets fusionnés par position (tolérance tol), triangles dégénérés retirés.
      Renvoie null si le maillage n'est pas étanche (arêtes ouvertes, faces en trop…). */
@@ -218,7 +257,7 @@ export function createKit(THREE, wasm) {
 
   return {
     isManifold: true, wasm, Manifold, CrossSection, Solid, segments,
-    ext, box, cyl, join, section, offset, conge, jeu,
+    ext, box, cyl, rev, join, section, offset, conge, jeu, extArrondi,
     tray, overHook, sideClamp,
     solid, fromGeometry, toGeometry, bilan, preview, flush
   };

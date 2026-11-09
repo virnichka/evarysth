@@ -15,16 +15,19 @@
   ]).then(([THREE, ctrl]) => ({ THREE, OrbitControls: ctrl.OrbitControls }))
     .catch(err => { libs = null; throw err; }));
 
-  /* Nouveau moteur manifold-3d (refonte, phase 2 : docs/refonte-geometrie.md) : seulement avec ?geo=manifold
-     (mémorisé dans le navigateur, coupé par ?geo=off). Sans ce drapeau, le kit three.js ci-dessous sert seul. */
+  /* Moteur géométrique (refonte : docs/refonte-geometrie.md). Par défaut, kit manifold-3d (assets/js/geo.js + WASM) :
+     unions exactes, maillage étanche, même calcul que le STL de fabrication. ?geo=ancien (ou ?geo=off) rend l'ancien kit
+     three.js pour comparer, mémorisé dans le navigateur ; ?geo=manifold (ou ?geo=nouveau) revient au défaut et affiche
+     le bilan du modèle dans la console (diagnostic). L'ancien kit sera retiré en phase 4. */
   const GEO_FLAG = "evarysth.geo";
+  let geoBilan = false;
   const geoOn = (() => {
     try {
       const st = window.EVARYSTH && EVARYSTH.store, q = new URLSearchParams(location.search).get("geo");
-      if (q === "manifold") { if (st) st.set(GEO_FLAG, "manifold"); return true; }
-      if (q === "off") { if (st) st.set(GEO_FLAG, ""); return false; }
-      return !!st && st.get(GEO_FLAG, "") === "manifold";
-    } catch { return false; }
+      if (q === "ancien" || q === "off") { if (st) st.set(GEO_FLAG, "ancien"); return false; }
+      if (q === "manifold" || q === "nouveau") { if (st) st.set(GEO_FLAG, ""); geoBilan = true; return true; }
+      return !(st && st.get(GEO_FLAG, "") === "ancien");
+    } catch { return true; }
   })();
   let GEO = null, geoLoad = null;
   /* Kit manifold (assets/js/geo.js + WASM de assets/vendor/manifold-3d/), chargé à la demande comme three.js */
@@ -36,11 +39,15 @@
 
   /* Profils 2D : listes de points [x, y] en mm */
   const rad = d => d * Math.PI / 180;
-  const circ = (r, x = 0, y = 0, n = 40) =>
+  /* Facettisation : n fixe donné par le modèle (contour décoratif, ou profil découpé par indices) ; sans n, 40 segments
+     (cercle) ou 32 (arc) avec l'ancien kit, et avec le kit manifold la règle de cyl() (corde ≤ 0,5 mm, multiple de 4),
+     jamais moins fin qu'avant : un trou ou une cote fonctionnelle reste à moins de 0,05 mm de sa valeur nominale. */
+  const nArc = (r, deg, n0) => GEO ? Math.max(n0, Math.ceil(GEO.segments(r) * Math.abs(deg) / 360 / 4) * 4) : n0;
+  const circ = (r, x = 0, y = 0, n = nArc(r, 360, 40)) =>
     Array.from({ length: n }, (_, i) => [x + r * Math.cos(i / n * 2 * Math.PI), y + r * Math.sin(i / n * 2 * Math.PI)]);
   const rect = (w, h, x = 0, y = 0) => [[x - w / 2, y - h / 2], [x + w / 2, y - h / 2], [x + w / 2, y + h / 2], [x - w / 2, y + h / 2]];
   /* Anneau ouvert de a0 à a1 degrés (0° = +x) */
-  const arc = (ri, ro, a0, a1, n = 32) => {
+  const arc = (ri, ro, a0, a1, n = nArc(Math.max(ri, ro), a1 - a0, 32)) => {
     const at = (r, i) => [r * Math.cos(rad(a0 + (a1 - a0) * i / n)), r * Math.sin(rad(a0 + (a1 - a0) * i / n))];
     return [...Array.from({ length: n + 1 }, (_, i) => at(ro, i)), ...Array.from({ length: n + 1 }, (_, i) => at(ri, n - i))];
   };
@@ -59,6 +66,8 @@
     };
     const box = (w, h, d, x = 0, y = 0, z = 0) => new T.BoxGeometry(w, h, d).translate(x, y, z);
     const cyl = (r, h, ri = 0) => ri > 0 ? ext(circ(r), h, [circ(ri)]).rotateX(Math.PI / 2) : new T.CylinderGeometry(r, r, h, 40);
+    /* Révolution d'un profil [rayon, hauteur] autour de Y (kit manifold : Manifold.revolve) */
+    const rev = pts => new T.LatheGeometry([...pts, pts[0]].map(v2), 40);
     const join = (...gs) => {
       const pos = [], nor = [];
       gs.forEach(g => {
@@ -72,7 +81,7 @@
       g.setAttribute("normal", new T.BufferAttribute(cat(nor), 3));
       return g.center();
     };
-    return { ext, box, cyl, join };
+    return { ext, box, cyl, rev, join };
   })());
   const m = f => (T, v) => f(kit(T), v);
 
@@ -126,8 +135,10 @@
   const MODELS = {};
   /* Briques mises à disposition des fichiers de modèles */
   const LIB = { m, kit, rad, circ, rect, arc, uPts, fetchSTL, sculpt, tray, overHook, sideClamp };
-  /* Appelé par chaque fichier assets/js/modeles/<id>.js : factory(LIB) -> fonction (THREE, valeurs) -> géométrie */
-  const define = (id, factory) => { MODELS[id] = factory(LIB); };
+  /* Appelé par chaque fichier assets/js/modeles/<id>.js : factory(LIB) -> fonction (THREE, valeurs) -> géométrie.
+     opts.solides : nombre de pièces séparées que le modèle produit (1, ou plus pour un assemblage voulu) ;
+     tools/generer-stl.mjs et tools/comparer-kits.mjs refusent tout écart. */
+  const define = (id, factory, opts = {}) => { MODELS[id] = Object.assign(factory(LIB), opts); };
   const modelCache = {};
   const loadModel = id => modelCache[id] || (modelCache[id] = new Promise((ok, ko) => {
     if (MODELS[id]) return ok(MODELS[id]);
@@ -158,16 +169,18 @@
     if (!container || !modelId || !webglOK()) return handle;
 
     Promise.all([load(), loadModel(modelId)]).then(async ([{ THREE, OrbitControls }, build]) => {
-      if (geoOn) await loadGeo(THREE);
+      /* WASM indisponible (navigateur ancien, réseau) : repli sur l'ancien kit plutôt que pas de 3D du tout */
+      if (geoOn) await loadGeo(THREE).catch(err => console.warn("Moteur manifold-3d indisponible, ancien kit utilisé.", err));
       if (build.prepare) await build.prepare(THREE);
       if (disposed) return;
       /* Avec le kit manifold, le modèle rend un solide : converti ici pour l'aperçu (même calcul que le STL) */
       const make = vals => GEO ? GEO.preview(build(THREE, vals)) : build(THREE, vals);
-      if (GEO) {
+      /* Diagnostic (?geo=manifold) : bilan du modèle aux cotes par défaut, après le premier rendu */
+      if (GEO && geoBilan) setTimeout(() => {
         const b = GEO.bilan(build(THREE, Object.fromEntries(params.map(p => [p.key, p.def])))); GEO.flush();
         console.info(`[geo=manifold] ${modelId} : ${b.horsKit ? "hors kit" : "kit"}, ${b.etanche ? "étanche" : "NON étanche"}`
-          + (b.volume ? `, ${Math.round(b.volume)} mm³, ${b.solides} solide(s)` : ""));
-      }
+          + (b.volume ? `, ${Math.round(b.volume)} mm³, ${b.solides} solide(s)` : "") + (build.solides ? ` (attendu : ${build.solides})` : ""));
+      }, 500);
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.outputColorSpace = THREE.SRGBColorSpace;

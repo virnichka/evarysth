@@ -21,4 +21,4 @@ EVARYSTH.viewer3d.define("cintre-sac", ({ m, circ, arc }) => {
       k.ext(web, 10).translate(0, 0, -(W - 10) / 2),
       k.ext(bar, W));
   });
-});
+}, { solides: 1 });

@@ -1,6 +1,6 @@
 # Refonte du moteur géométrique (manifold-3d)
 
-> **État (9 novembre 2026)** : phases 0, 1 et 2 terminées (phase 2 : nouveau moteur derrière `?geo=manifold`, site public inchangé). Prochaine étape : phase 3, sur feu vert du propriétaire.
+> **État (9 novembre 2026)** : phases 0 à 3 terminées. Depuis la phase 3, le moteur manifold-3d est celui **par défaut** du site (ancien kit three.js : `?geo=ancien`, mémorisé, jusqu'à sa suppression en phase 4). Prochaine étape : phase 4, sur feu vert du propriétaire.
 > Écarts phase 1 : `jardiniere-clip` → `tablette-rambarde` (index.html, tests Worker) ; « popular » ajouté à `crochet-balcon`, `passe-cable`, `vide-poche-cles` (4 mis en avant retirés + 1 conservé) ; icônes `clamp`, `clip`, `riser`, `reel`, `stand`, `handle` retirées de `SHAPES` ; fonctions du kit intactes ; `docs/traitement-commandes.md` (historique OpenSCAD) non modifié.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Modèle conseillé : Opus effort élevé pour les phases 2 à 4 ; Sonnet suffit pour la phase 1.
@@ -132,6 +132,98 @@ Univers après tri : balcon 2, bureau 3, meubles 8, déco 3.
   `sculpt` : tester l'étanchéité aux bornes, sinon reconstruire. STL importés : valider une fois l'étanchéité du STL source.
 - Vérifier, pour chaque modèle, l'écart ancien/nouveau (boîte englobante, volume) aux combinaisons min/défaut/max ;
   au plus 2 captures Playwright par produit (deviceScaleFactor 1).
+
+**Phase 3 terminée (9 novembre 2026).** Les 16 modèles sortent étanches avec le nombre de solides déclaré, à toutes les
+combinaisons min/défaut/max ; le nouveau moteur est celui par défaut du site.
+- **Nombre de solides** : `define(id, factory, { solides: n })` (1 partout ; `passe-cable` 2, `boite-rugged` 4).
+  `generer-stl` (manifeste : `solides`, `solides_attendus`) et `comparer-kits` refusent tout écart.
+- **Facettisation** : dans le kit manifold, `circ`/`arc` sans `n` explicite suivent la règle de `cyl` (corde ≤ 0,5 mm,
+  multiple de 4, jamais moins fin que les 40/32 segments d'avant) ; un `n` explicite reste fixe (contours décoratifs,
+  profils découpés par indices : `arc(…, 24).slice(1, 24)`). `overHook` (geo.js) suit la même règle.
+  Contrôle par coupe : `node tools/verifier-trous.mjs` (`Manifold.slice`, ± 0,05 mm) — cintre-sac (crochet de tringle,
+  2 coupes), passe-cable (fût Ø a, alésage Ø a − 6), crochet-appui-tete (œillet Ø a + 1, petits crochets b) : 93 contrôles,
+  écart max −0,008 mm. Avant, l'œillet (40 segments fixes) manquait la cote de 0,065 mm à a = 20.
+- **Outils** : `comparer-kits --ref=<commit>` (ancien kit = fichiers d'un commit, ex. la version publiée ; colonnes
+  volume, solides attendus, temps calcul + aperçu ; code 1 si non étanche ou nombre de solides faux) ;
+  `verifier-trous.mjs` ; kit : `rev` (révolution d'un profil), `extArrondi` (extrusion aux arêtes arrondies).
+- **Bascule** (`viewer3d.js`) : kit manifold par défaut ; `?geo=ancien` (ou `?geo=off`) → ancien kit, mémorisé
+  (`evarysth.geo` = `ancien`) ; `?geo=manifold` (ou `?geo=nouveau`) efface la mémoire et logue le bilan du modèle
+  après le premier rendu (diagnostic ; plus de bilan au montage, il coûtait un calcul complet de plus) ; si le WASM ne
+  se charge pas, repli sur l'ancien kit avec un avertissement.
+
+Corrections par modèle (libertés prises en *italique*) :
+- `support-aerosol-skadis` : paroi avant fermée à ses deux extrémités et prolongée de 1° (≥ 0,36 mm) dans le dos ;
+  fond ajouré noyé de 1 mm dans la paroi (il ne faisait que la toucher). Étanche sans `--forcer`, 1 solide. Aspect inchangé.
+- `passe-cable` : le disque est **une pièce séparée voulue**, le couvercle (« le couvercle s'ouvre juste assez pour les
+  câbles », data.js) → 2 solides. Bague d'un seul tenant par révolution d'un profil (`k.rev`, plus de booléen entre
+  collerette et fût coaxiaux : 113 → 46 ms). *Épaulement intérieur ajouté* (Ø a − 9, 1,7 mm de haut, 0,3 mm sous le
+  couvercle) : sans lui le couvercle tombait dans le fût. *Fente fermée → encoche ouverte sur le bord* (8 mm de large,
+  du centre au bord) : plus de découpe en morceaux à a = 30 (la fente coupait le bord du disque), et le couvercle se pose
+  câbles branchés. Cotes fonctionnelles inchangées (fût Ø a, alésage Ø a − 6, collerette Ø a + 16). Volume +2 % (épaulement).
+- `support-casque-gyroide` : socle et appui bombé intégrés au champ implicite (distances exactes : mêmes formes que les
+  extrusions biseautées d'avant, profil grossi de 1,5 mm et arêtes arrondies r = 1,5), donc un seul maillage « surface
+  nets », sans booléen ; îlots retirés en JS (connexité par arêtes à 2 triangles : 195 à 290 fragments de 1 à 4 mm³,
+  détachés ou pincés par un sommet). 1 solide ; Δ boîte 0,001 mm ; volume −0,1 % par rapport à l'union de phase 2.
+  Calcul 1,5 s → 0,24 s (Node) ; le modèle ne passe plus par le kit (même géométrie dans les deux moteurs).
+  *Arêtes du socle et de l'appui calculées sur la grille de 1,6 mm (arrondi au lieu de 3 facettes de biseau).*
+- `equerre` (equerre-l) : `k.extArrondi(k.conge(L, 4, concaves), c, 0.8)` — profil cœur en L avec congé exact de 4 mm,
+  grossi de 0,8 mm (`offset` Round), arêtes arrondies au même rayon en 2 segments (comme le biseau three.js).
+  Boîte identique, volume ±0,02 %. *Congé intérieur circulaire au lieu d'une courbe quadratique (écart ≤ 0,2 mm).*
+  L'`ExtrudeGeometry` ne sert plus qu'à l'ancien kit (`?geo=ancien`).
+- `crochet-appui-tete` : trou de l'œillet sans `n` fixe (règle de corde). Arcs des crochets déjà sans `n`.
+- `chat-lord`, `voiture-voronoi`, `carapuce` (sculpt) : les « 2 » et « 4 » solides de phase 2 étaient des débris de volume
+  nul dans les STL sources (paires de triangles dos à dos : 6, 40 et 8 triangles) ; retirés une fois des fichiers
+  `assets/models/*/` (même boîte, même volume). 1 solide aux bornes.
+- `boite-rugged` (STL étiré) : étanche, 4 solides aux bornes (boîte, couvercle, 2 loquets). Sans changement.
+- Autres modèles du kit : déclaration `{ solides: 1 }` seulement ; volumes un peu en hausse là où des arcs sont plus fins
+  (`support-casque` +0,06 %).
+
+Écarts finaux (`node tools/comparer-kits.mjs --ref=3fd2c98`, ancien kit = version publiée avant la phase 3,
+189 combinaisons ; temps = calcul du modèle + aperçu, moyenne, Node) :
+
+| Produit | Kit | Comb. | Δ boîte max (mm) | Vol. nouveau / ancien | Volume (cm³) | Étanche | Solides (attendu) | Calcul + aperçu |
+|---|---|---|---|---|---|---|---|---|
+| crochet-balcon | kit | 3 | 0,000 | 0,8513 – 0,8908 | 20,0 – 28,5 | 3/3 | 1 (1) | 13 ms |
+| tablette-rambarde | kit | 9 | 0,000 | 1,0000 – 1,0000 | 217,7 – 517,1 | 9/9 | 1 (1) | 1 ms |
+| support-casque | kit | 3 | 0,000 ↑ | 1,0005 – 1,0006 | 28,5 – 34,5 | 3/3 | 1 (1) | 7 ms |
+| passe-cable | kit | 3 | 0,000 ↑ | 1,0186 – 1,0217 | 9,1 – 41,0 | 3/3 | 2 (2) | 46 ms |
+| crochet-appui-tete | kit | 27 | 0,000 | 0,9482 – 0,9567 | 29,6 – 36,1 | 27/27 | 1 (1) | 19 ms |
+| equerre-l | kit | 27 | 0,000 ↑ | 0,9998 – 1,0002 | 6,3 – 104,5 | 27/27 | 1 (1) | 2 ms |
+| boite-rugged | hors kit | 27 | 0,000 | 1,0000 – 1,0000 | 83,6 – 825,3 | 27/27 | 4 (4) | 5 ms |
+| support-casque-gyroide | hors kit | 9 | 0,001 | 0,9885 – 0,9915 | 184,3 – 384,5 | 9/9 | 1 (1) | 239 ms |
+| organiseur-tiroir | kit | 9 | 0,000 | 0,9413 – 0,9686 | 148,7 – 1 559,4 | 9/9 | 1 (1) | 5 ms |
+| vide-poche-cles | kit | 27 | 0,000 | 0,8901 – 0,9323 | 46,4 – 231,5 | 27/27 | 1 (1) | 14 ms |
+| distributeur-cotons | kit | 27 | 0,000 | 1,0000 – 1,0000 | 68,2 – 185,8 | 27/27 | 1 (1) | 62 ms |
+| cintre-sac | kit | 3 | 0,000 | 0,9304 – 0,9503 | 36,1 – 51,7 | 3/3 | 1 (1) | 7 ms |
+| support-aerosol-skadis | hors kit | 6 | 0,000 | 0,9844 – 0,9940 | 43,9 – 183,3 | 6/6 | 1 (1) | 39 ms |
+| chat-lord | hors kit | 3 | 0,000 | 1,0000 – 1,0000 | 55,1 – 1 145,3 | 3/3 | 1 (1) | 3 ms |
+| carapuce | hors kit | 3 | 0,000 | 1,0000 – 1,0000 | 41,8 – 1 548,3 | 3/3 | 1 (1) | 3 ms |
+| voiture-voronoi | hors kit | 3 | 0,000 | 1,0000 – 1,0000 | 18,5 – 255,2 | 3/3 | 1 (1) | 5 ms |
+
+Ratio < 1 : recouvrements supprimés par l'union (ancien kit = concaténation). Hausses expliquées : `passe-cable`
+(épaulement ajouté), `support-casque` et `equerre-l` (facettisation plus fine).
+
+Poids et temps (fiche produit, cache vide, Playwright/Chromium headless, serveur local avec gzip comme GitHub Pages,
+médiane de 3 chargements, temps jusqu'au canvas 3D affiché) :
+
+| Fiche | Ancien kit | Nouveau moteur | Écart |
+|---|---|---|---|
+| passe-cable (sans limite de débit) | 608 ms, 686 Ko | 868 ms, 913 Ko | +0,26 s, +227 Ko |
+| distributeur-cotons | 627 ms, 708 Ko | 872 ms, 936 Ko | +0,25 s |
+| cintre-sac | 624 ms, 614 Ko | 709 ms, 842 Ko | +0,09 s |
+| support-casque-gyroide | 1 651 ms | 1 625 ms | 0 |
+| passe-cable (4G simulée : 9 Mbit/s, 40 ms) | 1 457 ms | 1 674 ms | +0,22 s |
+| cintre-sac (4G simulée) | 1 415 ms | 1 575 ms | +0,16 s |
+
+Transfert ajouté : `manifold.wasm` 541 Ko bruts, **207 Ko gzip** (GitHub Pages le compresse : `content-encoding: gzip`,
+vérifié sur evarysth.fr), `manifold.js` 19 Ko, `geo.js` 5 Ko : ~231 Ko compressés. Écart sous les seuils (1 s, 300 Ko) :
+bascule faite sans aperçu intermédiaire. Vérification sans drapeau (passe-cable, support-aerosol-skadis,
+support-casque-gyroide, cintre-sac) : canvas présent, WASM chargé, curseur min → max qui change la vue, console vide,
+aucune violation CSP ; `?geo=ancien` mémorisé puis `?geo=manifold` : conformes.
+
+À vérifier (propriétaire) : `passe-cable` fût à Ø a exact (aucun jeu dans le trou du plateau, comme avant) et couvercle à
+imprimer à part (fiche d'impression, phase 4) ; `support-casque-gyroide` mesure a − 1,5 mm de haut et `equerre-l` a + 1,6 mm
+par branche (déjà le cas avant, cotes du bord arrondi).
 
 ### Phase 4 — contrôles automatiques + fiche d'impression
 - Tests Node + workflow GitHub Actions : toutes les combinaisons min/défaut/max ; statut Manifold sans erreur,

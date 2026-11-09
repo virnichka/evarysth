@@ -40,4 +40,4 @@ EVARYSTH.viewer3d.define("vide-poche-cles", ({ m, circ, arc }) => {
     const rim = k.ext(outer, hT, [inner]).rotateX(Math.PI / 2).translate(0, hT / 2, 0);
     return k.join(side(k, back, a), floor, rim, ...hooks);
   });
-});
+}, { solides: 1 });

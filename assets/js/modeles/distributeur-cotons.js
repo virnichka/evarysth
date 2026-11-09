@@ -63,4 +63,4 @@ EVARYSTH.viewer3d.define("distributeur-cotons", ({ m, rad }) => {
     parts.push(layer(tubeOnly(r), c, b));                                     // tube seul
     return k.join(...parts).rotateY(0.55);              // fente tournée vers la vue par défaut
   });
-});
+}, { solides: 1 });

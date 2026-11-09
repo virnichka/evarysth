@@ -67,4 +67,4 @@ EVARYSTH.viewer3d.define("boite-rugged", ({ fetchSTL }) => {
     return model;
   })();
   return rugged;
-});
+}, { solides: 4 });   // boîte, couvercle, 2 loquets (assemblage montré fermé)

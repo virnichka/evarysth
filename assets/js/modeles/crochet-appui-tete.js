@@ -44,9 +44,9 @@ EVARYSTH.viewer3d.define("crochet-appui-tete", ({ m, circ, arc }) => {
     /* Pli à 90° vers le siège, puis languette à œillet (plan horizontal) */
     const bend = k.ext(shift(arc(4, 4 + t, 0, 90, 12), -4, H - 7), 2 * R).rotateY(-Math.PI / 2);
     const tab = [[-R, -4], [R, -4], [R, -c], ...arc(R, R, 0, -180, 24).slice(1, 24).map(([x, y]) => [x, y - c]), [-R, -c]];
-    const tongue = k.ext(tab, t, [circ(rh, 0, -c, 40)]).rotateX(Math.PI / 2).translate(0, H - t / 2, 0);
+    const tongue = k.ext(tab, t, [circ(rh, 0, -c)]).rotateX(Math.PI / 2).translate(0, H - t / 2, 0);
     return k.join(plate, bend, tongue,
       ...hook(15, 0, 12.5, W / 2 - cut, -(W / 2 + cut) / 2), ...hook(15, 0, 12.5, W / 2 - cut, (W / 2 + cut) / 2),
       ...hook(b, ym, 5, 20, -15), ...hook(b, ym, 5, 20, 15));
   });
-});
+}, { solides: 1 });

@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import * as THREE from "three";
 import Module from "manifold-3d";
@@ -19,7 +20,10 @@ if (versionNode !== MANIFOLD_VERSION) throw new Error(`manifold-3d ${versionNode
 /* Option stable en pratique (Node ≥ 21) ; seul son avertissement « expérimental » est tu */
 const emit = process.emitWarning;
 process.emitWarning = (w, ...a) => String(w).includes("USE_MAIN_CONTEXT_DEFAULT_LOADER") ? undefined : emit.call(process, w, ...a);
-const run = (fichier) => vm.runInThisContext(fs.readFileSync(path.join(RACINE, fichier), "utf8"), {
+/* Lecture d'un fichier du site : sur disque, ou tel qu'il était au commit ref (comparaison avec la version publiée) */
+const lire = (fichier, ref) => ref ? execFileSync("git", ["show", `${ref}:${fichier}`], { cwd: RACINE, encoding: "utf8", maxBuffer: 1 << 26 })
+  : fs.readFileSync(path.join(RACINE, fichier), "utf8");
+const run = (fichier, ref) => vm.runInThisContext(lire(fichier, ref), {
   filename: path.join(RACINE, "tools", path.basename(fichier)),   // résolution de « three » depuis tools/node_modules
   importModuleDynamically: vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER   // import("three/addons/…") de viewer3d.js
 });
@@ -48,10 +52,11 @@ export const produit = id => {
 
 let wasm = null;
 const instances = {};
-/* Une instance de viewer3d.js par moteur (closures indépendantes, comme deux pages) */
-const instance = async moteur => {
-  if (instances[moteur]) return instances[moteur];
-  run("assets/js/viewer3d.js");
+/* Une instance de viewer3d.js par moteur (closures indépendantes, comme deux pages) ; ref : fichiers du commit ref */
+const instance = async (moteur, ref) => {
+  const cle = `${moteur}@${ref || ""}`;
+  if (instances[cle]) return instances[cle];
+  run("assets/js/viewer3d.js", ref);
   const v = EVARYSTH.viewer3d;
   let kit = null;
   if (moteur === "manifold") {
@@ -59,15 +64,15 @@ const instance = async moteur => {
     kit = createKit(THREE, wasm);
     v.useGeo(kit);
   }
-  return (instances[moteur] = { v, kit, charges: {} });
+  return (instances[cle] = { v, kit, ref, charges: {} });
 };
 
 /* Modèle prêt à calculer : (valeurs) → résultat brut du modèle (Solid ou BufferGeometry) */
-export async function modele(id, moteur = "manifold") {
-  const inst = await instance(moteur);
+export async function modele(id, moteur = "manifold", ref) {
+  const inst = await instance(moteur, ref);
   if (!inst.charges[id]) {
     EVARYSTH.viewer3d = inst.v;
-    run(`assets/js/modeles/${id}.js`);
+    run(`assets/js/modeles/${id}.js`, ref);
     const build = inst.v.models[id];
     if (!build) throw new Error(`Modèle 3D « ${id} » non défini`);
     if (build.prepare) await build.prepare(THREE);
