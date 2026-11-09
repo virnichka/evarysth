@@ -391,7 +391,8 @@ test) → 200 OK, **aucun second run** (toujours 7 « Fabrication »), aucune li
 
 #### Résultats Fabrication · phase 3 (9 novembre 2026)
 **Fait** (Worker, `worker/src/{admin,planifie,fabrication,fichier,email,zip}.js`, tests `worker/test/generation.test.mjs`) :
-- Fiche commande : pli « Fichiers d'impression » par article (état `a_declencher` / `en_cours` / `prete` / `echec` +
+- Fiche commande : pli « Fichiers d'impression » sous chaque article (dans « À valider », « Bloqués » ou l'envoi
+  fabricant, en lecture seule une fois envoyé ; libellé « dossier CF-AAAA-NNNN-<n°> » : n° d'article, pas le n° CF) (état `a_declencher` / `en_cours` / `prete` / `echec` +
   motif, masse, temps, plateaux, matière, SHA court), liens signés 2 jours vers STL (une archive `stl.zip` faite à la
   demande s'il y en a plusieurs), 3MF non tranché (`3mf.zip` si plusieurs plateaux), fichiers tranchés P2S et
   `fiche.html` (affichée dans le navigateur, isolée : CSP `sandbox`, aucun script). Liste des fichiers lue dans le

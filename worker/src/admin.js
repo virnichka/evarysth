@@ -142,6 +142,8 @@ details.pli,details.pli:first-child{border-top:1px solid var(--line);padding:0 1
 details.pli>summary{padding:14px 0}details.pli[open]>summary{border-bottom:1px solid var(--line)}details.pli .detail{padding:4px 0 14px}details.pli summary .nom{white-space:normal}details.pli>summary{flex-wrap:wrap}details.pli>summary::after{order:1}
 details.pli>summary>.attend{order:2;flex-basis:100%;margin:-4px 0 0}label.confirme span{flex:1}label.confirme.sep{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
 .zone>summary .nom{color:var(--err)}.zone form+form{border-top:1px solid var(--line);margin-top:14px;padding-top:14px}.retour{margin:0 0 -6px;font-size:14px}.valider .art:first-of-type{border-top:0;margin-top:0;padding-top:0}summary .nom .muted{font-weight:400}
+details.fichiers,details.fichiers:first-child{border:1px solid var(--line);border-radius:10px;padding:0 12px;margin:4px 0 12px}details.fichiers.bord{border-left-width:4px}
+details.fichiers>summary{padding:10px 0}details.fichiers[open]>summary{border-bottom:1px solid var(--line)}details.fichiers .detail{padding:4px 0 10px}details.fichiers summary .nom{white-space:normal;font-weight:500}
 label.confirme{display:flex;gap:8px;align-items:center;font-weight:400;margin:4px 0 8px}label.confirme input{width:auto;margin:0}
 .bandeau{border-radius:10px;padding:12px 14px;margin:0 0 16px;font-weight:600}.ok{background:#e6f2ea;color:var(--ok)}.err{background:#fbe9e7;color:var(--err)}
 a{color:inherit}table{width:100%;border-collapse:collapse;font-size:14px}td{padding:6px 4px;border-top:1px solid var(--line);vertical-align:top}
@@ -318,9 +320,11 @@ const formReference = (champs, cf, ref) => `<form class="agir ref" method="post"
 <label for="ref-${esc(cf)}">Référence externe <span class="muted">(n° chez le fournisseur, facultatif)</span></label>
 <span class="ligne-champ"><input id="ref-${esc(cf)}" name="ref" maxlength="80" autocomplete="off" value="${esc(ref)}"><button class="second" type="submit">Enregistrer</button></span></form>`;
 
-/* Pli « fichiers » d'un article : état de génération, masse, temps, plateaux, motif d'échec, liens (STL, 3MF non tranché,
-   fichier tranché pour l'atelier, fiche), et pour un article pas encore envoyé : « Relancer la génération » (même SHA)
-   et « Régénérer au SHA actuel » (case de confirmation). Liens signés valables 2 jours (page d'administration). */
+/* Pli « Fichiers d'impression » d'un article, affiché sous l'article (à valider, bloqué ou envoyé) : état de génération,
+   masse, temps, plateaux, motif d'échec, liens (STL, 3MF non tranché, fichier tranché pour l'atelier, fiche), et pour un
+   article pas encore envoyé : « Relancer la génération » (même SHA) et « Régénérer au SHA actuel » (case de confirmation).
+   Liens signés valables 2 jours (page d'administration). Les boutons visent des formulaires rendus à part (`formes`,
+   attribut form=) : le pli peut ainsi vivre dans le formulaire « Valider et envoyer » sans formulaire imbriqué. */
 async function blocGeneration(env, champs, numero, l, modifiable) {
   const g = l.gen, ref = refArticle(numero, l.n), id = `gen-${numero}-${l.n}`;
   const f = g.statut === GEN.prete ? await liensGeneres(env, ref, g.sha, baseWorker(env), { validiteJours: 2 }).catch(() => null) : null;
@@ -331,16 +335,18 @@ async function blocGeneration(env, champs, numero, l, modifiable) {
   const liens = f ? [lien(f.stl, f.nbStl > 1 ? `STL (${f.nbStl} fichiers, zip)` : "STL"), f.troismf ? lien(f.troismf, "3MF non tranché") : "",
     ...f.gcode.map(x => lien(x.url, `Tranché P2S ${x.nom.replace(/\.gcode\.3mf$/, "")}`)), f.fiche ? lien(f.fiche, "Fiche") : ""].filter(Boolean).join(" · ") : "";
   const ouvert = g.statut !== GEN.prete && modifiable;
-  const relancable = modifiable && fabricationConfiguree(env) && g.statut !== GEN.prete;
-  return `<details class="carte pli bord ${TON_GEN[g.statut] || "t-clos"}"${ouvert ? " open" : ""}><summary><span class="nom">Article ${esc(l.n)} · ${esc(String(l.article).split(" · ").slice(0, 2).join(" · "))}<br><span class="muted">${esc(ref)}${g.sha ? ` · SHA ${esc(g.sha.slice(0, 12))}` : ""}</span></span><span class="resume">${badgeGen(g)}</span></summary>
+  const regenerable = modifiable && fabricationConfiguree(env);
+  const relancable = regenerable && g.statut !== GEN.prete;
+  const forme = mode => `<form id="${esc(id)}-${mode}" method="post" action="/admin/generation">${champs}<input type="hidden" name="n" value="${esc(l.n)}"><input type="hidden" name="mode" value="${mode}"></form>`;
+  const formes = (relancable ? forme("relancer") : "") + (regenerable ? forme("actuel") : "");
+  const pli = `<details class="fichiers bord ${TON_GEN[g.statut] || "t-clos"}"${ouvert ? " open" : ""}><summary><span class="nom">Fichiers d'impression<br><span class="muted">dossier ${esc(ref)}${g.sha ? ` · SHA ${esc(g.sha.slice(0, 12))}` : ""}</span></span><span class="resume">${badgeGen(g)}</span></summary>
 <div class="detail">${infos ? `<p class="muted">${esc(infos)}</p>` : ""}${g.motif ? `<p class="${g.statut === GEN.echec ? "a-faire" : "muted"}">Motif : ${esc(g.motif)}</p>` : ""}
 ${g.statut === GEN.prete ? (liens ? `<p>${liens}</p><p class="muted">Liens valables 2 jours (ceux de l'e-mail fabricant : 14 jours).</p>` : `<p class="a-faire">Fichiers introuvables dans R2 (${esc(dossierR2(ref, g.sha))}) : régénérez au SHA actuel ou saisissez un lien STL.</p>`)
   : g.statut === GEN.cours ? '<p class="muted">Environ 1 minute : actualisez la page.</p>' : g.statut === GEN.attente ? '<p class="muted">Nouvel essai automatique toutes les 10 minutes (6 essais au plus).</p>'
   : !g.statut ? '<p class="muted">Aucune génération pour cet article (commande antérieure à la chaîne de fabrication, ou fabrication non réglée).</p>' : ""}
-${relancable ? `<form method="post" action="/admin/generation">${champs}<input type="hidden" name="n" value="${esc(l.n)}"><input type="hidden" name="mode" value="relancer">
-<button class="second" type="submit">Relancer la génération</button></form>` : ""}${modifiable && fabricationConfiguree(env) ? `<form method="post" action="/admin/generation">${champs}<input type="hidden" name="n" value="${esc(l.n)}"><input type="hidden" name="mode" value="actuel">
-<label class="confirme"><input id="${esc(id)}" type="checkbox" name="confirmer" value="oui" required> <span>Je confirme : refaire les fichiers avec la version actuelle du site (forme ou réglages peut-être différents de ceux du paiement)</span></label>
-<button class="second" type="submit">Régénérer au SHA actuel</button></form>` : ""}</div></details>`;
+${relancable ? `<button class="second" type="submit" form="${esc(id)}-relancer">Relancer la génération</button>` : ""}${regenerable ? `<label class="confirme"><input form="${esc(id)}-actuel" type="checkbox" name="confirmer" value="oui" required> <span>Je confirme : refaire les fichiers avec la version actuelle du site (forme ou réglages peut-être différents de ceux du paiement)</span></label>
+<button class="second" type="submit" form="${esc(id)}-actuel">Régénérer au SHA actuel</button>` : ""}</div></details>`;
+  return { pli, formes };
 }
 
 /* Fiche d'une commande client : en-tête, articles à valider (formulaire), bloqués, envois fabricant (un pli par CF),
@@ -364,33 +370,34 @@ ${stripe ? `<p class="muted"><a href="${esc(stripe)}" target="_blank" rel="noope
   /* 1. À valider */
   const aValider = arts.filter(l => A_ENVOYER.includes(l.statut));
   if (aValider.length) {
-    const lignes = [];
+    const lignes = [], formes = [];
     for (const l of aValider) {
       const r2 = !l.stl.trim() && !l.gen.statut && await fichierStandardDispo(env, l.article);
       const fab = cache(l.n, "fab", l.fabricant.trim()), id = `${numero}-${l.n}`;
+      const gen = etat.generation ? await blocGeneration(env, champs, numero, l, true) : null;
+      if (gen) formes.push(gen.formes);
       lignes.push(`<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${badge(l.statut)}</div>
 <div class="piece">${esc(l.article)}</div>${l.notes.trim() ? `<p class="note">${esc(l.notes.trim())}</p>` : ""}
 <label for="fab-${esc(id)}">Fabricant</label><select id="fab-${esc(id)}" name="fab_${esc(l.n)}">
 <option value="">— plus tard —</option>${noms.filter(f => !etat.fabs[f].atelier || atelierPossible(l.article)).map(f => `<option value="${esc(f)}"${f === fab ? " selected" : ""}>${esc(f)}${etat.fabs[f].atelier ? " (atelier)" : etat.fabs[f].manuel ? " (envoi manuel)" : ""}</option>`).join("")}</select>
-${etat.generation && l.gen.statut ? `<p class="muted">Fichiers : ${badgeGen(l.gen)}${l.gen.statut === GEN.prete ? " lien STL facultatif" : " · détail plus bas"}</p>` : ""}
+${gen ? gen.pli : ""}
 <label for="stl-${esc(id)}">Lien STL${l.gen.statut === GEN.prete ? " <span class=\"muted\">(remplace les fichiers générés, facultatif)</span>" : r2 ? " <span class=\"muted\">(fichier standard disponible, facultatif)</span>" : ""}</label>
 <input id="stl-${esc(id)}" name="stl_${esc(l.n)}" type="url" inputmode="url" autocomplete="off" placeholder="https://drive.google.com/…" value="${esc(cache(l.n, "stl", l.stl.trim()))}"></div>`);
     }
     /* Refus / retrait : la note de l'article (fabricant, motif) suffit ; message du Journal seulement si aucune note n'en parle */
     const rendus = r.rendues.filter(x => !aValider.some(l => l.notes.includes(x.cf))).map(x => `<p class="a-faire">${esc(x.cf)} ${x.auteur === "fabricant" ? "refusée par le fabricant" : "retirée au fabricant"}${x.date ? " le " + esc(dateCourte(x.date)) : ""} : choisissez un autre fabricant.</p>`).join("");
     blocs.push(`<h2>À valider <span class="compte">${aValider.length}</span></h2><div class="carte bord t-att">${rendus}
-<form class="valider" method="post" action="/admin/valider">${champs}${lignes.join("")}<button type="submit">Valider et envoyer au fabricant</button></form></div>`);
+<form class="valider" method="post" action="/admin/valider">${champs}${lignes.join("")}<button type="submit">Valider et envoyer au fabricant</button></form>${formes.join("")}</div>`);
   }
 
   /* 2. Bloqués (jamais envoyés) */
   const bloques = arts.filter(l => debloquable(l, etat.journal));
   if (bloques.length) blocs.push(`<h2>Bloqués <span class="compte">${bloques.length}</span></h2><div class="carte bord t-err">
-${bloques.map(l => `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>`).join("")}
+${(await Promise.all(bloques.map(async l => {
+    const gen = etat.generation ? await blocGeneration(env, champs, numero, l, true) : null;
+    return `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>${gen ? gen.pli + gen.formes : ""}`;
+  }))).join("")}
 <form method="post" action="/admin/debloquer">${champs}<button class="second" type="submit">Débloquer</button></form></div>`);
-
-  /* 2 bis. Fichiers d'impression générés à la commande (un pli par article, ouvert s'il y a quelque chose à faire) */
-  const avecGen = etat.generation ? arts.filter(l => !CLOS.includes(l.statut)) : [];
-  if (avecGen.length) blocs.push(`<h2>Fichiers d'impression <span class="compte">${avecGen.filter(l => l.gen.statut === GEN.prete).length}/${avecGen.length}</span></h2>${(await Promise.all(avecGen.map(l => blocGeneration(env, champs, numero, l, aValider.includes(l) || bloques.includes(l))))).join("")}`);
 
   /* 3. Envois fabricant : un pli par n° CF (ouvert s'il est seul) */
   const parCF = {};
@@ -403,6 +410,8 @@ ${bloques.map(l => `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>`).jo
   const transporteurs = actives.length ? await lireTransporteurs(env) : [];
   const fiches = {};
   for (const cf of actives) if (fabDe(cf).manuel) fiches[cf] = await ficheATransmettre(env, ev, cf, parCF[cf].filter(l => RETIRABLES.includes(l.statut)), fabDe(cf));
+  const plis = {};
+  if (etat.generation) for (const l of arts) if (l.cf && l.gen.statut && !CLOS.includes(l.statut) && !lienValide(l.stl)) plis[l.n] = (await blocGeneration(env, champs, numero, l, false)).pli;
   if (cfs.length) blocs.push(`<h2>Envois fabricant <span class="compte">${cfs.length}</span></h2>${cfs.map(cf => {
     const ls = parCF[cf], memes = ls.every(l => l.statut === ls[0].statut);
     const s = memes ? ls[0].statut : ls.map(l => l.statut).filter(x => !CLOS.includes(x)).sort((a, b) => STATUTS.indexOf(a) - STATUTS.indexOf(b))[0] || ls[0].statut;
@@ -416,7 +425,7 @@ ${bloques.map(l => `<div class="piece">${esc(l.n)}. ${esc(l.article)}</div>`).jo
 <div class="detail">${suivi ? `<p class="muted">Suivi : ${esc(suivi)}</p>` : ""}${ls.map(l => {
       const lien = lienValide(l.stl);
       return `<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${memes ? "" : badge(l.statut)}</div><div class="piece">${esc(l.article)}</div>
-<p class="muted">${lien ? `Lien STL : <a href="${esc(lien)}" target="_blank" rel="noopener noreferrer">ouvrir ↗</a>` : !l.stl.trim() && l.gen.statut === GEN.prete ? "Fichiers générés : voir « Fichiers d'impression »" : `Lien STL : ${esc(l.stl.trim() || "—")}`}</p></div>`;
+${plis[l.n] || `<p class="muted">${lien ? `Lien STL : <a href="${esc(lien)}" target="_blank" rel="noopener noreferrer">ouvrir ↗</a>` : `Lien STL : ${esc(l.stl.trim() || "—")}`}</p>`}</div>`;
     }).join("")}${fiches[cf] ? `<label for="fiche-${esc(cf)}">Fiche à transmettre</label><textarea id="fiche-${esc(cf)}" class="fiche" readonly rows="${Math.min(22, fiches[cf].split("\n").reduce((n, x) => n + Math.max(1, Math.ceil(x.length / 34)), 1))}">${esc(fiches[cf])}</textarea>` : ""}
 ${etat.refExterne && active ? formReference(champs, cf, ref) : ""}${active ? (manuel ? formsAgir(champs, cf, ls, transporteurs)
   : `<details class="agir"><summary><span class="nom">Il a répondu autrement (téléphone, e-mail…)</span></summary>${formsAgir(champs, cf, ls, transporteurs)}</details>`) : ""}${g ? `<form method="post" action="/admin/renvoyer">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
