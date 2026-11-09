@@ -15,6 +15,8 @@ dépendances : `cd tools && npm ci`) ; refonte close (historique et décisions :
 
 Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js`,
 tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Circuit des commandes (validation sur la page /admin) : README « Paiement et commandes ».
+Chantier en cours « chaîne de fabrication » (commande payée → fichier tranché, R2, agent d'atelier, prix calculé) :
+`docs/chaine-fabrication.md` (décisions, architecture, phases) : lire la phase demandée avant d'agir.
 
 ## Économie de tokens (toujours)
 - Ne lis jamais un fichier en entier : `grep -n` puis `sed -n a,bp` sur le passage utile.
