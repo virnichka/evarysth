@@ -15,8 +15,10 @@ import { googleConfigure } from "./google.js";
 import { routeFournisseur } from "./fournisseur.js";
 import { routeFichier } from "./fichier.js";
 import { routeAdmin } from "./admin.js";
-import { enregistrerCommande, journaliserCreation, majCommande } from "./sheet.js";
+import { enregistrerCommande, journaliserCreation, majCommande, noterFrais } from "./sheet.js";
+import { fraisStripe } from "./finances.js";
 import { lancerFabrication, relancerDeclenchements, routeRetour, versionSite } from "./fabrication.js";
+import { entretien, lirePause } from "./systeme.js";
 
 const TAILLE_MAX = 20000;
 const EVENEMENTS_COMMANDE = ["checkout.session.completed", "checkout.session.async_payment_succeeded"];
@@ -76,6 +78,10 @@ async function trouverPromo(env, code) {
 }
 
 async function creerSession(req, env, origine) {
+  /* Pause des ventes (réglée dans /admin → Système) : refus avant tout calcul, message affiché tel quel dans le panier.
+     Le webhook n'est pas concerné : un paiement déjà lancé est toujours enregistré. */
+  const pause = await lirePause(env);
+  if (pause.active) return json({ error: pause.message, pause: true }, 503, origine);
   const corps = await lireJson(req);
   const lignes = lirePanier(corps);
   const cadeau = lireCadeau(corps);
@@ -154,6 +160,7 @@ async function resumeSession(url, env, origine) {
    Ajoute la commande (sans doublon), envoie au client l'e-mail « commande reçue » (une seule fois), journalise.
    Renvoie l'erreur Google éventuelle (le webhook répond alors 5xx) ; fiche.commande reçoit le n° EV-AAAA-NNNN. */
 async function backOffice(env, fiche, session) {
+  const s = session;
   if (!googleConfigure(env)) {
     if (env.GOOGLE_SA_EMAIL || env.GOOGLE_SA_KEY || env.SHEET_ID) console.warn("Sheet inactif : GOOGLE_SA_EMAIL, GOOGLE_SA_KEY et SHEET_ID sont tous nécessaires.");
     return null;
@@ -172,6 +179,11 @@ async function backOffice(env, fiche, session) {
       } catch (e) { console.error("E-mail « commande reçue »", cmd.numero, e.message); }
     }
     await journaliserCreation(env, cmd.numero, cmd.statut);
+    /* Frais Stripe : si Stripe ne les donne pas encore ou en cas d'erreur, l'entretien de la tâche planifiée les complète */
+    if (cmd.nouveau && s.id) {
+      try { const frais = await fraisStripe(env, s.id); if (frais != null) await noterFrais(env, cmd.numero, frais); }
+      catch (e) { console.warn("Frais Stripe : repris par l'entretien", cmd.numero, e.message); }
+    }
     return null;
   } catch (e) {
     console.error("Sheet", e.statut || "", e.message);
@@ -199,6 +211,7 @@ async function recevoirWebhook(req, env) {
       paiement: s.payment_status,
       ...(attente ? { attente: true } : {}),
       total_eur: s.amount_total / 100,
+      montants: { total: s.amount_total / 100, livraison: ((s.total_details || {}).amount_shipping || 0) / 100, remise: ((s.total_details || {}).amount_discount || 0) / 100 },
       client: s.customer_details && { nom: s.customer_details.name, email: s.customer_details.email },
       livraison: { nom: livraison.name, adresse: livraison.address },
       cadeau: s.metadata && s.metadata.cadeau === "oui" ? { emballage: true, message: s.metadata.message_cadeau || "" } : null,
@@ -228,6 +241,7 @@ export default {
     if (env.ROLE === "admin") return;                         /* le Worker d'administration n'a pas de tâche planifiée */
     ctx.waitUntil(lancerTache(env));
     ctx.waitUntil(relancerDeclenchements(env));               /* fabrication : nouveaux essais des déclenchements en échec */
+    ctx.waitUntil(entretien(env));                            /* clé Brevo maintenue, sauvegarde hebdomadaire du Sheet (systeme.js) */
   },
 
   async fetch(req, env) {

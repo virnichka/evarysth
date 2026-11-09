@@ -81,7 +81,7 @@ const appeler = (url, champs) => silence(() => worker.fetch(new Request(url, cha
 const liensF = texte => texte.match(/https:\/\/w\.dev\/f\/\S+/g);
 
 /* Parcours commun à partir de envoyee_fabricant (un article, une CF) : e-mail fabricant → accepter → expédier → e-mail client */
-async function suiteFabricant(sid, verifierEmail) {
+async function suiteFabricant(sid, verifierEmail, { entrant = false } = {}) {
   const num = ligne(sid).Commande, cf = articles(sid)[0]["Commande CF"];
   assert.equal(cf, num.replace("EV-", "CF-") + "-A");
   const b = await silence(() => tachePlanifiee(env));
@@ -98,7 +98,23 @@ async function suiteFabricant(sid, verifierEmail) {
   assert.equal(articles(sid)[0].Statut, "envoyee_fabricant");
   assert.equal((await appeler(accepter, {})).status, 200);
   assert.equal(articles(sid)[0].Statut, "acceptee");
-  assert.equal((await appeler(expedier, { transporteur: "Colissimo", suivi: "6A12345678901" })).status, 200);
+  if (entrant) {
+    /* Fabricant qui ne livre pas le client : « Déclarer l'expédition » = pièce envoyée à Evarysth, le client n'est pas prévenu */
+    assert.match(await (await appeler(expedier)).text(), /Confirmer l&#39;envoi à l&#39;atelier/);
+    assert.equal((await appeler(expedier, { transporteur: "Colissimo", suivi: "6A12345678901" })).status, 200);
+    assert.equal(articles(sid)[0].Statut, "a_reexpedier");
+    assert.ok(!articles(sid)[0]["N° de suivi"], "le suivi du colis client reste vide");
+    assert.match(articles(sid)[0].Notes, /expédiée par Atelier Dupont à l'atelier Evarysth \(Colissimo · 6A12345678901\)/);
+    const b1 = await silence(() => tachePlanifiee(env));
+    assert.deepEqual(b1.notifiees, [`${cf} : a_reexpedier`]);
+    assert.equal(emails.filter(m => m.tags[0] === "expedition").length, 0, "aucun e-mail « expédiée » au client");
+    assert.equal(ligne(sid).Statut, "en_fabrication");
+    assert.match(await (await appeler(expedier, { transporteur: "Colissimo", suivi: "AUTRE" })).text(), /Déjà confirmée/);
+    assert.match(await (await appeler(accepter, {})).text(), /Déjà confirmée/, "« accepter » après l'envoi de la pièce : déjà fait");
+    ecrire(sid, 1, { Transporteur: "Colissimo", "N° de suivi": "6A12345678901", Statut: "expediee" });   /* réexpédition au client, à la main dans le Sheet */
+  } else {
+    assert.equal((await appeler(expedier, { transporteur: "Colissimo", suivi: "6A12345678901" })).status, 200);
+  }
   assert.equal(articles(sid)[0].Statut, "expediee");
   assert.equal(articles(sid)[0]["N° de suivi"], "6A12345678901");
 
@@ -140,9 +156,10 @@ test("Parcours standard : paiement → a_valider → validation → e-mail fabri
     assert.equal(f.status, 200);
     assert.deepEqual(new Uint8Array(await f.arrayBuffer()), STL);
     assert.doesNotMatch(texte, /rue des Lilas/, "adresse non transmise : le fabricant ne livre pas le client");
-  });
+    assert.match(texte, /Pièce à nous renvoyer/);
+  }, { entrant: true });
   assert.deepEqual(journal, ["EV:payee/worker", "EV:fabrication_non_configuree/worker", "CF:envoyee_fabricant/proprietaire", "EV:en_fabrication/worker", "CF:acceptee/fabricant",
-    "CF:expediee/fabricant", "EV:expediee/worker"]);
+    "CF:a_reexpedier/fabricant", "CF:expediee/proprietaire", "EV:expediee/worker"]);
 });
 
 test("Parcours sur-mesure : paiement → lien_stl_a_indiquer → lien Drive → e-mail fabricant (livre le client) → acceptee → expediee", async () => {
@@ -189,6 +206,7 @@ test("Parcours deux fabricants : 2 CF, un e-mail chacun, 2 colis, statut client 
     { description: "Boîte rugged — M", quantity: 1, amount_total: 4900, price: { product: { metadata: { produit: "boite-rugged", mode: "standard", taille: "M", coloris: "noir" } } } },
     { description: "Boîte rugged — Sur-mesure", quantity: 1, amount_total: 5900, price: { product: { metadata: { produit: "boite-rugged", mode: "custom", cotes_mm: '{"a":142}', coloris: "noir" } } } }
   ];
+  sheet.Fabricants[1][3] = "oui";                          /* les deux fabricants livrent le client : un colis chacun */
   await webhook("cs_test_2f");
   const num = ligne("cs_test_2f").Commande, base = num.replace("EV-", "CF-");
   assert.equal(articles("cs_test_2f").length, 2);

@@ -4,7 +4,8 @@
    l'onglet « Commandes CF » qui portent ce n°, retrouvées par la colonne « Commande CF », jamais par leur position. */
 import { ecrireCellule, entetes, ErreurGoogle, googleConfigure, lireColonnes } from "./google.js";
 import { ErreurJeton, jetonConfigure, verifierJeton } from "./jeton.js";
-import { CF, JOURNAL, journaliser, ONGLET_CF, refusDe, rendreCF, REFUSEE, RETIRABLES } from "./sheet.js";
+import { A_REEXPEDIER, ajouterNote, CF, FABRICANTS, JOURNAL, journaliser, ONGLET_CF, passeParAtelier, refusDe, rendreCF, REFUSEE, RETIRABLES } from "./sheet.js";
+import { estAtelier } from "./planifie.js";
 import { contenuRefus, envoyerEmail } from "./email.js";
 
 /* E-mail au propriétaire après un refus (le refus est déjà enregistré : un échec d'envoi est seulement journalisé,
@@ -22,11 +23,25 @@ async function prevenirRefus(env, cf, rendu, motif) {
 
 /* Transitions : statuts de départ acceptés → statut d'arrivée ; « déjà » = statuts où l'action est déjà faite */
 export const TRANSITIONS = {
-  accepter: { depuis: ["envoyee_fabricant"], vers: "acceptee", deja: ["acceptee", "expediee", "livree"] },
+  accepter: { depuis: ["envoyee_fabricant"], vers: "acceptee", deja: ["acceptee", A_REEXPEDIER, "expediee", "livree"] },
   expedier: { depuis: ["acceptee", "envoyee_fabricant"], vers: "expediee", deja: ["expediee", "livree"] },
   /* Refus : articles rendus à l'atelier (rendreCF), possible tant que rien n'est expédié */
   refuser: { depuis: RETIRABLES, vers: REFUSEE, deja: [] }
 };
+/* Fabricant qui ne livre pas le client : son « expédition » est l'envoi de la pièce à Evarysth (a_reexpedier), sans e-mail au client */
+export const TRANSITION_ENTRANTE = { depuis: ["acceptee", "envoyee_fabricant"], vers: A_REEXPEDIER, deja: [A_REEXPEDIER, "expediee", "livree"] };
+/* Fiche du fabricant (onglet Fabricants) : { livre, atelier } ou null si introuvable ou onglet illisible */
+export async function fabricantDe(env, nom) {
+  try {
+    const cols = await entetes(env, FABRICANTS);
+    const lu = await lireColonnes(env, FABRICANTS, cols, ["Nom", "Livre le client", ...("Envoi" in cols ? ["Envoi"] : [])]);
+    const i = lu.Nom.findIndex(n => n.trim() === nom);
+    return i < 0 ? null : { livre: /^oui$/i.test(String(lu["Livre le client"][i] || "").trim()), atelier: estAtelier((lu.Envoi || [])[i]) };
+  } catch (e) {
+    console.warn("Fabricants illisible", e instanceof ErreurGoogle ? e.message : e);
+    return null;
+  }
+}
 /* Transporteurs : colonne « Transporteurs » de l'onglet Listes (même liste que le menu du Sheet) ; secours si illisible */
 export const LISTES = "Listes";
 export const TRANSPORTEURS_SECOURS = ["La Poste – Colissimo", "La Poste – Lettre suivie", "Mondial Relay", "Autre"];
@@ -46,6 +61,8 @@ const LIBELLES = {
   expedier: { titre: "Déclarer l'expédition", bouton: "Confirmer l'expédition", ok: "Expédition enregistrée. Merci !" },
   refuser: { titre: "Refuser la commande", bouton: "Je ne peux pas la fabriquer", ok: "Refus enregistré, merci de nous avoir prévenus : l'atelier Evarysth confie la commande à un autre fabricant." }
 };
+/* Même bouton, autre sens quand la pièce nous est renvoyée (« Pièce à nous renvoyer » dans l'e-mail) */
+const LIBELLE_ENTRANT = { titre: "Déclarer l'envoi à l'atelier Evarysth", bouton: "Confirmer l'envoi à l'atelier", ok: "Envoi à l'atelier enregistré. Merci !" };
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const nettoyer = (s, max = 80) => String(s ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
@@ -74,7 +91,7 @@ const message = (titre, texte, statut, classe = "") => page(titre, `<p class="${
 
 /* Lignes de la commande fournisseur (par n° CF) : { cols, lignes: [{ ligne, statut }], statut, fabricants, piece } ;
    statut = le moins avancé des lignes (celui qui décide si l'action est possible) */
-const ORDRE = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree"];
+const ORDRE = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", A_REEXPEDIER, "expediee", "livree"];
 async function lireCommande(env, numero) {
   const cols = await entetes(env, ONGLET_CF);
   const lu = await lireColonnes(env, ONGLET_CF, cols, [CF.num, "Statut", "Fabricant", "Article"]);
@@ -88,7 +105,7 @@ async function lireCommande(env, numero) {
   return { cols, lignes: base, statut, fabricants: [...new Set(base.map(l => l.fabricant).filter(Boolean))], piece: base.map(l => l.article).join("\n") };
 }
 
-function formulaire(jeton, action, transporteurs = []) {
+function formulaire(jeton, action, transporteurs = [], lib = LIBELLES[action]) {
   const champs = action === "expedier" ? `
 <label for="transporteur">Transporteur</label><select id="transporteur" name="transporteur" required>
 <option value="">Choisir…</option>${transporteurs.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("")}</select>
@@ -96,7 +113,7 @@ function formulaire(jeton, action, transporteurs = []) {
     : action === "refuser" ? `
 <label for="motif">Motif <span class="muted">(facultatif)</span></label><textarea id="motif" name="motif" rows="3" maxlength="300" placeholder="Ex. : délai impossible, matière ou machine indisponible…"></textarea>
 <p class="muted">Besoin seulement de plus de temps ? Répondez plutôt à l'e-mail de commande.</p>` : "";
-  return `<form method="post" action="/f/${esc(jeton)}">${champs}<button type="submit">${esc(LIBELLES[action].bouton)}</button></form>`;
+  return `<form method="post" action="/f/${esc(jeton)}">${champs}<button type="submit">${esc(lib.bouton)}</button></form>`;
 }
 
 /* Contrôles communs à GET et POST ; renvoie soit une Response (refus), soit le contexte */
@@ -119,24 +136,26 @@ async function preparer(env, jeton) {
   if (!c) return message("Commande introuvable", `La commande ${j.commande} n'existe plus. Contactez l'atelier Evarysth.`, 404, "erreur");
   if (c.fabricants.some(f => f !== j.fabricant))
     return message("Lien plus valable", `La commande ${j.commande} a été confiée à un autre fabricant.`, 403, "erreur");
-  return { j, c, t: TRANSITIONS[j.action] };
+  /* « Déclarer l'expédition » d'un fabricant qui ne livre pas le client = envoi de la pièce à Evarysth */
+  const entrant = j.action === "expedier" && passeParAtelier(await fabricantDe(env, j.fabricant));
+  return { j, c, t: entrant ? TRANSITION_ENTRANTE : TRANSITIONS[j.action], entrant, lib: entrant ? LIBELLE_ENTRANT : LIBELLES[j.action] };
 }
 
-const dejaFaite = (j, c) => message(LIBELLES[j.action].titre, `Déjà confirmée : la commande ${j.commande} est au statut « ${c.statut} ».`, 200);
+const dejaFaite = (j, c, lib = LIBELLES[j.action]) => message(lib.titre, `Déjà confirmée : la commande ${j.commande} est au statut « ${c.statut} ».`, 200);
 const interdite = (j, c) => message("Action impossible", `La commande ${j.commande} est au statut « ${c.statut || "vide"} » : cette action n'est pas possible pour le moment. Contactez l'atelier Evarysth.`, 409, "erreur");
 
 export async function routeFournisseur(req, env, jeton) {
   try {
     const r = await preparer(env, jeton);
     if (r instanceof Response) return r;
-    const { j, c, t } = r;
-    if (t.deja.includes(c.statut)) return dejaFaite(j, c);
+    const { j, c, t, entrant, lib } = r;
+    if (t.deja.includes(c.statut)) return dejaFaite(j, c, lib);
     if (!t.depuis.includes(c.statut)) return interdite(j, c);
 
     const transporteurs = j.action === "expedier" ? await lireTransporteurs(env) : [];
     if (req.method === "GET") {
-      return page(LIBELLES[j.action].titre, `<p>Commande <b>${esc(j.commande)}</b></p>
-${c.piece ? `<div class="piece">${esc(c.piece)}</div>` : ""}${formulaire(jeton, j.action, transporteurs)}
+      return page(lib.titre, `<p>Commande <b>${esc(j.commande)}</b></p>
+${c.piece ? `<div class="piece">${esc(c.piece)}</div>` : ""}${formulaire(jeton, j.action, transporteurs, lib)}
 <p class="muted" style="margin:14px 0 0">Lien valable jusqu'au ${esc(new Date(j.expiration).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" }))}.</p>`);
     }
 
@@ -154,9 +173,16 @@ ${c.piece ? `<div class="piece">${esc(c.piece)}</div>` : ""}${formulaire(jeton, 
       ecrits.Transporteur = nettoyer(f.get("transporteur"));
       ecrits["N° de suivi"] = nettoyer(f.get("suivi"));
       if (!ecrits.Transporteur || !ecrits["N° de suivi"])
-        return page(LIBELLES.expedier.titre, `<p class="erreur">Le transporteur et le n° de suivi sont obligatoires.</p>${formulaire(jeton, "expedier", transporteurs)}`, 400);
+        return page(lib.titre, `<p class="erreur">Le transporteur et le n° de suivi sont obligatoires.</p>${formulaire(jeton, "expedier", transporteurs, lib)}`, 400);
       if (!transporteurs.includes(ecrits.Transporteur))
-        return page(LIBELLES.expedier.titre, `<p class="erreur">Choisissez un transporteur dans la liste.</p>${formulaire(jeton, "expedier", transporteurs)}`, 400);
+        return page(lib.titre, `<p class="erreur">Choisissez un transporteur dans la liste.</p>${formulaire(jeton, "expedier", transporteurs, lib)}`, 400);
+    }
+    /* Pièce envoyée à Evarysth : le suivi va dans Notes (« Transporteur » et « N° de suivi » restent réservés au colis du client) */
+    if (entrant && !t.deja.includes(c.statut)) {
+      const suivi = `${ecrits.Transporteur} · ${ecrits["N° de suivi"]}`;
+      await ajouterNote(env, j.commande, `${j.commande} expédiée par ${j.fabricant} à l'atelier Evarysth (${suivi}) : à contrôler puis réexpédier au client`)
+        .catch(e => console.warn("Notes : suivi de l'envoi à l'atelier non noté", e.message));
+      delete ecrits.Transporteur; delete ecrits["N° de suivi"];
     }
     for (const l of c.lignes) {
       if (!t.depuis.includes(l.statut)) continue;           /* ligne déjà plus avancée (ou en incident) : inchangée */
@@ -168,7 +194,7 @@ ${c.piece ? `<div class="piece">${esc(c.piece)}</div>` : ""}${formulaire(jeton, 
     const lu = await lireColonnes(env, JOURNAL, cj, ["Commande", "Nouveau statut", "Auteur"]);
     const dejaJournal = lu.Commande.some((n, i) => n === j.commande && lu["Nouveau statut"][i] === t.vers && lu.Auteur[i] === "fabricant");
     if (!dejaJournal) await journaliser(env, { numero: j.commande, ancien: c.statut, nouveau: t.vers, auteur: "fabricant" });
-    return message(LIBELLES[j.action].titre, `${LIBELLES[j.action].ok} La commande ${j.commande} est passée au statut « ${t.vers} ».`, 200);
+    return message(lib.titre, `${lib.ok} La commande ${j.commande} est passée au statut « ${t.vers} ».`, 200);
   } catch (e) {
     console.error("Lien fournisseur", e instanceof ErreurGoogle ? e.message : e);
     return message("Erreur temporaire", "L'enregistrement n'a pas pu se faire. Réessayez dans quelques minutes.", 503, "erreur");

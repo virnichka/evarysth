@@ -22,6 +22,30 @@ export function dateParis(d = new Date()) {
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
 }
 
+/* Colonnes facultatives (le Sheet peut ne pas les avoir : elles sont alors ignorées, rien ne casse) :
+   « Commandes EV » : Environnement (test / live) et montants écrits à la commande (total, livraison, remise, frais Stripe) ;
+   « Commandes CF » : coûts saisis dans /admin (coût du fabricant, frais d'envoi payés par Evarysth), une fois par CF
+   (sur la première ligne de la CF). Les sommes et la marge sont des formules du Sheet, que le Worker n'écrit jamais. */
+/* « 12,50 € », « 1 234,5 », « 1,234.50 », 12.5 → nombre (le dernier séparateur est la virgule décimale) ; vide ou illisible → null.
+   Les cellules sont lues telles qu'affichées par le Sheet (locale fr_FR : « 86,90 € »). */
+export function versNombre(v) {
+  let t = String(v ?? "").replace(/[^\d,.\-]/g, "");
+  const i = Math.max(t.lastIndexOf(","), t.lastIndexOf("."));
+  if (i >= 0) t = t.slice(0, i).replace(/[.,]/g, "") + "." + t.slice(i + 1);
+  const n = parseFloat(t);
+  return t === "" || !Number.isFinite(n) ? null : n;
+}
+export const ENVIRONNEMENT = "Environnement";
+export const MONTANTS = { total: "Total TTC (€)", livraison: "dont livraison (€)", remise: "Remise (€)", frais: "Frais Stripe (€)" };
+export const COUTS = { cout: "Coût fabricant (€)", envoi: "Frais d'envoi (€)" };
+function valeursFacultatives(cols, fiche) {
+  const v = {};
+  if (ENVIRONNEMENT in cols && fiche.environnement) v[ENVIRONNEMENT] = fiche.environnement;
+  const m = fiche.montants || {};
+  for (const k of ["total", "livraison", "remise"]) if (MONTANTS[k] in cols && typeof m[k] === "number" && Number.isFinite(m[k])) v[MONTANTS[k]] = m[k];
+  return v;
+}
+
 const lignesArticles = fiche => fiche.lignes.filter(l => (l.meta || {}).produit !== "emballage-cadeau");
 export const typeCommande = fiche => (lignesArticles(fiche).some(l => (l.meta || {}).mode === "custom") ? "sur-mesure" : "standard");
 /* Point de verrou : aucun article ne part chez le fabricant sans validation du propriétaire (page /admin).
@@ -100,7 +124,8 @@ async function enregistrerEV(env, fiche, session) {
       Articles: piece(fiche),
       Client: client(fiche),
       "Stripe session id": session.id,
-      "Cadeau / message": cadeau
+      "Cadeau / message": cadeau,
+      ...valeursFacultatives(cols, fiche)
     });
 
     if (reglages.attenteVerificationMs) await attendre(reglages.attenteVerificationMs);
@@ -152,6 +177,28 @@ export async function majArticle(env, numeroEV, n, valeursParNom) {
   for (const [nom, v] of Object.entries(valeursParNom)) await ecrireCellule(env, ONGLET_CF, cols, i + 2, nom, v);
 }
 
+/* Frais Stripe d'une commande (€) : false si la colonne n'existe pas dans le Sheet */
+export async function noterFrais(env, numero, frais) {
+  const cols = await entetes(env, ONGLET);
+  if (!(MONTANTS.frais in cols)) return false;
+  await majCommande(env, numero, { [MONTANTS.frais]: frais });
+  return true;
+}
+
+/* Coûts d'une CF (€), saisis dans /admin : écrits sur la première ligne de la CF, vidés sur les suivantes (un seul
+   montant par CF, sans double compte dans les sommes du Sheet). Valeur null = case vidée. false : colonnes absentes. */
+export async function noterCouts(env, cf, { cout, envoi }) {
+  const cols = await entetes(env, ONGLET_CF);
+  const noms = [[COUTS.cout, cout], [COUTS.envoi, envoi]].filter(([nom]) => nom in cols);
+  if (!noms.length) return false;
+  const lu = await lireColonnes(env, ONGLET_CF, cols, [CF.num, CF.art]);
+  const lignes = lu[CF.num].map((n, i) => ({ n: n.trim(), art: Number(lu[CF.art][i]) || 0, ligne: i + 2 })).filter(x => x.n === cf).sort((a, b) => a.art - b.art);
+  if (!lignes.length) throw new ErreurGoogle(`Commande fournisseur ${cf} introuvable dans le Sheet.`);
+  for (const [k, l] of lignes.entries())
+    for (const [nom, v] of noms) await ecrireCellule(env, ONGLET_CF, cols, l.ligne, nom, k === 0 && v != null ? v : "");
+  return true;
+}
+
 /* Mise à jour de cellules d'une commande, retrouvée par son n° (jamais par sa position) */
 export async function majCommande(env, numero, valeursParNom) {
   const cols = await entetes(env, ONGLET);
@@ -183,6 +230,25 @@ export async function journaliserCreation(env, numero, statut) {
 export const REFUSEE = "refusee_fabricant";
 export const REF_EXTERNE = "Référence externe";     /* colonne facultative de Commandes CF : n° de commande chez le fournisseur */
 export const RETIRABLES = ["envoyee_fabricant", "acceptee"];
+
+/* Fabricant qui ne livre pas le client (« Livre le client » = non ; l'atelier d'Evarysth est exclu, la pièce y est déjà) :
+   sa pièce arrive chez Evarysth, qui la contrôle puis la réexpédie. « Déclarer l'expédition » du fabricant passe alors
+   l'article à « a_reexpedier » (aucun e-mail au client) ; le client n'est prévenu qu'à la réexpédition (statut expediee). */
+export const A_REEXPEDIER = "a_reexpedier";
+export const passeParAtelier = f => Boolean(f) && !f.livre && !f.atelier;
+/* Ligne datée ajoutée à « Notes » sur les lignes de la CF (colonne facultative) : false si la colonne n'existe pas */
+export async function ajouterNote(env, cf, texte) {
+  const cols = await entetes(env, ONGLET_CF);
+  if (!("Notes" in cols)) return false;
+  const lu = await lireColonnes(env, ONGLET_CF, cols, [CF.num, "Notes"]);
+  const note = `${dateParis()} · ${texte}`;
+  for (const [i, n] of lu[CF.num].entries()) {
+    if (n.trim() !== cf) continue;
+    const avant = (lu.Notes[i] || "").trim();
+    await ecrireCellule(env, ONGLET_CF, cols, i + 2, "Notes", avant ? `${avant}\n${note}` : note);
+  }
+  return true;
+}
 export async function rendreCF(env, cf, { auteur, motif = "" }) {
   const cols = await entetes(env, ONGLET_CF);
   const notes = "Notes" in cols;

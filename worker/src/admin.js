@@ -36,17 +36,19 @@ import { egal, jetonConfigure, signature } from "./jeton.js";
 import { atelierPossible, dossierR2, etatGitHub, fabricationConfiguree, GEN, liensGeneres, matiereArticle, MATIERES_ATELIER, NON_CONFIGUREE, refArticle, relancerArticle } from "./fabrication.js";
 import { EXTENSIONS, fichierStandardDispo, segmentTaille } from "./fichier.js";
 import { A_ENVOYER, STATUTS, statutEV, baseWorker, cfsRendues, DELAI_RELANCE_MS, envoyerSelonStatut, estTest, journaliserSiNouveau, lancerTache, liensGroupe, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
-import { A_VALIDER, dateParis, journaliser, majArticle, majLignesCF, REF_EXTERNE, REFUSEE, rendreCF, RETIRABLES, STL_A_INDIQUER } from "./sheet.js";
+import { A_REEXPEDIER, A_VALIDER, ajouterNote, dateParis, journaliser, majArticle, majLignesCF, noterCouts, passeParAtelier, REF_EXTERNE, REFUSEE, rendreCF, RETIRABLES, STL_A_INDIQUER } from "./sheet.js";
+import { euros, margeCommande } from "./finances.js";
 import { lireTransporteurs } from "./fournisseur.js";
 import { contenuRetrait, envoyerEmail } from "./email.js";
 import { EVARYSTH } from "./catalogue.js";
 import { ICONES } from "./icones.js";
+import { CLES, derniereSauvegardeZip, entretien, lireEtatR2, lirePause, MESSAGE_PAUSE, r2Disponible, reglerPause, sauvegarderSheet } from "./systeme.js";
 
 const ENVOYE = "envoyee_fabricant", ACCEPTEE = "acceptee", INCIDENT = "incident";
 const EN_COURS = [ENVOYE, "acceptee", "expediee"];
 const LIBELLES = {
   lien_stl_a_indiquer: "Lien STL à indiquer", a_valider: "À valider", payee: "Payée (ancien circuit)",
-  fichier_a_produire: "Fichier à produire (ancien circuit)", envoyee_fabricant: "Envoyée au fabricant", acceptee: "Acceptée",
+  fichier_a_produire: "Fichier à produire (ancien circuit)", envoyee_fabricant: "Envoyée au fabricant", acceptee: "Acceptée", [A_REEXPEDIER]: "À réexpédier au client",
   expediee: "Expédiée", livree: "Livrée", incident: "Bloquée", remboursee: "Remboursée", annulee: "Annulée",
   [REFUSEE]: "Rendue par le fabricant",
   [NON_CONFIGUREE]: "Fichiers non générés (fabrication pas encore réglée)",
@@ -232,7 +234,7 @@ function cfsRenvoyables(arts) {
 }
 
 /* Couleur d'un statut (badge et trait) : à traiter, chez le fabricant, parti, bloqué, clos */
-const TON = s => (s === ATTENTE_EV ? "t-wait" : A_ENVOYER.includes(s) || s === "payee" ? "t-att" : [ENVOYE, "acceptee", "en_fabrication", "partiellement_expediee"].includes(s) ? "t-fab"
+const TON = s => (s === ATTENTE_EV ? "t-wait" : A_ENVOYER.includes(s) || s === "payee" || s === A_REEXPEDIER ? "t-att" : [ENVOYE, "acceptee", "en_fabrication", "partiellement_expediee"].includes(s) ? "t-fab"
   : ["expediee", "livree"].includes(s) ? "t-ok" : s === INCIDENT ? "t-err" : "t-clos");
 const badge = (s, lib = libelle) => `<span class="badge ${TON(s)}">${esc(lib(s))}</span>`;
 const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
@@ -253,9 +255,10 @@ function resumeEV(etat, numero) {
   const ev = etat.evs[numero] || { numero }, arts = etat.parEV[numero] || [];
   const calcule = statutEV(arts.map(l => l.statut)) || ev.statut || "";
   /* Affichage seul (le statut du Sheet reste en_fabrication) : rien d'accepté chez le fabricant → « En attente fabricant » */
-  const statut = calcule === "en_fabrication" && !arts.some(l => ["acceptee", "expediee", "livree"].includes(l.statut)) ? ATTENTE_EV : calcule;
+  const statut = calcule === "en_fabrication" && !arts.some(l => ["acceptee", A_REEXPEDIER, "expediee", "livree"].includes(l.statut)) ? ATTENTE_EV : calcule;
   return { numero, ev, arts, statut,
     aValider: arts.filter(l => A_ENVOYER.includes(l.statut)).length, bloques: arts.filter(l => l.statut === INCIDENT).length,
+    aReexpedier: arts.filter(l => l.statut === A_REEXPEDIER).length,
     attentes: [...new Set(arts.filter(l => l.cf && l.statut === ENVOYE).map(l => l.cf))].map(cf => attente(etat, cf)),
     rendues: rendues(etat, numero) };
 }
@@ -263,7 +266,7 @@ function resumeEV(etat, numero) {
 /* Liste des commandes client : filtres ?f=… (« À traiter » par défaut), ou résultats d'une recherche */
 const FILTRES = [["traiter", "À traiter"], ["fabricant", "Chez le fabricant"], ["expediees", "Expédiées"], ["bloquees", "Bloquées"], ["toutes", "Toutes"]];
 const DANS = {
-  traiter: r => r.aValider > 0 || r.bloques > 0,
+  traiter: r => r.aValider > 0 || r.bloques > 0 || r.aReexpedier > 0,
   fabricant: r => r.arts.some(l => [ENVOYE, "acceptee"].includes(l.statut)),
   expediees: r => ["expediee", "livree"].includes(r.statut),
   bloquees: r => r.bloques > 0,
@@ -274,13 +277,13 @@ function ligneCommande(r) {
   const info = [nomVille(r.ev) || "Client inconnu", dateCourte(r.ev.date), pluriel(r.arts.length, "article")].filter(Boolean).join(" · ");
   /* Badge : ce qui attend le propriétaire d'abord (« À valider »), sinon le statut client ; le détail seulement s'il apporte */
   const tous = r.aValider === r.arts.length;
-  const alerte = [r.aValider && (!tous || r.rendues.length) ? `${tous ? "" : `${r.aValider} sur ${r.arts.length} à valider`}${r.rendues.length ? `${tous ? "" : " · "}fabricant à changer` : ""}` : "", r.bloques ? pluriel(r.bloques, "bloqué") : ""].filter(Boolean).join(" · ");
+  const alerte = [r.aValider && (!tous || r.rendues.length) ? `${tous ? "" : `${r.aValider} sur ${r.arts.length} à valider`}${r.rendues.length ? `${tous ? "" : " · "}fabricant à changer` : ""}` : "", r.bloques ? pluriel(r.bloques, "bloqué") : "", r.aReexpedier ? `${r.aReexpedier} à réexpédier au client` : ""].filter(Boolean).join(" · ");
   const retard = r.attentes.filter(a => a.retard), att = r.attentes.length;
   const signal = att ? `<span class="attend${retard.length ? " retard" : ""}">${esc(retard.length
     ? `${pluriel(retard.length, "envoi")} sans réponse ${depuis(retard.reduce((m, a) => (a.jours > m.jours ? a : m)))}`
     : `${att} en attente d'acceptation`)}</span>` : "";
-  const trait = r.aValider || r.bloques || !att ? TON(r.statut) : retard.length ? "t-att" : "t-wait";
-  return `<a class="cmd bord ${trait}" href="${versFiche(r.numero)}"><span class="tete"><b>${esc(r.numero)}</b>${r.aValider ? badge("a_valider") : badge(r.statut, libelleEV)}</span>
+  const trait = r.aValider || r.bloques || r.aReexpedier || !att ? TON(r.aReexpedier && !r.aValider && !r.bloques ? A_REEXPEDIER : r.statut) : retard.length ? "t-att" : "t-wait";
+  return `<a class="cmd bord ${trait}" href="${versFiche(r.numero)}"><span class="tete"><b>${esc(r.numero)}</b>${r.aValider ? badge("a_valider") : r.aReexpedier ? badge(A_REEXPEDIER) : badge(r.statut, libelleEV)}</span>
 <span class="muted">${esc(info)}</span>${alerte ? `<span class="a-faire">${esc(alerte)}</span>` : ""}${signal}</a>`;
 }
 function vueCommandes(email, etat, filtre, bandeau, q = "", trouves = null) {
@@ -312,13 +315,15 @@ async function ficheATransmettre(env, ev, cf, ls, fab) {
     ...(fab.delai ? [`Délai convenu : ${fab.delai} jours`] : []),
     ...(fab.livre ? [`À expédier directement au client :\n${[nom.trim(), adresse.trim()].filter(Boolean).join("\n")}`] : [])].join("\n\n");
 }
-/* Actions à la place du fabricant : accepter (si envoyée), déclarer l'expédition */
-const formsAgir = (champs, cf, ls, transporteurs) => `${ls.some(l => l.statut === ENVOYE) ? `<form class="agir" method="post" action="/admin/accepter">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
+/* Actions à la place du fabricant : accepter (si envoyée), déclarer l'expédition.
+   entrant : le fabricant ne livre pas le client, la pièce vient chez Evarysth (a_reexpedier, aucun e-mail au client) ;
+   sinon (ou pièce déjà chez Evarysth) : colis au client, e-mail avec le suivi. */
+const formsAgir = (champs, cf, ls, transporteurs, entrant = false) => `${ls.some(l => l.statut === ENVOYE) ? `<form class="agir" method="post" action="/admin/accepter">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
 <button class="second" type="submit">Marquer acceptée</button></form>` : ""}
 <form class="agir" method="post" action="/admin/expedier">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
-<label for="tr-${esc(cf)}">Transporteur</label><select id="tr-${esc(cf)}" name="transporteur" required><option value="">Choisir…</option>${transporteurs.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("")}</select>
+<label for="tr-${esc(cf)}">Transporteur${entrant ? ' <span class="muted">(facultatif)</span>' : ""}</label><select id="tr-${esc(cf)}" name="transporteur"${entrant ? "" : " required"}><option value="">Choisir…</option>${transporteurs.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("")}</select>
 <label for="suivi-${esc(cf)}">N° de suivi <span class="muted">(facultatif)</span></label><input id="suivi-${esc(cf)}" name="suivi" maxlength="80" autocomplete="off">
-<button type="submit">Déclarer l'expédition (e-mail au client)</button></form>`;
+<button type="submit">${entrant ? "Pièce expédiée à Evarysth (pas d'e-mail au client)" : "Déclarer l'expédition au client (e-mail au client)"}</button></form>`;
 const formReference = (champs, cf, ref) => `<form class="agir ref" method="post" action="/admin/reference">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
 <label for="ref-${esc(cf)}">Référence externe <span class="muted">(n° chez le fournisseur, facultatif)</span></label>
 <span class="ligne-champ"><input id="ref-${esc(cf)}" name="ref" maxlength="80" autocomplete="off" value="${esc(ref)}"><button class="second" type="submit">Enregistrer</button></span></form>`;
@@ -355,11 +360,11 @@ const autresOptions = contenu => (contenu ? `<details class="options"><summary><
 
 /* Pli « Actions » d'un envoi fabricant (replié) : renvoyer l'e-mail, réponse du fabricant par un autre canal (accepter,
    expédier), référence externe, retirer au fabricant. Fabricant « manuel » : accepter / expédier restent visibles hors du pli. */
-function actionsEnvoi({ champs, cf, ls, ref, manuel, active, g, transporteurs, refExterne }) {
+function actionsEnvoi({ champs, cf, ls, ref, manuel, active, entrant = false, g, transporteurs, refExterne }) {
   const parts = [];
   if (g) parts.push(`<form method="post" action="/admin/renvoyer">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
 <button class="second" type="submit">Renvoyer l'e-mail ${g.statut === ENVOYE ? "au fabricant" : "d'expédition au client"}</button></form>`);
-  if (active && !manuel) parts.push(`<p class="muted sous-titre">Il a répondu autrement (téléphone, e-mail…) :</p>${formsAgir(champs, cf, ls, transporteurs)}`);
+  if (active && !manuel) parts.push(`<p class="muted sous-titre">Il a répondu autrement (téléphone, e-mail…) :</p>${formsAgir(champs, cf, ls, transporteurs, entrant)}`);
   if (refExterne && active) parts.push(formReference(champs, cf, ref));
   if (ls.some(l => RETIRABLES.includes(l.statut))) parts.push(`<form class="retirer" method="post" action="/admin/retirer">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
 <label for="motif-${esc(cf)}">Retirer au fabricant <span class="muted">(${manuel ? "changer d'atelier ou de fournisseur" : "refus par e-mail, pas de réponse…"})</span></label>
@@ -368,6 +373,40 @@ function actionsEnvoi({ champs, cf, ls, ref, manuel, active, g, transporteurs, r
 <button class="danger" type="submit">Retirer au fabricant</button></form>`);
   return parts.length ? `<details class="options actions"><summary><span class="nom">Actions</span></summary><div class="detail">${parts.join("\n")}</div></details>` : "";
 }
+
+/* Coûts par CF (colonnes facultatives du Sheet) : somme des lignes de la CF non closes */
+function cfsAvecCouts(etat, arts) {
+  const parCF = {};
+  for (const l of arts.filter(x => !CLOS.includes(x.statut) && x.cf)) {
+    const c = (parCF[l.cf] ||= { cf: l.cf, atelier: Boolean((etat.fabs[l.fabricant.trim()] || {}).atelier), cout: null, envoi: null });
+    if (l.cout != null) c.cout = (c.cout || 0) + l.cout;
+    if (l.envoi != null) c.envoi = (c.envoi || 0) + l.envoi;
+  }
+  return Object.values(parCF);
+}
+/* Montants de la commande et marge TTC (si le Sheet a les colonnes) : pli « Montants » de la fiche */
+function blocMontants(etat, ev, arts) {
+  const m = ev.montants;
+  if (!etat.finances || !etat.finances.montants || !m || m.total == null) return "";
+  const vivants = arts.filter(l => !CLOS.includes(l.statut));
+  const g = etat.finances.couts ? margeCommande({ total: m.total, frais: m.frais, cfs: cfsAvecCouts(etat, arts), nonConfies: vivants.filter(l => !l.cf).length }) : null;
+  const ligne = (nom, v) => `<div class="ligne"><span>${nom}</span><span>${v}</span></div>`;
+  const resume = g ? (g.marge == null ? "marge à calculer" : `marge ${euros(g.marge)}`) : euros(m.total);
+  return `<details class="options"><summary><span class="nom">Montants</span><span class="resume">${esc(resume)}</span></summary><div class="detail">
+${ligne("Total payé (TTC)", esc(euros(m.total)))}${m.livraison ? ligne("dont livraison", esc(euros(m.livraison))) : ""}${m.remise ? ligne("Remise appliquée", esc(euros(m.remise))) : ""}
+${ligne("Frais Stripe", esc(euros(m.frais)))}${g ? `${ligne("Coûts fabricants", esc(euros(g.couts)))}${ligne("Frais d'envoi", esc(euros(g.envois)))}
+${ligne("<b>Marge (TTC)</b>", g.marge == null ? `<span class="muted">${esc(g.manque)}</span>` : `<b>${esc(euros(g.marge))}</b>`)}` : '<p class="muted">Colonnes de coûts absentes du Sheet : marge non calculée.</p>'}</div></details>`;
+}
+const virgule = n => (n == null ? "" : String(n).replace(".", ","));
+/* Saisie des coûts d'une CF (facture ou devis du fabricant, port payé par Evarysth), TTC */
+const formCouts = (champs, cf, ls) => {
+  const somme = k => { const v = ls.map(l => l[k]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) : null; };
+  return `<details class="options"><summary><span class="nom">Coûts</span><span class="resume">${somme("cout") == null ? "à saisir" : esc(euros(somme("cout")))}</span></summary><div class="detail">
+<form class="agir" method="post" action="/admin/couts">${champs}<input type="hidden" name="cf" value="${esc(cf)}">
+<label for="cout-${esc(cf)}">Coût du fabricant (€) <span class="muted">(devis ou facture, TTC)</span></label><input id="cout-${esc(cf)}" name="cout" inputmode="decimal" autocomplete="off" maxlength="9" value="${virgule(somme("cout"))}">
+<label for="envoi-${esc(cf)}">Frais d'envoi payés par Evarysth (€) <span class="muted">(facultatif)</span></label><input id="envoi-${esc(cf)}" name="envoi" inputmode="decimal" autocomplete="off" maxlength="9" value="${virgule(somme("envoi"))}">
+<button class="second" type="submit">Enregistrer les coûts</button></form></div></details>`;
+};
 
 /* Fiche d'une commande client : en-tête, articles à valider (formulaire), bloqués, envois fabricant (un pli par CF),
    historique et actions définitives repliés. saisie = valeurs à garder après une erreur : { ev, fab: { n: nom }, stl: { n: lien } } */
@@ -385,7 +424,7 @@ async function vueFiche(env, email, etat, numero, { message = "", type = "ok", s
   const stripe = lienStripe(ev.sid);
   blocs.push(`<div class="carte bord ${TON(r.statut)}"><div class="tete"><b>${esc(String(ev.client || "").split("\n")[0].trim() || "Client inconnu")}</b>${badge(r.statut, libelleEV)}</div>
 <p class="muted">${esc([ville(adresse), dateCourte(ev.date) + (ev.date ? ` à ${String(ev.date).slice(11, 16)}` : ""), ev.type, pluriel(arts.length, "article")].filter(Boolean).join(" · "))}${esc(cadeau)}</p>
-${stripe ? `<p class="muted"><a href="${esc(stripe)}" target="_blank" rel="noopener noreferrer">Paiement dans Stripe ↗</a></p>` : ""}</div>`);
+${stripe ? `<p class="muted"><a href="${esc(stripe)}" target="_blank" rel="noopener noreferrer">Paiement dans Stripe ↗</a></p>` : ""}${blocMontants(etat, ev, arts)}</div>`);
 
   /* 1. À valider */
   const aValider = arts.filter(l => A_ENVOYER.includes(l.statut));
@@ -431,7 +470,8 @@ ${(await Promise.all(bloques.map(async l => {
   /* CF encore chez le fabricant : actions à sa place ; fabricant « manuel » : fiche à transmettre */
   const fabDe = cf => etat.fabs[parCF[cf][0].fabricant.trim()] || {};
   const actives = cfs.filter(cf => parCF[cf].some(l => RETIRABLES.includes(l.statut)));
-  const transporteurs = actives.length ? await lireTransporteurs(env) : [];
+  const aReexpedier = cfs.filter(cf => parCF[cf].some(l => l.statut === A_REEXPEDIER));
+  const transporteurs = actives.length || aReexpedier.length ? await lireTransporteurs(env) : [];
   const fiches = {};
   for (const cf of actives) if (fabDe(cf).manuel) fiches[cf] = await ficheATransmettre(env, ev, cf, parCF[cf].filter(l => RETIRABLES.includes(l.statut)), fabDe(cf));
   const plis = {};
@@ -440,7 +480,7 @@ ${(await Promise.all(bloques.map(async l => {
     const ls = parCF[cf], memes = ls.every(l => l.statut === ls[0].statut);
     const s = memes ? ls[0].statut : ls.map(l => l.statut).filter(x => !CLOS.includes(x)).sort((a, b) => STATUTS.indexOf(a) - STATUTS.indexOf(b))[0] || ls[0].statut;
     const suivi = [ls[0].transporteur, ls[0].suivi].map(x => String(x || "").trim()).filter(Boolean).join(" · ");
-    const manuel = Boolean(fabDe(cf).manuel), active = actives.includes(cf);
+    const manuel = Boolean(fabDe(cf).manuel), active = actives.includes(cf), entrant = active && passeParAtelier(fabDe(cf)), reexp = aReexpedier.includes(cf);
     const g = renvoyables[cf] && !(manuel && renvoyables[cf].statut === ENVOYE) ? renvoyables[cf] : null;
     const a = s === ENVOYE && !manuel ? attente(etat, cf) : null, ton = a ? (a.retard ? "t-att" : "t-wait") : TON(s);
     const ref = String(ls[0].ref || "").trim();
@@ -451,7 +491,8 @@ ${(await Promise.all(bloques.map(async l => {
       return `<div class="art"><div class="tete"><span>Article ${esc(l.n)}</span>${memes ? "" : badge(l.statut)}</div><div class="piece">${esc(l.article)}</div>
 ${plis[l.n] || `<p class="muted">${lien ? `Lien STL : <a href="${esc(lien)}" target="_blank" rel="noopener noreferrer">ouvrir ↗</a>` : `Lien STL : ${esc(l.stl.trim() || "—")}`}</p>`}</div>`;
     }).join("")}${fiches[cf] ? `<details class="options"><summary><span class="nom">Fiche à transmettre (texte à copier)</span></summary><div class="detail"><label class="vh" for="fiche-${esc(cf)}">Fiche à transmettre</label><textarea id="fiche-${esc(cf)}" class="fiche" readonly rows="${Math.min(22, fiches[cf].split("\n").reduce((n, x) => n + Math.max(1, Math.ceil(x.length / 34)), 1))}">${esc(fiches[cf])}</textarea></div></details>` : ""}
-${manuel && active ? formsAgir(champs, cf, ls, transporteurs) : ""}${actionsEnvoi({ champs, cf, ls, ref, manuel, active, g, transporteurs, refExterne: etat.refExterne })}</div></details>`;
+${reexp ? `<div class="carte bord t-att"><p><b>Pièce à réexpédier au client.</b> Le fabricant l'a envoyée à l'atelier Evarysth : contrôlez-la, puis déclarez l'envoi au client (le client est prévenu à ce moment-là).</p>${ls.map(l => l.notes.trim()).find(Boolean) ? `<p class="note">${esc(ls.map(l => l.notes.trim()).find(Boolean))}</p>` : ""}${formsAgir(champs, cf, ls, transporteurs)}</div>` : ""}
+${entrant && manuel ? `<p class="muted">Ce fabricant ne livre pas le client : la pièce vous est renvoyée, le client n'est prévenu qu'à la réexpédition.</p>` : ""}${manuel && active ? formsAgir(champs, cf, ls, transporteurs, entrant) : ""}${etat.finances && etat.finances.couts ? formCouts(champs, cf, ls) : ""}${actionsEnvoi({ champs, cf, ls, ref, manuel, active, entrant, g, transporteurs, refExterne: etat.refExterne })}</div></details>`;
   }).join("")}`);
 
   /* 4. Articles sans envoi ni action (ex. annulés avant l'envoi) */
@@ -481,6 +522,13 @@ ${rb ? `<button class="danger" type="submit" name="statut" value="remboursee">Ma
 /* Fabricants : onglet du Sheet, e-mail masqué ; CF en cours (envoyée ou acceptée) et en retard (envoyée depuis plus que
    le délai du fabricant, date de l'envoi lue au Journal) */
 export const masquerEmail = e => { const [u = "", d = ""] = String(e || "").trim().split("@"); return u && d ? `${u[0]}•••@${d}` : "—"; };
+/* Début du travail d'une CF : envoi au fabricant, ou acceptation directe (atelier, envoi manuel : jamais « envoyée ») ; ms ou NaN */
+export function debutCF(journal, cf) {
+  const t = (journal[cf] || []).filter(j => j.nouveau === ENVOYE || j.nouveau === ACCEPTEE).map(j => parisVersMs(j.date)).filter(Number.isFinite);
+  return t.length ? Math.min(...t) : NaN;
+}
+/* Échéance légale de livraison (CGV : 30 jours après la commande, L216-1) : alerte à partir du 21e jour */
+export const DELAI_LEGAL_J = 30, ALERTE_LEGALE_J = 21;
 export function chargeFabricants(etat, maintenant = Date.now()) {
   const { lignes, fabs, journal } = etat;
   const cfs = {};
@@ -489,8 +537,8 @@ export function chargeFabricants(etat, maintenant = Date.now()) {
     const enCours = Object.keys(cfs).filter(cf => cfs[cf].fabricant.trim() === nom);
     const delai = Number(String(f.delai).replace(",", "."));
     const retard = Number.isFinite(delai) && String(f.delai).trim() !== "" ? enCours.filter(cf => {
-      const envoi = [...(journal[cf] || [])].reverse().find(j => j.nouveau === ENVOYE);
-      return envoi && maintenant - parisVersMs(envoi.date) > delai * 86400_000;
+      const debut = debutCF(journal, cf);
+      return Number.isFinite(debut) && maintenant - debut > delai * 86400_000;
     }) : [];
     return { nom, email: f.atelier ? `Atelier (envoi manuel ; ${MATIERES_ATELIER.map(MAT).join(", ")} seulement)` : f.manuel ? "Envoi manuel (sans e-mail)" : masquerEmail(f.email), delai: String(f.delai || "").trim(), livre: f.livre, enCours: enCours.sort(), retard: retard.sort() };
   });
@@ -530,21 +578,73 @@ export function chiffres(etat, maintenant = Date.now()) {
   /* Fichiers en échec d'un article encore à envoyer (au-delà, le fichier a été fourni autrement) */
   const echecsGen = lignes.filter(l => l.gen && l.gen.statut === GEN.echec && (A_ENVOYER.includes(l.statut) || l.statut === INCIDENT))
     .map(l => ({ ev: l.ev, ref: refArticle(l.ev, l.n), motif: l.gen.motif })).sort((a, b) => a.ref.localeCompare(b.ref));
-  return { aValider: aValider.length, chez: chez.length, attente, expediees: expediees.length, bloquees: bloquees.length, relances, sansFabricant, echecsGen };
+  /* Pièces chez Evarysth à réexpédier (le fabricant ne livre pas le client) */
+  const aReexpedier = Object.keys(cfs).filter(cf => lignes.some(l => l.cf === cf && l.statut === A_REEXPEDIER)).map(cf => {
+    const j = (journal[cf] || []).filter(x => x.nouveau === A_REEXPEDIER).pop();
+    return { cf, ev: evDeCF(cf), depuis: j ? j.date : "" };
+  }).sort((a, b) => a.cf.localeCompare(b.cf));
+  /* Acceptées (ou confiées à l'atelier / en envoi manuel) mais pas expédiées au-delà du délai du fabricant : les envois
+     pas encore acceptés sont déjà dans « relances » */
+  const horsDelai = Object.keys(cfs).map(cf => {
+    const l = lignes.find(x => x.cf === cf && x.statut === ACCEPTEE);
+    if (!l) return null;
+    const f = etat.fabs[l.fabricant.trim()] || {}, delai = Number(String(f.delai ?? "").replace(",", ".")), debut = debutCF(journal, cf);
+    if (!Number.isFinite(delai) || String(f.delai ?? "").trim() === "" || !Number.isFinite(debut) || !(maintenant - debut > delai * 86400_000)) return null;
+    return { cf, ev: evDeCF(cf), fabricant: l.fabricant.trim(), jours: Math.floor((maintenant - debut) / 86400_000), delai, atelier: Boolean(f.atelier) };
+  }).filter(Boolean).sort((a, b) => b.jours - a.jours);
+  /* Échéance légale : au moins un article pas encore parti, 21 jours (alerte) puis 30 jours (dépassée) après la commande */
+  const echeance = Object.keys(parEV).map(ev => {
+    const restants = parEV[ev].filter(l => !CLOS.includes(l.statut) && !PARTIS.includes(l.statut));
+    const t = parisVersMs((evs[ev] || {}).date);
+    if (!restants.length || !Number.isFinite(t)) return null;
+    const jours = Math.floor((maintenant - t) / 86400_000);
+    return jours >= ALERTE_LEGALE_J ? { ev, jours, restants: restants.length, depassee: jours >= DELAI_LEGAL_J } : null;
+  }).filter(Boolean).sort((a, b) => b.jours - a.jours);
+  /* CF expédiées (hors atelier) dont le coût du fabricant n'est pas saisi : marge impossible à calculer */
+  const coutsManquants = !(etat.finances && etat.finances.couts) ? [] : Object.keys(cfs).filter(cf => {
+    const ls = lignes.filter(l => l.cf === cf), actives = ls.filter(l => !CLOS.includes(l.statut));
+    return actives.length && actives.every(l => PARTIS.includes(l.statut)) && !(etat.fabs[ls[0].fabricant.trim()] || {}).atelier && ls.every(l => l.cout == null);
+  }).map(cf => ({ cf, ev: evDeCF(cf) })).sort((a, b) => a.cf.localeCompare(b.cf));
+  return { aValider: aValider.length, chez: chez.length, attente, expediees: expediees.length, bloquees: bloquees.length, relances, sansFabricant, echecsGen,
+    aReexpedier, horsDelai, echeance, coutsManquants };
 }
 
-function vueTableau(email, etat, bandeau) {
+/* Alertes de fonctionnement lues dans R2 (aucun e-mail) : ventes en pause, clé Brevo, sauvegarde du Sheet. Rien tant qu'aucun passage n'a eu lieu. */
+async function alertesSysteme(env) {
+  const out = [], age = t => (Date.now() - t) / 86400_000;
+  const pause = await lirePause(env);
+  if (pause.active) out.push({ titre: "Ventes en pause", detail: `depuis le ${pause.depuis} · « ${pause.message} »`, badge: "Ventes" });
+  if (env.BREVO_API_KEY && r2Disponible(env)) {
+    const sb = await lireEtatR2(env, CLES.brevo);
+    if (sb && !sb.ok) out.push({ titre: "Clé Brevo refusée", detail: `${sb.detail || "appel de maintien en échec"} : aucun e-mail ne partirait`, badge: "Brevo", tonErr: true });
+  }
+  if (googleConfigure(env) && r2Disponible(env)) {
+    const ss = await lireEtatR2(env, CLES.sauvegarde);
+    if (ss && !ss.ok) out.push({ titre: "Sauvegarde du Sheet en échec", detail: ss.detail || "dernière tentative en échec", badge: "Sauvegarde", tonErr: true });
+    else if (ss && ss.tOk && age(ss.tOk) > 8) out.push({ titre: "Sauvegarde du Sheet en retard", detail: `dernière réussie le ${dateParis(new Date(ss.tOk))}`, badge: "Sauvegarde" });
+  }
+  return out;
+}
+
+async function vueTableau(env, email, etat, bandeau) {
   const c = chiffres(etat);
+  const sys = await alertesSysteme(env);
   const tuile = (n, texte, href = "/admin", alerte = false, plus = "") => `<a class="carte${alerte && n ? " alerte" : ""}" href="${href}"><div class="nombre">${n}</div><div class="muted">${texte}</div>${plus}</a>`;
   const retard = c.relances.length;
   const plus = c.attente ? `<span class="attend${retard ? " retard" : ""}">${esc(retard ? `dont ${c.attente} en attente, ${retard} sans réponse` : `dont ${c.attente} en attente d'acceptation`)}</span>` : "";
+  const ligne = (lien, titre, detail, badge, ton = "") => `<div class="ligne"><span><a href="${lien}"><b>${esc(titre)}</b></a><br><span class="muted">${esc(detail)}</span></span><span class="badge${ton ? " " + ton : ""}">${esc(badge)}</span></div>`;
   const alertes = [
+    ...c.echeance.map(x => ligne(versFiche(x.ev), x.ev, `${x.depassee ? `échéance légale dépassée de ${x.jours - DELAI_LEGAL_J} j` : `échéance légale (30 j) dans ${DELAI_LEGAL_J - x.jours} j`} · ${pluriel(x.restants, "article")} pas encore parti${x.restants > 1 ? "s" : ""} · payée il y a ${x.jours} j`, x.depassee ? "Légal : dépassé" : "Légal", x.depassee ? "t-err" : "t-att")),
+    ...c.horsDelai.map(x => ligne(versFiche(x.cf), x.cf, `${x.fabricant}${x.atelier ? " (atelier)" : ""} : ${x.jours} j depuis l'envoi, délai convenu ${x.delai} j`, "Hors délai", "t-att")),
+    ...c.aReexpedier.map(x => ligne(versFiche(x.ev), x.cf, `pièce chez Evarysth, à contrôler puis réexpédier au client${x.depuis ? ` · depuis le ${dateCourte(x.depuis)}` : ""}`, "À réexpédier", "t-att")),
     ...c.relances.map(r => `<div class="ligne"><span><a href="${versFiche(r.cf)}"><b>${esc(r.cf)}</b></a> · ${esc(r.fabricant)}<br><span class="muted">${r.relance ? `relance 48 h envoyée le ${esc(r.relance)}` : "plus de 48 h sans acceptation, relance au prochain passage"} · envoyée le ${esc(r.depuis)}</span></span><span class="badge">Relance</span></div>`),
     ...c.echecsGen.map(x => `<div class="ligne"><span><a href="${versFiche(x.ev)}"><b>${esc(x.ref)}</b></a><br><span class="muted">génération des fichiers en échec${x.motif ? ` : ${esc(x.motif)}` : ""}</span></span><span class="badge t-err">Fichiers</span></div>`),
-    ...c.sansFabricant.map(x => `<div class="ligne"><span><a href="${versFiche(x.ev)}"><b>${esc(x.ev)}</b></a><br><span class="muted">payée le ${esc(x.date)}, toujours sans fabricant</span></span><span class="badge">+ 24 h</span></div>`)
+    ...c.sansFabricant.map(x => `<div class="ligne"><span><a href="${versFiche(x.ev)}"><b>${esc(x.ev)}</b></a><br><span class="muted">payée le ${esc(x.date)}, toujours sans fabricant</span></span><span class="badge">+ 24 h</span></div>`),
+    ...c.coutsManquants.map(x => ligne(versFiche(x.ev), x.cf, "expédiée, coût du fabricant à saisir (marge non calculée)", "Coût")),
+    ...sys.map(x => ligne("/admin?vue=systeme", x.titre, x.detail, x.badge, x.tonErr ? "t-err" : "t-att"))
   ];
   return page("Tableau de bord", cadre("tableau", email, bandeau, `<h1>Tableau de bord</h1>
-<div class="grille">${tuile(c.aValider, "à valider", "/admin", true)}${tuile(c.chez, "chez le fabricant", "/admin?f=fabricant", retard > 0, plus)}${tuile(c.expediees, "expédiées ce mois", "/admin?f=expediees")}${tuile(c.bloquees, "bloquées", "/admin?f=bloquees", true)}</div>
+<div class="grille">${tuile(c.aValider, "à valider", "/admin", true)}${tuile(c.aReexpedier.length, "à réexpédier", "/admin", true)}${tuile(c.chez, "chez le fabricant", "/admin?f=fabricant", retard > 0, plus)}${tuile(c.horsDelai.length, "hors délai", "/admin?f=fabricant", true)}${tuile(c.expediees, "expédiées ce mois", "/admin?f=expediees")}${tuile(c.bloquees, "bloquées", "/admin?f=bloquees", true)}</div>
 <h2>Alertes</h2><div class="carte">${alertes.join("") || '<p class="muted">Aucune alerte.</p>'}</div>`));
 }
 
@@ -602,6 +702,9 @@ const AIDE = {
   "Tâche planifiée": "Le programme automatique qui passe toutes les 10 minutes : e-mails d'expédition, relances 48 h, renvoi des e-mails ratés, nouvel essai des fichiers. Vert : passé il y a moins de 30 min. Orange : en retard ou avec erreurs ; « Lancer la tâche maintenant » ci-dessous.",
   "Fabrication automatique": "La fabrication des fichiers d'impression à chaque commande payée (GitHub les prépare en 1 minute environ, rangés dans R2). Vert : réglages présents. Orange : éteinte, les commandes arrivent sans fichiers et il faut coller un lien STL.",
   "Jeton GitHub": "La clé qui permet au site de demander la fabrication des fichiers à GitHub. Elle a une date d'expiration : orange 30 jours avant, il faut alors en créer une nouvelle et la coller dans Cloudflare (secret GH_ACTIONS_TOKEN, guide des réglages de fabrication, étape 6). Rouge : expirée ou refusée, plus aucun fichier n'est fabriqué.",
+  "Clé Brevo": "Un appel de maintien est fait chaque jour (sans envoyer d'e-mail) pour que la clé Brevo n'expire pas : elle expire après 90 jours sans aucun appel. Vert : appel réussi dans les 36 dernières heures. Rouge : Brevo refuse la clé, il faut en créer une nouvelle et la coller dans Cloudflare (secret BREVO_API_KEY).",
+  "Sauvegarde du Sheet": "Une copie de tous les onglets du Sheet (fichiers CSV lisibles dans Excel ou Sheets) est rangée chaque semaine dans R2, 12 semaines gardées. Vert : copie de moins de 8 jours. Orange : en retard ou jamais faite. Rouge : la dernière tentative a échoué ; « Sauvegarder maintenant » pour réessayer.",
+  "Ventes": "Interrupteur des ventes. En pause, le bouton Commander du site affiche votre message au lieu d'ouvrir le paiement ; un paiement déjà commencé est tout de même enregistré. Utile en vacances ou si un fabricant est indisponible.",
   "Dernière fabrication": "La fabrication de fichiers la plus récente, toutes commandes confondues (son n° d'article est affiché). Vert : elle a réussi. Rouge : elle a échoué ; ouvrir la commande concernée dans /admin (motif, « Relancer la génération ») ou le run sur GitHub. Les autres commandes ont leur propre état dans leur fiche."
 };
 
@@ -634,6 +737,24 @@ async function vueSysteme(env, email, bandeau) {
   const tache = v(passage ? (age < 30 * 60_000 && passage.ok ? "ok" : "att") : "err", "Tâche planifiée",
     passage ? `${dateParis(new Date(passage.t))}${passage.ok ? "" : " (avec erreurs)"}` : "aucun passage noté");
   const csrf = await jetonCsrf(env, email);
+  /* Entretien : maintien de la clé Brevo, sauvegarde du Sheet (R2), pause des ventes (systeme.js) */
+  const sb = await lireEtatR2(env, CLES.brevo), ss = await lireEtatR2(env, CLES.sauvegarde), pause = await lirePause(env);
+  const ageH = t => (Date.now() - t) / 3600_000;
+  const brevo = !env.BREVO_API_KEY ? v("err", "Clé Brevo", "BREVO_API_KEY manquant")
+    : !r2Disponible(env) ? v("att", "Clé Brevo", "maintien inactif (R2 absent)")
+    : !sb ? v("att", "Clé Brevo", "pas encore d'appel de maintien (premier passage sous 10 min)")
+    : !sb.ok ? v("err", "Clé Brevo", `appel du ${dateParis(new Date(sb.t))} en échec : ${sb.detail || "?"}`)
+    : v(ageH(sb.t) < 36 ? "ok" : "att", "Clé Brevo", `maintenue le ${dateParis(new Date(sb.t))}`);
+  const sauve = !googleConfigure(env) || !r2Disponible(env) ? v("att", "Sauvegarde du Sheet", "inactive (secrets Google ou R2 absents)")
+    : !ss ? v("att", "Sauvegarde du Sheet", "pas encore de sauvegarde (première sous 10 min)")
+    : !ss.ok ? v("err", "Sauvegarde du Sheet", `tentative du ${dateParis(new Date(ss.t))} en échec : ${ss.detail || "?"}`)
+    : v(ageH(ss.tOk || ss.t) < 8 * 24 ? "ok" : "att", "Sauvegarde du Sheet", `${dateParis(new Date(ss.tOk || ss.t))} · ${pluriel(ss.onglets || 0, "onglet")}, ${ss.lignes || 0} lignes`);
+  const ventes = v(pause.active ? "att" : (live ? "ok" : "att"), "Ventes", pause.active ? `en pause depuis le ${pause.depuis}` : live ? "ouvertes" : "mode test (fermées au public)");
+  const champCsrf = `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
+  const blocVentes = pause.active
+    ? `<p class="muted">Message affiché dans le panier : « ${esc(pause.message)} »</p><form method="post" action="/admin/pause">${champCsrf}<input type="hidden" name="etat" value="ouvrir"><button type="submit">Rouvrir les ventes</button></form>`
+    : `<form method="post" action="/admin/pause">${champCsrf}<input type="hidden" name="etat" value="pause"><label for="msg-pause">Message affiché dans le panier <span class="muted">(facultatif)</span></label>
+<input id="msg-pause" name="message" maxlength="240" autocomplete="off" placeholder="${esc(MESSAGE_PAUSE)}"><button class="danger" type="submit">Mettre les ventes en pause</button></form>`;
   /* Chaîne de fabrication : configuration, jeton GitHub (expiration lue dans l'en-tête de réponse, alerte à J-30), dernier run */
   const fab = [];
   if (!fabricationConfiguree(env)) fab.push(v("att", "Fabrication automatique", "éteinte : GH_ACTIONS_TOKEN ou FABRICATION_HMAC manquant"));
@@ -655,12 +776,16 @@ async function vueSysteme(env, email, bandeau) {
   return page("Système", cadre("systeme", email, bandeau, `<h1>Système</h1>
 <div class="carte">${briques.join("")}</div>
 <h2>Fabrication</h2><div class="carte">${fab.join("")}</div>
+<h2>Entretien</h2><div class="carte">${brevo}${sauve}<form method="post" action="/admin/sauvegarde" style="margin-top:8px">${champCsrf}<button class="second" type="submit">Sauvegarder maintenant</button></form>
+${ss && ss.ok ? '<p class="muted" style="margin-top:8px"><a href="/admin/sauvegarde.zip">Télécharger la dernière sauvegarde (zip de fichiers CSV)</a></p>' : ""}</div>
+<h2>Ventes</h2><div class="carte">${ventes}${blocVentes}</div>
 <h2>Tâche planifiée</h2><div class="carte">${tache}<p class="muted" style="margin-top:8px">Toutes les 10 min : e-mails d'expédition, relances 48 h, renvois en échec, Journal.</p>
 <form method="post" action="/admin/tache"><input type="hidden" name="csrf" value="${esc(csrf)}"><button type="submit">Lancer la tâche maintenant</button></form></div>`));
 }
 
 /* POST /admin/tache : même code que le cron, bilan en bandeau sur l'onglet Système */
 async function tacheMaintenant(env) {
+  await entretien(env);                                     /* maintien de la clé Brevo et sauvegarde si dues (ne lève jamais) */
   const b = await lancerTache(env);
   if (b.inactive) return redirection(env, "Secrets Google absents : rien à vérifier.", "err", "systeme");
   if (b.erreur) return redirection(env, `Sheet indisponible : ${b.erreur}`, "err", "systeme");
@@ -885,16 +1010,37 @@ async function accepterAdmin(env, f) {
   return redirection(env, `${cf} marquée acceptée ✓`, "ok", "", numero);
 }
 
-/* POST /admin/expedier : expédition déclarée à la place du fabricant (ou par l'atelier) ; e-mail client tout de suite,
-   sinon la tâche planifiée le renvoie (Dernier statut notifié en retard) */
+/* POST /admin/expedier : expédition déclarée à la place du fabricant (ou par l'atelier). Trois cas, décidés ici d'après le
+   statut de la CF et la fiche du fabricant (jamais d'après le formulaire) :
+   - fabricant qui ne livre pas le client, pièce pas encore chez Evarysth : pièce « expédiée à Evarysth » → a_reexpedier,
+     transporteur et suivi facultatifs (gardés dans Notes), aucun e-mail au client ;
+   - pièce à réexpédier (a_reexpedier), ou fabricant qui livre le client (ou atelier) : colis au client → expediee, transporteur
+     obligatoire, e-mail client tout de suite, sinon la tâche planifiée le renvoie (Dernier statut notifié en retard). */
 async function expedierAdmin(env, f) {
   const numero = nettoyer(f.get("ev")), cf = cfDe(f, numero);
   if (!cf) return redirection(env, "Commande fournisseur inconnue.", "err", "", numero);
   const transporteur = nettoyer(f.get("transporteur")), suivi = nettoyer(f.get("suivi"), 80);
-  if (!transporteur || !(await lireTransporteurs(env)).includes(transporteur)) return redirection(env, `${cf} : choisissez un transporteur dans la liste.`, "err", "", numero);
-  const ls = await majLignesCF(env, cf, RETIRABLES, { Transporteur: transporteur, "N° de suivi": suivi, Statut: "expediee" });
+  const transporteurs = transporteur ? await lireTransporteurs(env) : [];
+  if (transporteur && !transporteurs.includes(transporteur)) return redirection(env, `${cf} : choisissez un transporteur dans la liste.`, "err", "", numero);
+  const avant = await lireEtat(env);
+  const lignesCF = (avant.parEV[numero] || []).filter(l => l.cf === cf);
+  const fab = avant.fabs[(lignesCF[0] || { fabricant: "" }).fabricant.trim()];
+  const entrant = !lignesCF.some(l => l.statut === A_REEXPEDIER) && passeParAtelier(fab) && lignesCF.some(l => RETIRABLES.includes(l.statut));
+
+  if (entrant) {
+    const ls = await majLignesCF(env, cf, RETIRABLES, { Statut: A_REEXPEDIER });
+    if (!ls.length) return redirection(env, `${cf} : rien à expédier (déjà expédiée, retirée ou annulée).`, "err", "", numero);
+    await journaliser(env, { numero: cf, ancien: ls.some(l => l.statut === ENVOYE) ? ENVOYE : ACCEPTEE, nouveau: A_REEXPEDIER, auteur: "proprietaire" });
+    const colis = [transporteur, suivi].filter(Boolean).join(" · ");
+    await ajouterNote(env, cf, `${cf} expédiée par ${fab ? lignesCF[0].fabricant.trim() : "le fabricant"} à l'atelier Evarysth${colis ? ` (${colis})` : ""} : à contrôler puis réexpédier au client`)
+      .catch(e => console.warn("Notes : envoi à l'atelier non noté", e.message));
+    return redirection(env, `${cf} : pièce en route vers l'atelier. Aucun e-mail au client ; il sera prévenu quand vous la réexpédierez (« à réexpédier » dans la commande).`, "ok", "", numero);
+  }
+
+  if (!transporteur) return redirection(env, `${cf} : choisissez un transporteur dans la liste.`, "err", "", numero);
+  const ls = await majLignesCF(env, cf, [...RETIRABLES, A_REEXPEDIER], { Transporteur: transporteur, "N° de suivi": suivi, Statut: "expediee" });
   if (!ls.length) return redirection(env, `${cf} : rien à expédier (déjà expédiée, retirée ou annulée).`, "err", "", numero);
-  const ancien = ls.some(l => l.statut === ENVOYE) ? ENVOYE : ACCEPTEE;
+  const ancien = ls.some(l => l.statut === A_REEXPEDIER) ? A_REEXPEDIER : ls.some(l => l.statut === ENVOYE) ? ENVOYE : ACCEPTEE;
   await journaliser(env, { numero: cf, ancien, nouveau: "expediee", auteur: "proprietaire" });
   /* E-mail client : même groupe que la tâche planifiée (lignes de la CF, avec le suivi) */
   const etat = await lireEtat(env);
@@ -907,6 +1053,21 @@ async function expedierAdmin(env, f) {
     return redirection(env, `${cf} expédiée (${transporteur}${suivi ? " · " + suivi : ""}) ; client prévenu ✓`, "ok", "", numero);
   }
   return redirection(env, `${cf} expédiée ; e-mail client en attente (${envoi}), renvoi automatique sous 10 min.`, "err", "", numero);
+}
+
+/* POST /admin/couts : coût du fabricant et frais d'envoi d'une CF (€, TTC) ; case vide = pas de montant */
+const montantSaisi = v => {
+  const t = nettoyer(v, 12).replace(/\s/g, "").replace(",", ".");
+  if (t === "") return { valeur: null };
+  return /^\d{1,6}(\.\d{1,2})?$/.test(t) ? { valeur: Number(t) } : { erreur: true };
+};
+async function coutsAdmin(env, f) {
+  const numero = nettoyer(f.get("ev")), cf = cfDe(f, numero);
+  if (!cf) return redirection(env, "Commande fournisseur inconnue.", "err", "", numero);
+  const cout = montantSaisi(f.get("cout")), envoi = montantSaisi(f.get("envoi"));
+  if (cout.erreur || envoi.erreur) return redirection(env, `${cf} : montants invalides (ex. 12,50 ; 6 chiffres au plus, 2 décimales). Rien n'a été modifié.`, "err", "", numero);
+  if (!await noterCouts(env, cf, { cout: cout.valeur, envoi: envoi.valeur })) return redirection(env, "Colonnes « Coût fabricant (€) » et « Frais d'envoi (€) » absentes de l'onglet Commandes CF.", "err", "", numero);
+  return redirection(env, `${cf} : coûts enregistrés (${cout.valeur == null ? "pas de coût fabricant" : euros(cout.valeur)}${envoi.valeur == null ? "" : ` · envoi ${euros(envoi.valeur)}`}) ✓`, "ok", "", numero);
 }
 
 /* POST /admin/reference : n° de commande chez le fournisseur (colonne facultative « Référence externe ») */
@@ -940,6 +1101,29 @@ async function retirer(env, f) {
 
 /* POST venu de la page elle-même : Origin = celle de la page ; ou, si le navigateur envoie « null » / rien
    (certaines politiques de référent sous Safari), Sec-Fetch-Site = same-origin. Toute autre valeur est refusée. */
+/* POST /admin/pause : ouvre ou ferme les ventes (R2, lu par POST /checkout) */
+async function pauseAdmin(env, f) {
+  const ouvrir = nettoyer(f.get("etat")) === "ouvrir";
+  try { await reglerPause(env, { active: !ouvrir, message: nettoyer(f.get("message"), 240) }); }
+  catch (e) { return redirection(env, e.message, "err", "systeme"); }
+  return redirection(env, ouvrir ? "Ventes rouvertes ✓" : "Ventes en pause : le bouton Commander affiche votre message.", "ok", "systeme");
+}
+
+/* POST /admin/sauvegarde : sauvegarde du Sheet tout de suite (même code que le passage hebdomadaire) */
+async function sauvegardeAdmin(env) {
+  const r = await sauvegarderSheet(env, { force: true });
+  if (r.inactif) return redirection(env, "Sauvegarde impossible : secrets Google ou R2 absents.", "err", "systeme");
+  if (!r.ok) return redirection(env, `Sauvegarde en échec : ${r.detail || "erreur inconnue"}.`, "err", "systeme");
+  return redirection(env, `Sauvegarde faite ✓ (${pluriel(r.onglets, "onglet")}, ${r.lignes} lignes).`, "ok", "systeme");
+}
+
+/* GET /admin/sauvegarde.zip : dernière sauvegarde réussie (données clients : jamais mise en cache) */
+async function telechargerSauvegarde(env) {
+  const z = await derniereSauvegardeZip(env);
+  if (!z) return simple("Aucune sauvegarde", "Aucune sauvegarde réussie à télécharger pour l'instant.", 404);
+  return new Response(z.octets, { headers: { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="${z.nom}"`, "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
+}
+
 function memeOrigine(req, url) {
   const origine = req.headers.get("Origin"), site = req.headers.get("Sec-Fetch-Site");
   if (site && site !== "same-origin") return false;
@@ -954,7 +1138,7 @@ export async function routeAdmin(req, env, url) {
   const icone = /^\/admin\/([a-z0-9-]+\.(?:svg|png|webmanifest))$/.exec(url.pathname);
   if (icone && req.method === "GET") { const r = ressource(icone[1]); if (r) return r; }
   const route = `${req.method} ${url.pathname}`;
-  const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/cloturer", "POST /admin/renvoyer", "POST /admin/retirer", "POST /admin/accepter", "POST /admin/expedier", "POST /admin/reference", "POST /admin/tache", "POST /admin/generation"];
+  const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/cloturer", "POST /admin/renvoyer", "POST /admin/retirer", "POST /admin/accepter", "POST /admin/expedier", "POST /admin/reference", "POST /admin/couts", "POST /admin/tache", "POST /admin/generation", "POST /admin/pause", "POST /admin/sauvegarde", "GET /admin/sauvegarde.zip"];
   if (!routes.includes(route)) return simple("Introuvable", "Page introuvable.", 404);
 
   let email;
@@ -966,11 +1150,12 @@ export async function routeAdmin(req, env, url) {
   if ((!sansSheet && !googleConfigure(env)) || !jetonConfigure(env)) return simple("Service indisponible", "Configuration incomplète (secrets Google ou HMAC_SECRET).", 503);
 
   try {
+    if (req.method === "GET" && url.pathname === "/admin/sauvegarde.zip") return await telechargerSauvegarde(env);
     if (req.method === "GET") {
       const { bandeau, cookie } = await lireFlash(env, url, req, vue);
       const q = nettoyer(url.searchParams.get("q"), 80);
       const r = q ? await vueRecherche(env, email, await lireEtat(env), q, bandeau)
-        : vue === "tableau" ? vueTableau(email, await lireEtat(env), bandeau)
+        : vue === "tableau" ? await vueTableau(env, email, await lireEtat(env), bandeau)
         : vue === "catalogue" ? await vueCatalogue(env, email, bandeau)
         : vue === "fabricants" ? vueFabricants(email, await lireEtat(env), bandeau)
         : vue === "systeme" ? await vueSysteme(env, email, bandeau)
@@ -991,8 +1176,11 @@ export async function routeAdmin(req, env, url) {
     if (url.pathname === "/admin/accepter") return await accepterAdmin(env, f);
     if (url.pathname === "/admin/expedier") return await expedierAdmin(env, f);
     if (url.pathname === "/admin/reference") return await reference(env, f);
+    if (url.pathname === "/admin/couts") return await coutsAdmin(env, f);
     if (url.pathname === "/admin/tache") return await tacheMaintenant(env);
     if (url.pathname === "/admin/generation") return await generation(env, f);
+    if (url.pathname === "/admin/pause") return await pauseAdmin(env, f);
+    if (url.pathname === "/admin/sauvegarde") return await sauvegardeAdmin(env);
     return await debloquer(env, f);
   } catch (e) {
     /* Journal : code Google (429 = quota, 5xx = raté de Google, 0 = réseau) ou erreur de programme */

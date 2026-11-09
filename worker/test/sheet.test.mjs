@@ -7,6 +7,8 @@ import { jetonAcces, jwtCompteService, viderCacheJeton, lettreColonne, reglerAtt
 reglerAttentes([0, 0]); /* nouveaux essais sans attente dans les tests */
 import { prochainNumero, reglages, dateParis } from "../src/sheet.js";
 import { COL_EV, ENTETES_CF, ENTETES_EV } from "./entetes.mjs";
+import { completerFrais, margeCommande, versNombre } from "../src/finances.js";
+import { noterCouts } from "../src/sheet.js";
 
 reglages.attenteVerificationMs = 0;
 
@@ -22,7 +24,7 @@ const envGoogle = { ...base, GOOGLE_SA_EMAIL: "worker@projet.iam.gserviceaccount
 const SID = COL_EV["Stripe session id"];
 
 /* Faux classeur : onglet → tableau de lignes (ligne 1 = en-têtes) */
-let sheet, jetons, brevo, appelsGoogle, panneGoogle, apresEcriture, lignesStripe;
+let sheet, jetons, brevo, appelsGoogle, panneGoogle, apresEcriture, lignesStripe, sessionStripe;
 beforeEach(() => {
   viderCacheJeton();
   sheet = {
@@ -31,7 +33,7 @@ beforeEach(() => {
     Journal: [["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"]],
     Fabricants: [["Nom", "E-mail", "Délai (jours)", "Livre le client"], ["À renseigner", "", "5", "non"]]
   };
-  jetons = 0; brevo = []; appelsGoogle = []; panneGoogle = false; apresEcriture = null;
+  jetons = 0; brevo = []; appelsGoogle = []; panneGoogle = false; apresEcriture = null; sessionStripe = null;
   lignesStripe = [{ description: "Tablette café de balcon — Sur-mesure", quantity: 2, amount_total: 7700,
     price: { product: { metadata: { produit: "tablette-rambarde", mode: "custom", cotes_mm: '{"a":45,"b":250}', coloris: "rose" } } } }];
   globalThis.fetch = fauxFetch;
@@ -83,6 +85,7 @@ async function fauxFetch(url, init = {}) {
     return rep({});
   }
   if (u.host === "api.stripe.com" && u.pathname.endsWith("/line_items")) return rep({ data: lignesStripe });
+  if (u.host === "api.stripe.com" && sessionStripe && /\/checkout\/sessions\/cs_/.test(u.pathname)) return rep(sessionStripe);   /* frais : payment_intent.latest_charge.balance_transaction */
   if (u.host === "api.brevo.com") { brevo.push(JSON.parse(init.body)); return rep({ messageId: "m1" }, 201); }
   throw new Error("Appel réseau inattendu : " + url);
 }
@@ -240,4 +243,94 @@ test("webhook : commande standard dont le fichier est dans R2 → a_valider (jam
   const a = articles(ligneCommande("cs_test_r2").Commande);
   assert.deepEqual([a[0].Statut, a[0]["Dernier statut notifié"]], ["a_valider", "a_valider"]);
   assert.ok(!brevo.some(m => m.tags[0] === "fabricant"), "rien au fabricant avant validation");
+});
+
+const EN_PLUS_EV = ["Environnement", "Total TTC (€)", "dont livraison (€)", "Remise (€)", "Frais Stripe (€)"];
+const parNom = (onglet, i) => Object.fromEntries(sheet[onglet][0].map((n, k) => [n, sheet[onglet][i][k]]));
+
+test("montants : environnement, total, livraison, remise et frais Stripe écrits à la commande si les colonnes existent", async () => {
+  sheet["Commandes EV"][0].push(...EN_PLUS_EV);
+  sessionStripe = { payment_intent: { latest_charge: { balance_transaction: { fee: 140 } } } };
+  assert.equal((await webhook(envGoogle, "cs_test_montants", { total_details: { amount_shipping: 490, amount_discount: 500 } })).status, 200);
+  const r = parNom("Commandes EV", 2);
+  assert.equal(r["Stripe session id"], "cs_test_montants");
+  assert.equal(r.Environnement, "test");
+  assert.equal(r["Total TTC (€)"], 86.9);
+  assert.equal(r["dont livraison (€)"], 4.9);
+  assert.equal(r["Remise (€)"], 5);
+  assert.equal(r["Frais Stripe (€)"], 1.4);
+  const lignes = sheet["Commandes EV"].length;
+  assert.equal((await webhook(envGoogle, "cs_test_montants", { total_details: { amount_shipping: 490, amount_discount: 500 } })).status, 200);
+  assert.equal(sheet["Commandes EV"].length, lignes, "2e réception : rien de plus");
+});
+
+test("montants : colonnes absentes du Sheet → ignorées ; frais Stripe indisponibles → commande enregistrée quand même", async () => {
+  sessionStripe = { payment_intent: { latest_charge: { balance_transaction: { fee: 140 } } } };
+  assert.equal((await webhook(envGoogle, "cs_test_sans_colonnes")).status, 200);
+  assert.equal(parNom("Commandes EV", 2)["Stripe session id"], "cs_test_sans_colonnes");
+  assert.ok(sheet["Commandes EV"][2].length <= ENTETES_EV.length, "aucune cellule écrite hors des colonnes connues");
+  sheet["Commandes EV"][0].push(...EN_PLUS_EV);
+  sessionStripe = null;                                   /* Stripe ne répond pas : « Appel réseau inattendu » */
+  assert.equal((await webhook(envGoogle, "cs_test_sans_frais")).status, 200);
+  const r = parNom("Commandes EV", 3);
+  assert.equal(r["Total TTC (€)"], 86.9);
+  assert.ok(r["Frais Stripe (€)"] === undefined || r["Frais Stripe (€)"] === "", "frais laissés vides, repris par l'entretien");
+});
+
+test("entretien des frais : 3 commandes au plus par passage, mode et âge respectés, jamais d'écrasement", async () => {
+  sheet["Commandes EV"][0].push(...EN_PLUS_EV);
+  const maintenant = Date.UTC(2026, 10, 9, 12, 0);
+  const ligne = (n, sid, date, total, frais = "") => { const l = ENTETES_EV.map(() => ""); l[COL_EV.Commande] = n; l[COL_EV.Date] = date; l[SID] = sid; return [...l, "test", total, "", "", frais]; };
+  sheet["Commandes EV"].push(
+    ligne("EV-2026-0101", "cs_test_a", "2026-11-09 10:00", 50),
+    ligne("EV-2026-0102", "cs_test_b", "2026-11-09 10:05", 60, 2.1),     /* frais déjà connus : intacts */
+    ligne("EV-2026-0103", "cs_live_c", "2026-11-09 10:10", 70),          /* autre mode que la clé de test : ignorée */
+    ligne("EV-2026-0104", "cs_test_d", "2026-10-01 10:00", 80),          /* trop ancienne */
+    ligne("EV-2026-0105", "cs_test_e", "2026-11-09 10:15", 90),
+    ligne("EV-2026-0106", "cs_test_f", "2026-11-09 10:20", 90),
+    ligne("EV-2026-0107", "cs_test_g", "2026-11-09 10:25", 90),
+    ligne("EV-2026-0108", "cs_test_h", "2026-11-09 10:30", 90));
+  sessionStripe = { payment_intent: { latest_charge: { balance_transaction: { fee: 175 } } } };
+  const r = await completerFrais(envGoogle, maintenant);
+  assert.deepEqual(r.fait, ["EV-2026-0101", "EV-2026-0105", "EV-2026-0106"]);
+  const frais = n => parNom("Commandes EV", sheet["Commandes EV"].findIndex(l => l[COL_EV.Commande] === n))["Frais Stripe (€)"];
+  assert.equal(frais("EV-2026-0101"), 1.75);
+  assert.equal(frais("EV-2026-0102"), 2.1);
+  assert.ok([frais("EV-2026-0103"), frais("EV-2026-0104"), frais("EV-2026-0107")].every(x => x === "" || x === undefined));
+  assert.deepEqual((await completerFrais(envGoogle, maintenant)).fait, ["EV-2026-0107", "EV-2026-0108"], "passage suivant : la suite");
+  assert.deepEqual((await completerFrais({ ...envGoogle, STRIPE_SECRET_KEY: "" }, maintenant)), { inactif: true });
+});
+
+test("coûts d'une CF : écrits sur la première ligne seulement, vidés ailleurs ; colonnes absentes → false", async () => {
+  assert.equal(await noterCouts(envGoogle, "CF-2026-0007-A", { cout: 12, envoi: null }), false, "colonnes absentes du Sheet");
+  sheet["Commandes CF"][0].push("Coût fabricant (€)", "Frais d'envoi (€)");
+  const l2 = ENTETES_CF.map(() => ""); l2[0] = "CF-2026-0007-A"; l2[1] = "EV-2026-0007"; l2[2] = "2";
+  sheet["Commandes CF"][1][2] = "1";
+  sheet["Commandes CF"].push([...l2, 99, 99]);                            /* ancien montant sur la 2e ligne : doit disparaître */
+  assert.equal(await noterCouts(envGoogle, "CF-2026-0007-A", { cout: 12.5, envoi: 4.2 }), true);
+  const c1 = parNom("Commandes CF", 1), c2 = parNom("Commandes CF", 2);
+  assert.equal(c1["Coût fabricant (€)"], 12.5);
+  assert.equal(c1["Frais d'envoi (€)"], 4.2);
+  assert.equal(c2["Coût fabricant (€)"], "");
+  assert.equal(c2["Frais d'envoi (€)"], "");
+  await noterCouts(envGoogle, "CF-2026-0007-A", { cout: null, envoi: 3 });
+  assert.equal(parNom("Commandes CF", 1)["Coût fabricant (€)"], "", "case vidée");
+  await assert.rejects(() => noterCouts(envGoogle, "CF-2026-9999-A", { cout: 1, envoi: 1 }), /introuvable/);
+});
+
+test("finances : nombres du Sheet (« 12,50 € », espaces) et marge d'une commande", () => {
+  assert.equal(versNombre("12,50 €"), 12.5);
+  assert.equal(versNombre("1 234,5"), 1234.5);
+  assert.equal(versNombre("1,234.50"), 1234.5, "locale anglaise");
+  assert.equal(versNombre("1 234,50 €"), 1234.5, "espace insécable");
+  assert.equal(versNombre("-3,2"), -3.2);
+  assert.equal(versNombre(7), 7);
+  assert.equal(versNombre(""), null);
+  assert.equal(versNombre("—"), null);
+  const base = { total: 86.9, frais: 1.4, cfs: [{ cf: "CF-1-A", atelier: false, cout: 40, envoi: 4.9 }] };
+  assert.deepEqual(margeCommande(base), { total: 86.9, frais: 1.4, couts: 40, envois: 4.9, manque: "", marge: 40.6 });
+  assert.equal(margeCommande({ ...base, cfs: [{ cf: "CF-1-A", atelier: false, cout: null, envoi: null }] }).manque, "coût manquant : CF-1-A");
+  assert.equal(margeCommande({ ...base, cfs: [{ cf: "CF-1-A", atelier: true, cout: null, envoi: null }] }).marge, 85.5, "atelier : coût facultatif");
+  assert.equal(margeCommande({ ...base, frais: null }).manque, "frais Stripe pas encore connus");
+  assert.equal(margeCommande({ ...base, total: null }).manque, "total non enregistré");
 });

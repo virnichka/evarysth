@@ -73,7 +73,7 @@ export async function jetonAcces(env, maintenant = Date.now()) {
 
 /* Appel de l'API Sheets ; chemin relatif au classeur (ex. « values/Commandes!A:A », ou « :batchUpdate ») */
 export async function appelSheets(env, methode, chemin, params = {}, corps) {
-  const url = new URL(URL_SHEETS + encodeURIComponent(env.SHEET_ID) + (chemin.startsWith(":") ? "" : "/") + chemin);
+  const url = new URL(URL_SHEETS + encodeURIComponent(env.SHEET_ID) + (chemin === "" || chemin.startsWith(":") ? "" : "/") + chemin);
   for (const [k, v] of Object.entries(params)) for (const x of [].concat(v)) url.searchParams.append(k, x);
   const init = {
     method: methode,

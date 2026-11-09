@@ -17,9 +17,9 @@ import { liensStandards } from "./fichier.js";
 import { COLS as GEN_COLS, GEN, liensGeneres, refArticle } from "./fabrication.js";
 import { EVARYSTH } from "./catalogue.js";
 import { contenuExpedition, contenuFabricant, contenuRelance, envoyerEmail } from "./email.js";
-import { A_VALIDER, CF, dateParis, FABRICANTS, REF_EXTERNE, REFUSEE, STL_A_INDIQUER, JOURNAL, journaliser, majArticle, ONGLET, ONGLET_CF } from "./sheet.js";
+import { A_VALIDER, CF, COUTS, dateParis, ENVIRONNEMENT, FABRICANTS, MONTANTS, REF_EXTERNE, REFUSEE, STL_A_INDIQUER, JOURNAL, journaliser, majArticle, ONGLET, ONGLET_CF, versNombre } from "./sheet.js";
 
-export const STATUTS = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "expediee", "livree", "incident", "remboursee", "annulee"];
+export const STATUTS = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire", "envoyee_fabricant", "acceptee", "a_reexpedier", "expediee", "livree", "incident", "remboursee", "annulee"];
 export const STATUTS_EV = ["payee", "en_fabrication", "partiellement_expediee", "expediee", "livree", "incident", "remboursee", "annulee"];
 export const A_ENVOYER = ["lien_stl_a_indiquer", "a_valider", "payee", "fichier_a_produire"];   /* avant l'envoi au fabricant */
 /* Article pas encore envoyé au fabricant (son n° CF peut encore changer) : statut d'avant l'envoi, ou
@@ -115,7 +115,7 @@ export function statutEV(statuts) {
   if (s.every(x => x === "livree")) return "livree";
   if (s.every(parti)) return "expediee";
   if (s.some(parti)) return "partiellement_expediee";
-  if (s.some(x => x === "envoyee_fabricant" || x === "acceptee")) return "en_fabrication";
+  if (s.some(x => x === "envoyee_fabricant" || x === "acceptee" || x === "a_reexpedier")) return "en_fabrication";
   return "payee";
 }
 
@@ -203,21 +203,24 @@ export async function journaliserSiNouveau(env, journal, numero, ancien, nouveau
 /* État du Sheet utile à la tâche et à la page /admin : commandes EV, articles CF (avec leur n° de ligne), fabricants, Journal */
 export async function lireEtat(env) {
   /* 2 appels au Sheet en tout (en-têtes des 4 onglets, puis leurs colonnes) : moins de quota, moins de ratés */
-  const [{ v, cols: colsCF }, { v: e }, { v: vFab }, { v: vJournal }] = await lireOnglets(env, [
-    { onglet: ONGLET_CF, noms: COLS_CF, options: ["Notes", REF_EXTERNE, ...Object.values(GEN_COLS)] }, { onglet: ONGLET, noms: COLS_EV },
+  const [{ v, cols: colsCF }, { v: e, cols: colsEV }, { v: vFab }, { v: vJournal }] = await lireOnglets(env, [
+    { onglet: ONGLET_CF, noms: COLS_CF, options: ["Notes", REF_EXTERNE, ...Object.values(GEN_COLS), ...Object.values(COUTS)] },
+    { onglet: ONGLET, noms: COLS_EV, options: [ENVIRONNEMENT, ...Object.values(MONTANTS)] },
     { onglet: FABRICANTS, noms: COLS_FAB, facultatif: true }, { onglet: JOURNAL, noms: COLS_JOURNAL }]);
   const fabs = fabricantsDe(vFab), journal = journalDe(vJournal);
 
   const evs = {};
   e.Commande.forEach((n, i) => { n = n.trim(); if (n) evs[n] = { numero: n, statut: (e.Statut[i] || "").trim(), client: e.Client[i] || "", sid: e["Stripe session id"][i] || "",
-    date: e.Date[i] || "", type: e.Type[i] || "", cadeau: e["Cadeau / message"][i] || "" }; });
+    date: e.Date[i] || "", type: e.Type[i] || "", cadeau: e["Cadeau / message"][i] || "", env: ((e[ENVIRONNEMENT] || [])[i] || "").trim(),
+    montants: Object.fromEntries(Object.entries(MONTANTS).map(([k, nom]) => [k, versNombre((e[nom] || [])[i])])) }; });
   const lignes = v[CF.ev].map((n, i) => ({ ev: n.trim(), n: (v[CF.art][i] || "").trim(), cf: (v[CF.num][i] || "").trim(), statut: (v.Statut[i] || "").trim(),
     article: v.Article[i] || "", fabricant: v.Fabricant[i] || "", stl: v["Lien STL"][i] || "", transporteur: v.Transporteur[i] || "",
-    suivi: v["N° de suivi"][i] || "", notes: (v.Notes || [])[i] || "", ref: (v[REF_EXTERNE] || [])[i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim(), ligne: i + 2,
+    suivi: v["N° de suivi"][i] || "", notes: (v.Notes || [])[i] || "", cout: versNombre((v[COUTS.cout] || [])[i]), envoi: versNombre((v[COUTS.envoi] || [])[i]), ref: (v[REF_EXTERNE] || [])[i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim(), ligne: i + 2,
     gen: Object.fromEntries(Object.entries(GEN_COLS).map(([k, nom]) => [k === "generation" ? "statut" : k, String((v[nom] || [])[i] ?? "").trim()])) })).filter(l => l.ev && l.n);
   const parEV = {};
   for (const l of lignes) (parEV[l.ev] ||= []).push(l);
-  return { evs, lignes, parEV, fabs, journal, refExterne: REF_EXTERNE in colsCF, generation: GEN_COLS.generation in colsCF };
+  return { evs, lignes, parEV, fabs, journal, refExterne: REF_EXTERNE in colsCF, generation: GEN_COLS.generation in colsCF,
+    finances: { montants: MONTANTS.total in colsEV, couts: COUTS.cout in colsCF } };
 }
 
 /* Un passage. Renvoie un bilan { attribuees, notifiees, attente, erreurs, relances, commandes } (ou { inactive: true }). */
