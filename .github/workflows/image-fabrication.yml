@@ -39,7 +39,10 @@ jobs:
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin > /dev/null
           docker buildx create --use --name evarysth --driver docker-container > /dev/null
           t=$(date +%s)
+          # snapshot.ubuntu.com redirige HTTP vers HTTPS et l'image de base n'a pas de certificats : apt passe en HTTPS avec le
+          # bundle CA du runner, prêté en secret de construction (jamais copié dans l'image, contenu inchangé).
           docker buildx build --provenance=false --sbom=false --build-arg SOURCE_DATE_EPOCH=0 \
+            --build-arg APT_URI=https://snapshot.ubuntu.com --secret id=ca,src=/etc/ssl/certs/ca-certificates.crt \
             --metadata-file meta.json \
             --output "type=image,name=$image:${GITHUB_SHA:0:12},push=true,rewrite-timestamp=true,compression=gzip,oci-mediatypes=false" \
             fabrication/

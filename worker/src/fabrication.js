@@ -16,7 +16,7 @@ import { appelStripe, signer } from "./stripe.js";
 import { egal } from "./jeton.js";
 
 export const DEPOT = "virnichka/evarysth", WORKFLOW = "fabrication.yml", BRANCHE = "main";
-export const URL_SITE = "https://www.evarysth.fr";
+export const URL_SITE = "https://evarysth.fr";        /* www redirige (301) vers ce domaine */
 export const COLS = { generation: "Génération", sha: "SHA", masse: "Masse g", temps: "Temps min", plateaux: "Plateaux", motif: "Motif génération" };
 export const GEN = { attente: "a_declencher", cours: "en_cours", prete: "prete", echec: "echec" };
 export const NON_CONFIGUREE = "fabrication_non_configuree";
