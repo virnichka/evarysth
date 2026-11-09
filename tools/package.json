@@ -1,0 +1,10 @@
+{
+  "name": "evarysth-outils",
+  "private": true,
+  "description": "Outils Node d'Evarysth (génération STL, contrôles). Inutile à la publication du site.",
+  "type": "module",
+  "dependencies": {
+    "manifold-3d": "3.5.4",
+    "three": "0.170.0"
+  }
+}

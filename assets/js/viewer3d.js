@@ -15,6 +15,25 @@
   ]).then(([THREE, ctrl]) => ({ THREE, OrbitControls: ctrl.OrbitControls }))
     .catch(err => { libs = null; throw err; }));
 
+  /* Nouveau moteur manifold-3d (refonte, phase 2 : docs/refonte-geometrie.md) : seulement avec ?geo=manifold
+     (mémorisé dans le navigateur, coupé par ?geo=off). Sans ce drapeau, le kit three.js ci-dessous sert seul. */
+  const GEO_FLAG = "evarysth.geo";
+  const geoOn = (() => {
+    try {
+      const st = window.EVARYSTH && EVARYSTH.store, q = new URLSearchParams(location.search).get("geo");
+      if (q === "manifold") { if (st) st.set(GEO_FLAG, "manifold"); return true; }
+      if (q === "off") { if (st) st.set(GEO_FLAG, ""); return false; }
+      return !!st && st.get(GEO_FLAG, "") === "manifold";
+    } catch { return false; }
+  })();
+  let GEO = null, geoLoad = null;
+  /* Kit manifold (assets/js/geo.js + WASM de assets/vendor/manifold-3d/), chargé à la demande comme three.js */
+  const loadGeo = THREE => geoLoad || (geoLoad = Promise.all([
+    import(new URL("assets/js/geo.js", document.baseURI).href),
+    import(new URL("assets/vendor/manifold-3d/manifold.js", document.baseURI).href).then(m => m.default())
+  ]).then(([geo, wasm]) => { wasm.setup(); return (GEO = geo.createKit(THREE, wasm)); })
+    .catch(err => { geoLoad = null; throw err; }));
+
   /* Profils 2D : listes de points [x, y] en mm */
   const rad = d => d * Math.PI / 180;
   const circ = (r, x = 0, y = 0, n = 40) =>
@@ -31,7 +50,7 @@
 
   /* Briques 3D (dépendent de THREE) : pavé, cylindre/tube (axe Y), profil extrudé (axe Z, centré), assemblage centré */
   let kitCache = null;
-  const kit = T => kitCache || (kitCache = (() => {
+  const kit = T => GEO || kitCache || (kitCache = (() => {
     const v2 = p => new T.Vector2(p[0], p[1]);
     const ext = (pts, d, holes = []) => {
       const s = new T.Shape(pts.map(v2));
@@ -83,8 +102,8 @@
     return model;
   };
 
-  /* Compositions récurrentes */
-  const tray = ({ box }, w, d, h, nx, nz) => [
+  /* Compositions récurrentes (avec le kit manifold : ses propres versions, assemblées par union) */
+  const trayThree = ({ box }, w, d, h, nx, nz) => [
     box(w, 3, d, 0, 1.5, 0),
     box(w, h, 3, 0, h / 2, d / 2 - 1.5), box(w, h, 3, 0, h / 2, -d / 2 + 1.5),
     box(3, h, d, w / 2 - 1.5, h / 2, 0), box(3, h, d, -w / 2 + 1.5, h / 2, 0),
@@ -92,13 +111,16 @@
     ...Array.from({ length: nz - 1 }, (_, i) => box(w, h * 0.85, 2, 0, h * 0.425, -d / 2 + (i + 1) * d / nz))
   ];
   /* Pose sur un support d'épaisseur a, bras qui descend côté extérieur, crochet en bas */
-  const overHook = (k, a, drop, r, w, t = 5) => k.join(
+  const overHookThree = (k, a, drop, r, w, t = 5) => k.join(
     k.ext(uPts(a, 30, t), w),
     k.box(t, drop + 30 + t, w, a / 2 + t / 2, (30 + t - drop) / 2, 0),
     k.ext(arc(r, r + t, 180, 360), w).translate(a / 2 + r + t, -drop, 0)
   );
   /* Pince latérale sur un plateau d'épaisseur a (ouverture vers +x, corps en x < 0) */
-  const sideClamp = (k, a, L, t, w) => k.ext(uPts(a, L, t), w).rotateZ(Math.PI / 2);
+  const sideClampThree = (k, a, L, t, w) => k.ext(uPts(a, L, t), w).rotateZ(Math.PI / 2);
+  const tray = (k, ...a) => k.isManifold ? k.tray(...a) : trayThree(k, ...a);
+  const overHook = (k, ...a) => k.isManifold ? k.overHook(...a) : overHookThree(k, ...a);
+  const sideClamp = (k, ...a) => k.isManifold ? k.sideClamp(...a) : sideClampThree(k, ...a);
 
   /* Modèles paramétriques : valeurs en mm -> BufferGeometry centrée */
   const MODELS = {};
@@ -136,8 +158,16 @@
     if (!container || !modelId || !webglOK()) return handle;
 
     Promise.all([load(), loadModel(modelId)]).then(async ([{ THREE, OrbitControls }, build]) => {
+      if (geoOn) await loadGeo(THREE);
       if (build.prepare) await build.prepare(THREE);
       if (disposed) return;
+      /* Avec le kit manifold, le modèle rend un solide : converti ici pour l'aperçu (même calcul que le STL) */
+      const make = vals => GEO ? GEO.preview(build(THREE, vals)) : build(THREE, vals);
+      if (GEO) {
+        const b = GEO.bilan(build(THREE, Object.fromEntries(params.map(p => [p.key, p.def])))); GEO.flush();
+        console.info(`[geo=manifold] ${modelId} : ${b.horsKit ? "hors kit" : "kit"}, ${b.etanche ? "étanche" : "NON étanche"}`
+          + (b.volume ? `, ${Math.round(b.volume)} mm³, ${b.solides} solide(s)` : ""));
+      }
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -160,7 +190,7 @@
       const maxVals = Object.fromEntries(params.map(p => [p.key, p.max]));
       /* Rayon depuis l'origine (les modèles sont centrés ; un modèle ouvrable garde la boîte fermée au centre) */
       const reach = vals => {
-        const g = build(THREE, vals), a = g.attributes.position.array; let r = 0;
+        const g = make(vals), a = g.attributes.position.array; let r = 0;
         for (let i = 0; i < a.length; i += 3) r = Math.max(r, a[i] * a[i] + a[i + 1] * a[i + 1] + a[i + 2] * a[i + 2]);
         g.dispose(); return Math.sqrt(r);
       };
@@ -212,7 +242,7 @@
           dirty = true;
         },
         rebuild(values) {
-          const g = build(THREE, build.openable ? { ...values, open } : values);
+          const g = make(build.openable ? { ...values, open } : values);
           if (mesh.geometry) mesh.geometry.dispose();
           if (edges.geometry) edges.geometry.dispose();
           mesh.geometry = g;
@@ -244,5 +274,6 @@
   }
 
   window.EVARYSTH = window.EVARYSTH || {};
-  EVARYSTH.viewer3d = { mount, define };
+  /* models / useGeo : accès pour les outils Node (tools/lib/moteur.mjs), sans effet sur le site */
+  EVARYSTH.viewer3d = { mount, define, models: MODELS, useGeo: k => { GEO = k; } };
 })();
