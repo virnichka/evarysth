@@ -14,6 +14,8 @@ import { googleConfigure, entetes, lireColonnes, ecrireLigne } from "./google.js
 import { CF, ONGLET, ONGLET_CF, journaliser } from "./sheet.js";
 import { appelStripe, signer } from "./stripe.js";
 import { egal } from "./jeton.js";
+import { creerJetonFichier } from "./fichier.js";
+import { EVARYSTH } from "./catalogue.js";
 
 export const DEPOT = "virnichka/evarysth", WORKFLOW = "fabrication.yml", BRANCHE = "main";
 export const URL_SITE = "https://evarysth.fr";        /* www redirige (301) vers ce domaine */
@@ -88,7 +90,7 @@ const cellule = (lu, nom, i) => String(((lu[nom] || [])[i]) ?? "").trim();
 const essaiDe = motif => Number((/essai (\d+)\//.exec(motif || "") || [])[1] || 1);
 
 /* Un article : déclenche et renvoie les valeurs de suivi à écrire */
-async function declencherArticle(env, a, essai) {
+export async function declencherArticle(env, a, essai) {
   try {
     await declencher(env, a.inputs);
     return { ok: true, valeurs: { [COLS.generation]: GEN.cours, [COLS.sha]: a.inputs.sha, [COLS.motif]: "" } };
@@ -142,6 +144,20 @@ export async function lancerFabrication(env, fiche, shaPaiement) {
   }
 }
 
+/* Article à fabriquer relu dans Stripe (rien n'est recopié dans le Sheet) ; sha : celui de la ligne s'il est valide,
+   sinon celui noté au paiement, sinon le SHA actuel du site. sessions : cache { sid: [session, lignes] } facultatif. */
+export async function articleDepuisStripe(env, sid, numeroEV, n, sha, sessions = {}) {
+  if (!sid) throw new Error("session Stripe introuvable");
+  sessions[sid] ??= await Promise.all([appelStripe(env, "GET", `checkout/sessions/${sid}`),
+    appelStripe(env, "GET", `checkout/sessions/${sid}/line_items`, { limit: 100, expand: ["data.price.product"] })]);
+  const [s, li] = sessions[sid];
+  const shaUtile = /^[0-9a-f]{40}$/.test(sha || "") ? sha : ((s.metadata && s.metadata.sha) || await versionSite(env));
+  const lignes = li.data.map(x => ({ quantite: x.quantity, meta: (x.price && x.price.product && x.price.product.metadata) || {} }));
+  const a = articlesFabrication(numeroEV, lignes, shaUtile).find(x => x.n === String(n));
+  if (!a) throw new Error("article introuvable dans la commande Stripe");
+  return a;
+}
+
 /* Tâche planifiée : nouvel essai des articles « a_declencher » (lignes Stripe relues : rien n'est recopié dans le Sheet) */
 export async function relancerDeclenchements(env) {
   try {
@@ -158,15 +174,7 @@ export async function relancerDeclenchements(env) {
     const bilan = { relances: [], echecs: [] }, sessions = {};
     for (const l of attente) {
       try {
-        const sid = sidDe(l.ev);
-        if (!sid) throw new Error("session Stripe introuvable");
-        sessions[sid] ??= await Promise.all([appelStripe(env, "GET", `checkout/sessions/${sid}`),
-          appelStripe(env, "GET", `checkout/sessions/${sid}/line_items`, { limit: 100, expand: ["data.price.product"] })]);
-        const [s, li] = sessions[sid];
-        const sha = /^[0-9a-f]{40}$/.test(l.sha) ? l.sha : ((s.metadata && s.metadata.sha) || await versionSite(env));
-        const lignes = li.data.map(x => ({ quantite: x.quantity, meta: (x.price && x.price.product && x.price.product.metadata) || {} }));
-        const a = articlesFabrication(l.ev, lignes, sha).find(x => x.n === l.n);
-        if (!a) throw new Error("article introuvable dans la commande Stripe");
+        const a = await articleDepuisStripe(env, sidDe(l.ev), l.ev, l.n, l.sha, sessions);
         const r = await declencherArticle(env, a, essaiDe(l.motif) + 1);
         await ecrireSuivi(env, cols, l.ligne, r.valeurs);
         (r.ok ? bilan.relances : bilan.echecs).push(a.inputs.cf);
@@ -219,4 +227,74 @@ export async function routeRetour(req, env, maintenant = Date.now() / 1000) {
     [COLS.plateaux]: nombre(b.plateaux), [COLS.motif]: String(b.motif || "").slice(0, 300)
   });
   return json({ recu: true });
+}
+
+/* ─── Fabrication · phase 3 : fichiers générés vus depuis /admin, relance ─────────────────────────────────────── */
+/* Matières tranchées à l'atelier (profils fabrication/profils/p2s, tools/trancher.mjs PROFILS_FILAMENT) */
+export const MATIERES_ATELIER = ["pla", "petg"];
+/* Matière d'impression d'un article (« produit · … ») : fiche d'impression du catalogue, sinon matière du produit */
+export function matiereArticle(article) {
+  const p = EVARYSTH.getProduct(String(article || "").split(" · ")[0].trim());
+  return p ? String((p.impression && p.impression.matiere) || p.matiere || "").toLowerCase() : "";
+}
+export const atelierPossible = article => MATIERES_ATELIER.includes(matiereArticle(article));
+
+export const dossierR2 = (ref, sha) => `commandes/${ref}/${String(sha).slice(0, 12)}/`;
+/* Liste des fichiers d'un article prêt (manifeste.json écrit en dernier par le workflow) ; null si absent ou illisible */
+export async function fichiersGeneres(env, ref, sha) {
+  if (!env.STL || typeof env.STL.get !== "function" || !lireRef(ref) || !/^[0-9a-f]{40}$/.test(sha || "")) return null;
+  try {
+    const o = await env.STL.get(`${dossierR2(ref, sha)}manifeste.json`);
+    if (!o) return null;
+    const m = JSON.parse(await o.text());
+    const noms = (Array.isArray(m.fichiers) ? m.fichiers : []).filter(f => /^[a-z0-9][a-z0-9._-]{0,80}$/.test(f) && !f.includes(".."));
+    return { stl: noms.filter(f => f.endsWith(".stl")), troismf: noms.filter(f => f.endsWith(".3mf") && !f.endsWith(".gcode.3mf")),
+      gcode: noms.filter(f => f.endsWith(".gcode.3mf")), fiche: noms.includes("fiche.html") };
+  } catch (e) { console.warn("R2 : manifeste", ref, e.message); return null; }
+}
+/* Liens signés vers les fichiers d'un article prêt : { stl, troismf, fiche, gcode: [{ nom, url }] } (null si rien).
+   Plusieurs STL (ou 3MF) → un seul lien vers l'archive virtuelle stl.zip (3mf.zip). */
+export async function liensGeneres(env, ref, sha, base, { validiteJours } = {}) {
+  const f = await fichiersGeneres(env, ref, sha);
+  if (!f || !f.stl.length) return null;
+  const d = dossierR2(ref, sha);
+  const lien = async nom => `${base}/fichier/${await creerJetonFichier(env, { cle: d + nom, ...(validiteJours ? { validiteJours } : {}) })}`;
+  return { stl: await lien(f.stl.length === 1 ? f.stl[0] : "stl.zip"), nbStl: f.stl.length,
+    troismf: f.troismf.length ? await lien(f.troismf.length === 1 ? f.troismf[0] : "3mf.zip") : "",
+    fiche: f.fiche ? await lien("fiche.html") : "",
+    gcode: await Promise.all(f.gcode.map(async nom => ({ nom, url: await lien(nom) }))) };
+}
+
+/* Relance depuis /admin d'un article (n° EV + n° d'article) : même SHA (relancer) ou SHA actuel du site (actuel).
+   ligne : n° de ligne dans « Commandes CF » ; shaLigne : SHA noté sur la ligne. Renvoie { ok, sha, motif }.
+   Lève une Error (message lisible) si rien n'a pu être lancé faute de configuration ou de données. */
+export async function relancerArticle(env, { numero, n, ligne, sid, shaLigne }, { actuel = false } = {}) {
+  if (!fabricationConfiguree(env)) throw new Error("fabrication non configurée (GH_ACTIONS_TOKEN, FABRICATION_HMAC)");
+  const cols = await entetes(env, ONGLET_CF);
+  if (!(COLS.generation in cols)) throw new Error("colonne « Génération » absente de Commandes CF");
+  let sha = shaLigne;
+  if (actuel) { viderCacheVersion(); sha = await versionSite(env); if (!sha) throw new Error("SHA actuel du site illisible (version.json)"); }
+  const a = await articleDepuisStripe(env, sid, numero, n, sha);
+  const r = await declencherArticle(env, a, 1);
+  await ecrireSuivi(env, cols, ligne, { ...r.valeurs, [COLS.masse]: "", [COLS.temps]: "", [COLS.plateaux]: "" });
+  return { ok: r.ok, sha: a.inputs.sha, motif: r.valeurs[COLS.motif] };
+}
+
+/* Dernier run du workflow de fabrication et expiration du jeton GitHub (en-tête de la réponse), pour l'onglet Système.
+   Renvoie { expiration: Date | null | undefined (pas d'en-tête : jeton sans date), run: {…} | null, erreur? } */
+export async function etatGitHub(env) {
+  if (!env.GH_ACTIONS_TOKEN) return { erreur: "GH_ACTIONS_TOKEN absent" };
+  try {
+    const r = await fetch(`https://api.github.com/repos/${env.GITHUB_DEPOT || DEPOT}/actions/workflows/${WORKFLOW}/runs?per_page=1`, {
+      headers: { Authorization: `Bearer ${env.GH_ACTIONS_TOKEN}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "evarysth-checkout" },
+      signal: AbortSignal.timeout(4000) });
+    if (!r.ok) return { erreur: r.status === 401 ? "jeton refusé par GitHub (401)" : `GitHub ${r.status}` };
+    const brut = r.headers.get("github-authentication-token-expiration");
+    const expiration = brut ? new Date(brut.replace(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d) ?(UTC|[+-]\d{4})?$/, (_, d, h, z) => `${d}T${h}${!z || z === "UTC" ? "Z" : z.slice(0, 3) + ":" + z.slice(3)}`)) : undefined;
+    const d = await r.json().catch(() => ({}));
+    const x = (d.workflow_runs || [])[0];
+    return { expiration: expiration && !Number.isNaN(expiration.getTime()) ? expiration : (brut ? null : undefined),
+      run: x ? { titre: String(x.display_title || x.name || ""), statut: String(x.status || ""), conclusion: String(x.conclusion || ""),
+        date: String(x.created_at || ""), url: /^https:\/\/github\.com\//.test(x.html_url || "") ? x.html_url : "" } : null };
+  } catch (e) { return { erreur: `GitHub injoignable (${e.message})`.slice(0, 120) }; }
 }

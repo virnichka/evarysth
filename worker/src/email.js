@@ -163,13 +163,14 @@ ${paragraphes.map(p => (p.lien ? `<p style="margin:16px 0"><a href="${esc(p.lien
 const texteBrut = paragraphes => paragraphes.map(p => (p.lien ? `${p.texte} : ${p.lien}` : p)).join("\n\n");
 
 /* Fabricant : commande à fabriquer. `livraison` (nom + adresse) seulement s'il livre le client lui-même. */
-export function contenuFabricant({ numero, piece, lienStl, delai, livraison, liens, test }) {
+export function contenuFabricant({ numero, piece, lienStl, generes = false, delai, livraison, liens, test }) {
   const titre = `${prefixe(test)}Commande ${numero} à fabriquer`;
   const p = [
     "Bonjour,",
     `Voici une nouvelle commande Evarysth à fabriquer : ${numero}.`,
     `Pièces (produit · taille ou cotes en mm · coloris · quantité) :\n${piece || "—"}`,
-    `Fichier STL : ${lienStl || "fourni séparément"}`,
+    generes ? `Fichiers d'impression (liens valables 14 jours ; la fiche indique matière, orientation et réglages) :\n${lienStl}`
+      : `Fichier STL : ${lienStl || "fourni séparément"}`,
     ...(delai ? [`Délai convenu : ${delai} jours.`] : []),
     livraison ? `À expédier directement au client :\n${livraison}` : "Pièce à nous renvoyer (vous ne livrez pas le client directement).",
     "Merci de confirmer la prise en charge, puis l'expédition, avec les boutons ci-dessous (liens valables 14 jours) :",
