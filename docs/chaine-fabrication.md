@@ -1,6 +1,8 @@
 # Chaîne de fabrication (commande payée → fichier prêt à imprimer)
 
-> **État (9 novembre 2026)** : phase 0 (cadrage) terminée. Prochaine étape : phase 1 (essai de faisabilité).
+> **État (9 novembre 2026)** : **Fabrication · phase 1a terminée** (faisabilité sans machine : tranchage sans écran
+> **oui** ; points machine B1 oui probable, B2 et B3 incertains, voir § « Résultats Fabrication · phase 1a »).
+> Prochaine étape proposée : Fabrication · phase 2 ; Fabrication · phase 1b à l'achat de la machine.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
 
@@ -118,6 +120,120 @@ contrôles, statut.
 - Échec → note dans ce document et proposition de repli (OrcaSlicer CLI, mode LAN + mode développeur) avant la phase 2.
 - **Toi** : 1a rien ; **avant l'achat**, lire le verdict documentaire ; 1b acheter la P2S + AMS (ou sans AMS), compte
   Bambu, Wi-Fi, relever le code d'accès LAN et le n° de série, une bobine PLA.
+
+#### Résultats Fabrication · phase 1a (9 novembre 2026, sans machine)
+**Verdicts**
+| Point | Verdict | Preuve |
+|---|---|---|
+| A. Tranchage automatique, sans écran, reproductible, fichier P2S | **oui** | 2 produits tranchés en ligne de commande dans l'image ; masse, temps et G-code identiques au bit près (2 passes × 2 images) ; `printer_model = Bambu Lab P2S`, `printer_model_id = N7`, positions à ± 0,01 mm |
+| B1. MQTT local en lecture seule, machine en mode cloud | **oui (probable)** | Bambu : l'état poussé en MQTT n'est pas soumis à autorisation ; 2 sources P2S en mode cloud lisent le MQTT local (code d'accès LAN) ; 1 source contraire non argumentée |
+| B2. Dépôt d'un fichier sur la machine (FTPS local), mode cloud | **incertain** | FTPS joignable en mode cloud (sources P2S), mais sur P2S / H2 il n'écrit que sur la **clé USB** (sans clé : refus 553) ; écriture en mode cloud non documentée |
+| B3. Choix des emplacements AMS à l'écran pour un fichier lancé depuis la machine | **incertain** | P1 : correspondance automatique couleur ↔ emplacement, sans choix ; H2C (même génération d'interface) : page « Suivant » de choix filament à l'écran ; rien de publié pour la P2S |
+
+**Image** (`fabrication/Dockerfile`) : Ubuntu 24.04 épinglé par empreinte, paquets figés (`snapshot.ubuntu.com`,
+instantané `20261101T000000Z`), Bambu Studio **02.08.02.61** (release publique du 21/08/2026 ; la 2.9.1 du 03/11/2026
+a moins de 2 semaines) en AppImage extraite, sha256 vérifié, Node 22.21.1 (sha256 vérifié).
+- Reproductible : deux constructions sans cache → **même manifeste linux/amd64**
+  `sha256:3424d0816d8addc119ae195180358a654ac79d34ab01cb5e7a3a212d61fdd954` (couches identiques fichier par fichier ;
+  seule l'attestation de provenance, horodatée, différait ; avec `--provenance=false`, l'ID d'image est ce manifeste).
+  Il a fallu vider `machine-id` et les caches fontconfig.
+- Taille : **1,84 Go** décompressée (1 843 817 481 octets), ~478 Mo de couches compressées. Construction : 2 min 10 à
+  2 min 30 sans cache (4 vCPU).
+- **Aucun affichage nécessaire** : la CLI tranche sans écran ; `xvfb-run` retiré (la GLFW embarquée ne connaît que Wayland).
+- Ajout dans l'image : `machine_full/Bambu Lab P2S.json` (copie du descripteur livré), lu par la CLI pour écrire
+  `printer_model_id = N7` dans le `.gcode.3mf` (dossier généré chez Bambu, absent de l'AppImage).
+
+**Reproductibilité du tranchage** : Bambu Studio n'est **pas déterministe** par défaut (temps estimé ± 3 s, quelques
+ralentissements de surplomb et déplacements déplacés). Déterministe **seulement sur 1 cœur et sans ASLR** : le lanceur
+`fabrication/bambu-studio` impose `taskset` + `setarch -R` ; le conteneur doit tourner avec
+`--security-opt seccomp=unconfined` (sinon arrêt explicite, code 70), sans réseau. Coût : ~× 2,5 sur le temps de tranchage.
+Le G-code est alors identique au bit près ; l'archive `.gcode.3mf` ne l'est pas (dates zip, UUID de
+`model_settings.config`) : sans effet, la clé d'idempotence reste n° CF + SHA.
+
+**Mesures** (`tools/trancher.mjs --deux-fois`, profils P2S 0,4 / 0,20 mm / PLA générique, 1 plateau chacun) :
+| Produit (cotes) | Pièces | Masse | Temps estimé | Tranchage (conteneur compris) |
+|---|---|---|---|---|
+| `crochet-balcon` (a = 42) | 1 | 13,67 g | 29 min (1 737 s) | 1,3 à 1,4 s |
+| `crochet-balcon` (a = 100, max) | 1 | 17,47 g | 35 min | 1,4 à 1,5 s |
+| `passe-cable` (a = 60) | 2 (bague + couvercle) | 18,44 g | 42 min (2 524 s) | 4,6 à 4,9 s |
+| `passe-cable` (a = 100, max) | 2 | 38,05 g | 1 h 11 | 7,0 à 7,3 s |
+Cible < 2 min par plateau : tenue avec une marge × 16 (mesuré dans la session, 4 vCPU comparables à un runner
+standard ; la mesure sur runner viendra avec `fabrication.yml` en phase 2). `crochet-balcon` est en ASA au catalogue :
+tranché ici en PLA (seul profil de l'essai), masse indicative.
+
+**Contrôle du `.gcode.3mf`** (automatique dans `trancher.mjs`) : entrées 3MF attendues présentes (`3D/3dmodel.model`,
+`Metadata/plate_1.gcode` + `.md5` cohérent, `plate_1.json`, `slice_info.config`, `project_settings.config`) ; en-tête
+G-code `; printer_model = Bambu Lab P2S` ; `printer_model_id = N7` ; plateau « Textured PEI Plate » ; boîte de chaque
+pièce dans `plate_1.json` = position du manifeste de `generer-stl` (± 0,01 mm, aucun réarrangement).
+Contrôle visuel facultatif (propriétaire, Bambu Studio ≥ 2.8.2 sur ordinateur) : Fichier › Ouvrir un projet › le
+`.gcode.3mf` ; vérifier imprimante P2S, plateau texturé PEI, pièces dans le coin avant gauche aux positions du manifeste,
+onglet Aperçu : trajectoires présentes, 42 min / 18,44 g pour `passe-cable`.
+
+**Points d'attention pour la suite** (aucun ne bloque) :
+- **Pas de vignette** (`plate_1.png`) : OpenGL indisponible sans écran (GLEW échoue en contexte OSMesa, même sous un
+  compositeur Wayland sans écran). Effet attendu : pas d'aperçu sur l'écran de la P2S (à confirmer en 1b). Piste : vignette
+  produite par nos outils et ajoutée à l'archive.
+- **Ligne de chargement de la buse** (G-code de démarrage P2S) : X 100 → 140 à Y ≈ −0,2, au ras du bord avant ; `ranger()`
+  pose les pièces dès Y = 0. Prévoir une marge avant sur le plateau (phase 2, réglage de `ranger()`).
+- Profils : `from: system` et `curr_bed_type` ajoutés (voir `fabrication/profils/p2s/LISEZMOI.md`) ; couleur du filament
+  par défaut (`#00AE42`) tant que le coloris n'est pas passé (phase 2) ; profil PETG à ajouter de la même façon.
+
+**Commandes exactes**
+```
+docker buildx build --provenance=false --build-arg SOURCE_DATE_EPOCH=0 \
+  --output type=docker,name=evarysth-fabrication:p1a,rewrite-timestamp=true fabrication/
+node tools/generer-stl.mjs passe-cable --impression --sortie=sortie-stl/passe-cable
+node tools/trancher.mjs sortie-stl/passe-cable/passe-cable-a60-impression.json --docker=evarysth-fabrication:p1a --deux-fois
+# profils (seulement en changeant de version de Bambu Studio) :
+docker run --rm -u "$(id -u)" -v "$PWD:/travail" evarysth-fabrication:p1a \
+  node fabrication/aplatir-profils.mjs /opt/bambu-studio/resources/profiles/BBL
+```
+Session derrière un proxy TLS : ajouter `--network host --build-arg https_proxy=… --build-arg
+APT_URI=https://snapshot.ubuntu.com --secret id=ca,src=<CA du proxy>` (contenu de l'image inchangé). Le workflow
+GitHub Actions de secours n'a pas été nécessaire (Docker et téléchargements fonctionnaient).
+
+**Recherche documentaire (question B)** — firmware P2S actuel : **01.03.00.00** (page officielle : 12/10/2026 ; un
+traqueur tiers indique le 21/09/2026) ; historique : 01.02.00.00 (09/04/2026), 01.01.03.00 (09/02/2026). Aucune note de
+version P2S consultée ne touche au réseau, au MQTT ou au FTPS. Wiki Bambu et page officielle des firmwares
+inaccessibles d'ici (402 / 403) : dates relevées via moteur de recherche.
+- [Bambu Lab, « Firmware Update Introducing New Authorization Control System »](https://blog.bambulab.com/firmware-update-introducing-new-authorization-control-system-2/)
+  (16/01/2025, mis à jour le 20/01/2025) : soumis à autorisation : lancer une impression (LAN ou cloud), commandes de
+  mouvement / température / AMS, mises à jour ; **non soumis** : « l'envoi d'informations d'état (push MQTT pour Home
+  Assistant) », l'impression depuis la carte SD. Tous les modèles futurs intègrent ce contrôle.
+- [Printer Tools, connecter une P2S en LAN en gardant Bambu Handy](https://printertools.app/blog/guides/connect-bambu-lab-p2s-lan)
+  (10/08/2026) : P2S en mode normal (cloud), sans mode LAN seul ni mode développeur : MQTT local TLS (état, progression,
+  couche, températures, alertes HMS, AMS), parcours FTPS, caméra ; commandes de mouvement : mode LAN + développeur exigés.
+- [bambuddy #36](https://github.com/maziggy/bambuddy/issues/36) (30/12/2025) : utilisateur P2S en mode cloud (Handy) :
+  MQTT et FTPS accessibles sans mode LAN seul.
+- [BambuHelper](https://github.com/Keralots/BambuHelper) (README consulté le 09/11/2026) : classe la P2S « cloud seulement »
+  pour son boîtier ESP32, sans explication : seule source contraire pour B1.
+- [OpenBambuAPI](https://github.com/Doridian/OpenBambuAPI) (`mqtt.md`, `ftp.md`) : MQTT local `{IP}:8883` TLS, utilisateur
+  `bblp`, mot de passe = code d'accès LAN ; FTPS implicite `{IP}:990`, mêmes identifiants.
+- [bambuddy #2762](https://github.com/maziggy/bambuddy/issues/2762) (04/08/2026 ; essais sur 2 P2S en 01.03.00.00 le
+  27/10/2026, mode LAN + développeur) : sur H2 et P2S, le FTPS n'expose que le stockage externe ; sans clé USB, tout envoi
+  échoue (553) ; Bambu Studio écrit dans la mémoire interne par un tunnel propriétaire (port 6000), non documenté.
+- [FAQ H2S](https://bambulab.com/en-us/h2s/faq) (consultée le 09/11/2026) : sans clé USB, « l'impression ne peut pas
+  être lancée par le LAN ».
+- [Wiki Bambu, AMS multicolore (série P1)](https://wiki.bambulab.com/en/p1/manual/connect-AMS-multi-color-printing) :
+  relancé depuis l'écran, un fichier envoyé en LAN voit ses couleurs associées automatiquement aux emplacements.
+- [Forum Bambu, H2C, choix filament ↔ buse](https://forum.bambulab.com/t/manual-mapping-for-filament-to-hotend-allocation/241156)
+  (13/03/2026) : au lancement depuis l'écran, page « Suivant » où l'on choisit buse / filament ; choix non mémorisé.
+
+**Replis si 1b infirme un point** (aucun n'est appliqué maintenant) :
+- B1 non → **mode LAN seul + mode développeur** : MQTT local complet, mais plus de cloud ni de Bambu Handy (suivi à
+  distance par /admin seulement), mode non pris en charge par Bambu ; réglage à refaire après certaines mises à jour.
+- B2 non ou incertain → **clé USB laissée dans la P2S** et dépôt FTPS dessus (à tester en 1b, mode cloud) ; sinon
+  adaptateur **manuel** : l'opérateur télécharge le `.gcode.3mf` depuis /admin et le copie sur la clé (une manipulation
+  par travail) ; le mode LAN + développeur ne lève pas la contrainte de la clé USB.
+- B3 non → **correspondance automatique** : le fichier porte le type et la couleur du coloris (manifeste) ; l'opérateur
+  charge la bobine indiquée, la machine associe ; ou variante sans AMS (bobine changée à la main, déjà prévue). Lancer
+  par MQTT avec `ams_mapping` exigerait le mode LAN + développeur et contredirait le lancement manuel à l'écran : à
+  éviter.
+- A aurait échoué → OrcaSlicer en ligne de commande (repli prévu) : sans objet.
+
+**Recommandation** : passer à **Fabrication · phase 2**. Le tranchage (seule condition bloquante pour R2 et la
+génération) est acquis ; B1, B2 et B3 ne concernent que l'agent d'atelier (phase 4) et se confirment en
+Fabrication · phase 1b, machine en main, avant la phase 4.
 
 ### Phase 2 — R2 + génération déclenchée au paiement
 - Image publiée sur GHCR par `.github/workflows/image-fabrication.yml` (sur changement de `fabrication/**`), empreinte
