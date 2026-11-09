@@ -156,15 +156,19 @@ test("Liens de fichiers générés : clé du dossier de commande signée, chemin
 
 test("Fiche : fichiers prêts (masse, temps, plateaux, liens STL zip / 3MF / tranché / fiche), échec avec motif et boutons de relance", async () => {
   const html = await fiche();
-  assert.match(html, /Fichiers d'impression <span class="compte">1\/2<\/span>/);
-  assert.match(html, /Article 1 · passe-cable · a=60<br><span class="muted">CF-2026-0004-1 · SHA 448818330ea9[\s\S]*Fichiers prêts[\s\S]*18\.44 g · 42 min · 1 plateau · PLA \(atelier possible\)/);
+  assert.doesNotMatch(html, /<h2>Fichiers d'impression/, "plus de section à part : un pli sous chaque article");
+  const valider = /<form class="valider"[\s\S]*?<\/form>/.exec(html)[0];
+  assert.doesNotMatch(valider.slice(1), /<form/, "pas de formulaire imbriqué dans « Valider et envoyer »");
+  assert.match(valider, /Article 1<\/span>[\s\S]*passe-cable · a=60[\s\S]*Fichiers d'impression<br><span class="muted">dossier CF-2026-0004-1 · SHA 448818330ea9[\s\S]*Fichiers prêts[\s\S]*18\.44 g · 42 min · 1 plateau · PLA \(atelier possible\)[\s\S]*Article 2<\/span>/);
+  assert.match(valider, /Article 2<\/span>[\s\S]*Fichiers d'impression<br>[\s\S]*Génération en échec[\s\S]*form="gen-EV-2026-0004-2-relancer">Relancer la génération/);
+  assert.match(html, /<form id="gen-EV-2026-0004-2-relancer" method="post" action="\/admin\/generation">[^]*?name="n" value="2"><input type="hidden" name="mode" value="relancer"><\/form>/);
   assert.match(html, /STL \(2 fichiers, zip\) ↗[\s\S]*3MF non tranché ↗[\s\S]*Tranché P2S plateau-1 ↗[\s\S]*Fiche ↗/);
   const lienStl = /href="(https:\/\/public\.dev\/fichier\/[^"]+)"[^>]*>STL \(2/.exec(html)[1];
   const { cle, expiration } = await verifierJetonFichier(env, jetonDe(lienStl));
   assert.equal(cle, DOSSIER + "stl.zip");
   assert.ok(Math.abs(expiration - Date.now() - 2 * 86400_000) < 60_000, "liens de /admin : 2 jours");
-  assert.match(html, /Génération en échec[\s\S]*Motif : génération : erreur simulée[\s\S]*name="mode" value="relancer"[\s\S]*Relancer la génération/);
-  assert.match(html, /name="mode" value="actuel">[\s\S]*name="confirmer" value="oui" required[\s\S]*Régénérer au SHA actuel/);
+  assert.match(html, /Génération en échec[\s\S]*Motif : génération : erreur simulée[\s\S]*Relancer la génération/);
+  assert.match(html, /form="gen-EV-2026-0004-1-actuel" type="checkbox" name="confirmer" value="oui" required[\s\S]*form="gen-EV-2026-0004-1-actuel">Régénérer au SHA actuel/);
   assert.equal((html.match(/value="relancer"/g) || []).length, 1, "pas de relance pour un article déjà prêt");
   assert.doesNotMatch(html, /<script/i);
 });
@@ -215,7 +219,9 @@ test("Atelier : proposé seulement pour PLA/PETG, refusé pour un article en ASA
   assert.equal(emails.length, 0);
   const apres = await fiche();
   assert.match(apres, /Fiche à transmettre[\s\S]*Fichier tranché P2S \(plateau-1\.gcode\.3mf\) : https:\/\/public\.dev\/fichier\//);
-  assert.match(apres, /Fichiers générés : voir « Fichiers d'impression »/);
+  const envoi = /<h2>Envois fabricant[\s\S]*/.exec(apres)[0];
+  assert.match(envoi, /Article 1<\/span>[\s\S]*Fichiers d'impression<br>[\s\S]*Fichiers prêts[\s\S]*Tranché P2S plateau-1 ↗/, "fichiers sous l'article envoyé");
+  assert.doesNotMatch(envoi.split("Historique")[0], /Régénérer|Relancer/, "article envoyé : fichiers en lecture seule");
   const fab = await (await get("/admin?vue=fabricants")).text();
   assert.match(fab, /Atelier \(envoi manuel ; PLA, PETG seulement\)/);
 });
