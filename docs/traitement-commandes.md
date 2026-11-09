@@ -1,8 +1,10 @@
 # Traitement des commandes V1
 
-> **État actuel (8 novembre 2026)** : résumé dans le README, « Paiement et commandes ». Le circuit en vigueur est celui
+> **État actuel (9 novembre 2026)** : résumé dans le README, « Paiement et commandes ». Le circuit en vigueur est celui
 > du **bloc G** (point de verrou + page `/admin`) ; les blocs A à F sont l'historique de construction (certains détails,
 > comme « fourni séparément » ou le choix du fabricant dans le Sheet, ont été remplacés par le bloc G).
+> Depuis le 9 novembre 2026 : R2 activé et génération automatique des fichiers à chaque commande payée, voir
+> `docs/chaine-fabrication.md` (colonnes Q à V de `Commandes CF`).
 
 Chantier piloté par la session `session_01GS5VpHVaTuCX1b9qmaJGA4` (chef de projet). Chaque bloc de code
 (B à E) est réalisé dans une session séparée, un par un, dans l'ordre.
@@ -258,6 +260,7 @@ affichage ; valeur hors liste refusée ; onglet illisible → liste de secours d
     lignes sur-mesure ignorées ; R2 absent/en panne → « fourni séparément », l'e-mail part quand même).
   - **R2 non activé sur le compte Cloudflare** (API : « Please enable R2 through the Cloudflare Dashboard ») : bucket
     non créé, binding laissé **commenté** dans `wrangler.toml` (voir « À faire par le propriétaire », 7).
+    *Depuis : R2 activé, binding `STL` actif (Fabrication · phase 2b, 9 novembre 2026).*
   - Confidentialité : Google (Sheets/Drive) sous-traitant, Brevo ajouté aux destinataires, fabricant (adresse seulement
     s'il livre le client, jamais l'e-mail) ; `node tools/generer-pages.mjs` → `confidentialite/index.html`.
 - **Recette** (sans captures) :
@@ -320,7 +323,8 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
    - `npx wrangler secret put SHEET_ID` → l'identifiant dans l'URL du Sheet (entre `/d/` et `/edit`) ;
    - `npx wrangler secret put HMAC_SECRET` → une valeur aléatoire longue (ex. `openssl rand -hex 32`).
 6. Supprimer le fichier JSON de la clé une fois les secrets enregistrés.
-7. **R2 (STL standards)** : tableau de bord Cloudflare → R2 → activer R2 (gratuit jusqu'à 10 Go). Puis dans `worker/` :
+7. **Fait le 9 novembre 2026** (R2 activé, bucket créé, STL standards envoyés automatiquement par `stl-standards.yml`).
+   Historique : **R2 (STL standards)** : tableau de bord Cloudflare → R2 → activer R2 (gratuit jusqu'à 10 Go). Puis dans `worker/` :
    `npx wrangler r2 bucket create evarysth-stl` ; décommenter le bloc `[[r2_buckets]]` de `wrangler.toml` (binding `STL`)
    et pousser sur `main`. Envoyer les STL : `npx wrangler r2 object put evarysth-stl/boite-rugged/m.stl --file boite-m.stl --remote`
    (une clé par produit et taille standard : `<produit>/<taille>.stl`, taille en minuscules sans accents ; `.zip` pour
@@ -423,7 +427,7 @@ page mobile plutôt que dans l'appli Google Sheets.
     affiche EV-2026-0006 « à valider » ; sans connexion (navigation privée, autre e-mail) : refus.
 
 ## Idées gardées pour la V2
-- GitHub Action OpenSCAD : produit le STL sur-mesure à partir de la colonne « Commande OpenSCAD » et le dépose sur R2.
+- ~~GitHub Action OpenSCAD~~ : remplacée par la chaîne de fabrication (`fabrication.yml`, `docs/chaine-fabrication.md`).
 - Rebrancher `Synthèse` / `Livre des recettes` sur le nouvel onglet `Commandes EV`.
 - Proposition automatique du fabricant (capacités dans `Fabricants` : matières, coloris, taille max, priorité).
 - Proposer le fabricant d'après la matière de l'article (déjà dans la colonne `Article`).

@@ -1,5 +1,9 @@
 # Guide des réglages : chaîne de fabrication (Fabrication · phase 2)
 
+> **Fait le 9 novembre 2026** : étapes 1 à 7 réalisées par le propriétaire et vérifiées (Fabrication · phase 2b).
+> Règle de conservation de 24 mois (étape 2.5, facultative) non créée. Jeton GitHub du Worker à renouveler dans 1 an.
+> Ce guide reste valable pour refaire un réglage (jeton expiré, clé perdue…).
+
 Pour toi, propriétaire du site. Ces réglages branchent le stockage des fichiers (Cloudflare R2) et la génération
 automatique des fichiers d'impression à chaque commande payée. Tout le code est déjà en ligne mais **éteint** : tant
 que ces réglages ne sont pas faits, rien ne change pour les clients ni pour toi.
