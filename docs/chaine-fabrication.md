@@ -1,8 +1,10 @@
 # Chaîne de fabrication (commande payée → fichier prêt à imprimer)
 
-> **État (9 novembre 2026)** : **Fabrication · phase 1a terminée** (faisabilité sans machine : tranchage sans écran
-> **oui** ; points machine B1 oui probable, B2 et B3 incertains, voir § « Résultats Fabrication · phase 1a »).
-> Prochaine étape proposée : Fabrication · phase 2 ; Fabrication · phase 1b à l'achat de la machine.
+> **État (9 novembre 2026)** : **Fabrication · phase 2a terminée** (R2 + génération au paiement : tout le code, testé,
+> **éteint en production** ; voir § « Résultats Fabrication · phase 2a »). Fabrication · phase 1a terminée (tranchage
+> sans écran **oui** ; points machine B1 oui probable, B2 et B3 incertains).
+> Prochaine étape : réglages du propriétaire (`docs/guide-reglages-fabrication.md`), puis **Fabrication · phase 2b**
+> (activation et vérification en ligne) ; Fabrication · phase 1b à l'achat de la machine.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
 
@@ -256,6 +258,62 @@ Fabrication · phase 1b, machine en main, avant la phase 4.
   + écriture, ce seul bucket) → secrets d'Actions `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (+ variable `R2_ACCOUNT_ID`) ;
   jeton GitHub fine-grained (ce dépôt, Actions : écriture, expiration 1 an) → secret Worker `GH_ACTIONS_TOKEN` ;
   secret partagé `FABRICATION_HMAC` (Worker + Actions) ; colonnes ajoutées au Sheet (`Commandes CF`).
+
+#### Résultats Fabrication · phase 2a (9 novembre 2026, code éteint en production)
+**Prêt** (rien ne change pour les clients tant que les réglages ne sont pas faits) :
+- Outils : `ranger()` laisse une **bande avant de 10 mm** (`MARGE_AVANT`) ; `generer-stl --quantite=n --coloris --cf --3mf`
+  (exemplaires sur plusieurs plateaux, 3MF non tranché par plateau, manifeste enrichi : n° d'article, coloris id + hex,
+  quantité, pièces et orientations, versions Node / manifold-3d) ; `trancher.mjs` choisit le profil par matière (PLA,
+  PETG ; autre matière : code 3, fabricant externe), passe la **couleur du coloris** (`filament_colour`, contrôlée dans
+  `slice_info.config`) et complète le manifeste (masse, temps, filament, **mapping AMS** : filament 1 → coloris,
+  emplacement conseillé A1, versions Bambu Studio / image / profils) ; `tools/fiche-impression.mjs` (fiche.html autonome :
+  matière, jeu, coloris, cotes, orientation, supports, remarques, pièces, plateaux, contrôles ; aucune donnée client) ;
+  `tools/fabriquer.mjs` enchaîne le tout dans un dossier prêt pour R2 + `bilan.json` (rappel). Profil
+  `filament-petg.json` (même méthode que le PLA ; les 3 autres profils ressortent identiques à l'octet).
+- Workflows : `fabrication.yml` (`workflow_dispatch`, entrées cf, produit, cotes, coloris, quantité, sha + `essai` ;
+  entrées validées par motif ; idempotent : `manifeste.json` présent → sortie immédiate et rappel renvoyé ; `concurrency`
+  par n° ; aucun artifact ; journal sans donnée client ; échec net si les secrets R2 / HMAC manquent ; rappel signé HMAC,
+  y compris en cas d'échec avec motif) ; `image-fabrication.yml` (construction reproductible, publication GHCR,
+  vérification de l'empreinte épinglée) ; `pages.yml` publie `version.json`. Actions épinglées par SHA ; aucun de ces
+  workflows n'est un contrôle obligatoire.
+- Worker (`worker/src/fabrication.js`) : SHA de `version.json` dans les metadata Stripe (`sha`, absent si le site ne répond
+  pas : paiement inchangé) ; webhook payé → un `workflow_dispatch` par article ; `POST /fabrication/retour` (HMAC-SHA256
+  de `horodatage.corps`, temps constant, ± 5 min, 401 sinon ; 409 si le SHA diffère de celui de l'article) ; colonnes
+  `Génération` (`en_cours`, `a_declencher`, `prete`, `echec`), `SHA`, `Masse g`, `Temps min`, `Plateaux`,
+  `Motif génération`, lues et écrites par leur nom, ignorées si absentes ; tâche planifiée : nouvel essai des
+  `a_declencher` (6 déclenchements au plus, puis `echec`).
+
+**Éteint en attendant les réglages** : binding R2 commenté dans `wrangler.toml` ; sans `GH_ACTIONS_TOKEN` ou
+`FABRICATION_HMAC`, le Worker ne déclenche rien et note « fabrication_non_configuree » au Journal (une fois par
+commande, libellé « Fichiers non générés (fabrication pas encore réglée) » dans /admin) ; sans secrets R2, un run non
+essai échoue avec la liste de ce qui manque ; sans colonnes, rien n'est écrit.
+
+**Écarts et choix** (à valider) :
+- **N° d'article `CF-AAAA-NNNN-<n° d'article>`** passé au workflow (entrée `cf`), et non le n° CF fournisseur : au paiement
+  le n° CF n'existe pas encore (attribué au choix du fabricant, il change si le fabricant change). Même information que
+  le n° CF (n° de commande + suffixe), aucune donnée client ; suffixe en chiffres, sans confusion avec la lettre du n° CF.
+  Clés R2 : `commandes/<n° d'article>/<SHA court 12>/`.
+- **Empreinte de l'image** : GitHub interdit à un workflow de modifier un fichier de workflow avec `GITHUB_TOKEN`.
+  L'empreinte est donc calculée avant la fusion (construction reproductible, en local) et inscrite dans la PR ;
+  `image-fabrication.yml` publie l'image et **vérifie** l'égalité (écart → échec avec la ligne exacte à reporter).
+- **Entrée `essai`** ajoutée (génération + tranchage, rien d'envoyé, aucun secret requis), pour éprouver le workflow.
+- **Grandes pièces** : `boite-rugged` aux cotes max (252,8 × 253,8 mm) ne tient pas avec la bande avant de 10 mm. Plutôt
+  que réduire ses bornes (changement visible des clients), une pièce plus profonde que la surface utile est posée **seule
+  à Y = 0** et marquée `hors_marge_avant` (manifeste, fiche, avertissement) : à surveiller à la 1re couche, ou bornes à
+  réduire (décision propriétaire). `ranger()` essaie aussi deux règles d'orientation (côté long selon X, puis Y) et garde
+  la moins gourmande : `boite-rugged` (défaut) et `organiseur-tiroir` gardent leurs plateaux déclarés malgré la marge.
+- **Contrôle de position** du `.gcode.3mf` : compare désormais les centres (une base chanfreinée donne une 1re couche
+  plus petite, sans déplacement : faux positif vu sur `equerre-l`).
+- **PETG** : avec plusieurs exemplaires identiques sur un plateau, l'ordre d'impression entre objets varie parfois d'un
+  tranchage à l'autre (temps ± 11 s sur 52 min, masse identique) ; PLA identique au bit près. Sans effet (idempotence
+  par n° + SHA).
+- **Non fait (hors des étapes demandées)** : remplissage de `<produit>/<taille>.stl` par le même workflow sur push de
+  `main` (prévu au § Phase 2) ; à faire en Fabrication · phase 2b ou 3.
+- Un SHA de paiement antérieur à cette phase n'a pas `tools/fabriquer.mjs` : le run échoue avec ce motif.
+
+**Temps mesurés** (session, 4 vCPU, image locale) : `fabriquer.mjs` passe-cable a = 60 × 3 (1 plateau, 6 pièces) :
+20 s dont tranchage 19 s ; 1 exemplaire : tranchage 6,5 s ; `equerre-l` × 2 (PETG) : 1,4 s ; image : 1,84 Go, construite
+en 3 min 35 sans cache. Run d'essai sur GitHub : voir ci-dessous.
 
 ### Phase 3 — /admin : génération, validation, envoi des fichiers
 - Fiche commande : statut de génération (en cours / prête / échec + motif), masse, temps, plateaux, liens des fichiers,

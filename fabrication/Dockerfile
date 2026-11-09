@@ -6,7 +6,8 @@
 # AppImage Bambu Studio et Node (sha256). Construction reproductible (même manifeste linux/amd64 à chaque fois ;
 # --provenance=false retire l'attestation de construction, horodatée) :
 #   docker buildx build --provenance=false --build-arg SOURCE_DATE_EPOCH=0 \
-#     --output type=docker,name=evarysth-fabrication:p1a,rewrite-timestamp=true fabrication/
+#     --output type=docker,name=evarysth-fabrication:local,rewrite-timestamp=true fabrication/
+# Publication (GHCR) : .github/workflows/image-fabrication.yml, mêmes options.
 # Lancement : docker run --rm --network none --security-opt seccomp=unconfined … (voir fabrication/bambu-studio)
 # Derrière un proxy HTTPS qui intercepte TLS (session de développement seulement) :
 #   --network host --build-arg https_proxy=… --build-arg APT_URI=https://snapshot.ubuntu.com \
@@ -64,5 +65,9 @@ RUN --mount=type=secret,id=ca,target=/run/secrets/ca,required=false,mode=0444 \
 COPY bambu-studio /usr/local/bin/bambu-studio
 COPY profils /opt/evarysth/profils
 
+# Rattache le paquet GHCR au dépôt (droits de lecture des workflows du dépôt) : publié par
+# .github/workflows/image-fabrication.yml, empreinte épinglée dans .github/workflows/fabrication.yml.
+LABEL org.opencontainers.image.source="https://github.com/virnichka/evarysth" \
+      org.opencontainers.image.description="Evarysth : tranchage Bambu Studio en ligne de commande + Node (chaîne de fabrication)"
 ENV BAMBU_STUDIO_VERSION=${BAMBU_VERSION}
 WORKDIR /travail

@@ -1,0 +1,63 @@
+name: Image de fabrication (GHCR)
+
+# Construit l'image de tranchage (fabrication/Dockerfile : Bambu Studio CLI + Node + profils) et la publie sur GHCR
+# (ghcr.io/virnichka/evarysth-fabrication), à chaque changement de fabrication/** sur main.
+# Construction reproductible (docs/chaine-fabrication.md, Fabrication · phase 1a) : même contenu → même empreinte.
+# Empreinte : épinglée dans .github/workflows/fabrication.yml (IMAGE: …@sha256:…). GitHub interdit à un workflow de
+# modifier un autre fichier de workflow avec son jeton (GITHUB_TOKEN) : l'empreinte est donc calculée avant la fusion
+# (même construction, en local) et inscrite dans la PR ; ce workflow publie l'image et VÉRIFIE l'égalité. Écart →
+# échec avec la ligne exacte à mettre dans fabrication.yml (l'image reste publiée sous l'étiquette du commit).
+on:
+  push:
+    branches: [main]
+    paths: ["fabrication/**", ".github/workflows/image-fabrication.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image-fabrication
+  cancel-in-progress: false
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Construire et publier
+        id: image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/evarysth-fabrication"
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin > /dev/null
+          docker buildx create --use --name evarysth --driver docker-container > /dev/null
+          t=$(date +%s)
+          docker buildx build --provenance=false --sbom=false --build-arg SOURCE_DATE_EPOCH=0 \
+            --metadata-file meta.json \
+            --output "type=image,name=$image:${GITHUB_SHA:0:12},push=true,rewrite-timestamp=true,compression=gzip,oci-mediatypes=false" \
+            fabrication/
+          empreinte=$(node -p 'require("./meta.json")["containerimage.digest"]')
+          echo "empreinte=$empreinte" >> "$GITHUB_OUTPUT"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Publiée : $image@$empreinte (étiquette ${GITHUB_SHA:0:12}), construite en $(( $(date +%s) - t )) s"
+
+      - name: Empreinte inscrite dans fabrication.yml ?
+        env:
+          EMPREINTE: ${{ steps.image.outputs.empreinte }}
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          if grep -q "evarysth-fabrication@$EMPREINTE" .github/workflows/fabrication.yml; then
+            echo "fabrication.yml utilise bien $EMPREINTE." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            msg="fabrication.yml n'utilise pas l'image publiée. Remplacer la ligne IMAGE par : IMAGE: $IMAGE@$EMPREINTE"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Empreinte à reporter::$msg"
+            exit 1
+          fi

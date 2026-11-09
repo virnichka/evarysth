@@ -1,0 +1,211 @@
+name: Fabrication (article payé)
+run-name: "Fabrication ${{ inputs.cf }}${{ inputs.essai && ' (essai)' || '' }}"
+
+# Chaîne de fabrication (docs/chaine-fabrication.md, Fabrication · phase 2a) : fichiers d'un article payé.
+# Déclenché par le Worker (webhook Stripe payé → workflow_dispatch, un run par article), ou à la main (essai).
+#   checkout du SHA du paiement → tools/fabriquer.mjs (generer-stl --impression --quantite --3mf, tranchage si PLA/PETG,
+#   fiche.html) → R2 commandes/<CF>/<SHA court>/ → rappel signé HMAC vers le Worker (POST /fabrication/retour).
+# Journal PUBLIC (dépôt public) : entrées limitées à n° d'article, produit, cotes, coloris, quantité, SHA ; aucune
+# donnée client. Aucun « artifact » : les fichiers vont directement dans R2.
+# Idempotent : manifeste.json déjà présent pour CF + SHA → sortie immédiate (le rappel est renvoyé, rien n'est refait).
+# Essai (essai = true) : génération + tranchage seulement, rien d'envoyé (ni R2, ni rappel), aucun secret requis.
+# Secrets (Settings › Secrets and variables › Actions) : R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, FABRICATION_HMAC ;
+# variable R2_ACCOUNT_ID. Absents → échec net avec un message (voir docs/guide-reglages-fabrication.md).
+on:
+  workflow_dispatch:
+    inputs:
+      cf:
+        description: "N° d'article (CF-AAAA-NNNN-n)"
+        required: true
+        type: string
+      produit:
+        description: "Id du produit (data.js)"
+        required: true
+        type: string
+      cotes:
+        description: 'Cotes en mm, JSON (ex. {"a":60})'
+        required: true
+        type: string
+      coloris:
+        description: "Id du coloris (vide : le premier)"
+        required: false
+        type: string
+        default: ""
+      quantite:
+        description: "Nombre d'exemplaires"
+        required: true
+        type: string
+        default: "1"
+      sha:
+        description: "SHA du site au paiement (40 caractères)"
+        required: true
+        type: string
+      essai:
+        description: "Essai : générer et trancher, ne rien envoyer"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: fabrication-${{ inputs.cf }}
+  cancel-in-progress: false
+
+env:
+  # Image de tranchage (fabrication/Dockerfile), publiée par image-fabrication.yml ; empreinte épinglée ici.
+  IMAGE: ghcr.io/virnichka/evarysth-fabrication@sha256:dbb8b63db5ad902c9bd2a63e28bc64e4a60f910b49ebfae0a7c595e5164b9c20
+  BUCKET: evarysth-stl
+  WORKER_URL: https://evarysth-checkout.virnichka.workers.dev
+  CF: ${{ inputs.cf }}
+  PRODUIT: ${{ inputs.produit }}
+  COTES: ${{ inputs.cotes }}
+  COLORIS: ${{ inputs.coloris }}
+  QUANTITE: ${{ inputs.quantite }}
+  SHA: ${{ inputs.sha }}
+  ESSAI: ${{ inputs.essai }}
+
+jobs:
+  fabriquer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Entrées
+        id: entrees
+        run: |
+          echo "debut=$(date +%s)" >> "$GITHUB_OUTPUT"
+          ok=1
+          [[ "$CF" =~ ^CF-[0-9A-Z]{4,}-[0-9]{4,}-[0-9A-Z]{1,4}$ ]] || { echo "::error::cf refusé (CF-AAAA-NNNN-n attendu)"; ok=0; }
+          [[ "$PRODUIT" =~ ^[a-z0-9][a-z0-9-]{0,60}$ ]] || { echo "::error::produit refusé"; ok=0; }
+          [[ "$COTES" =~ ^\{[\"a-z0-9.:,\ -]{1,120}\}$ ]] || { echo "::error::cotes refusées (JSON, ex. {\"a\":60})"; ok=0; }
+          [[ "$COLORIS" =~ ^[a-z0-9-]{0,40}$ ]] || { echo "::error::coloris refusé"; ok=0; }
+          [[ "$QUANTITE" =~ ^[1-9][0-9]?$ ]] || { echo "::error::quantité refusée (1 à 99)"; ok=0; }
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::sha refusé (40 caractères hexadécimaux)"; ok=0; }
+          [ "$ok" = 1 ] || exit 1
+          echo "court=${SHA:0:12}" >> "$GITHUB_OUTPUT"
+          echo "Article $CF · $PRODUIT · cotes $COTES · coloris ${COLORIS:-défaut} · ×$QUANTITE · SHA ${SHA:0:12} · essai $ESSAI"
+
+      - name: Configuration R2 et rappel
+        if: ${{ !inputs.essai }}
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          FABRICATION_HMAC: ${{ secrets.FABRICATION_HMAC }}
+        run: |
+          manque=""
+          [ -n "$R2_ACCESS_KEY_ID" ] || manque="$manque secret R2_ACCESS_KEY_ID,"
+          [ -n "$R2_SECRET_ACCESS_KEY" ] || manque="$manque secret R2_SECRET_ACCESS_KEY,"
+          [ -n "$R2_ACCOUNT_ID" ] || manque="$manque variable R2_ACCOUNT_ID,"
+          [ -n "$FABRICATION_HMAC" ] || manque="$manque secret FABRICATION_HMAC,"
+          if [ -n "$manque" ]; then
+            echo "::error title=Fabrication non configurée::Manquant :${manque%,}. Réglages : docs/guide-reglages-fabrication.md. Rien n'a été généré ni envoyé."
+            exit 1
+          fi
+
+      - name: Déjà fabriqué ? (manifeste présent pour CF + SHA)
+        id: deja
+        if: ${{ !inputs.essai }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          COURT: ${{ steps.entrees.outputs.court }}
+        run: |
+          cle="commandes/$CF/$COURT/manifeste.json"
+          if aws s3api get-object --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" --bucket "$BUCKET" --key "$cle" manifeste-existant.json > /dev/null 2>&1; then
+            echo "Manifeste déjà présent ($cle) : rien n'est refait, rappel renvoyé."
+            node -e 'const m=require("./manifeste-existant.json");const t=m.impression||{};require("fs").writeFileSync("bilan.json",JSON.stringify({cf:m.cf,sha:m.sha,statut:m.statut||"prete",masse_g:m.masse_g??null,temps_min:m.temps_min??null,plateaux:(t.plateaux||[]).length,motif:""})+"\n")'
+            echo "oui=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: ${{ !steps.deja.outputs.oui }}
+        with:
+          ref: ${{ inputs.sha }}
+          path: depot
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: ${{ !steps.deja.outputs.oui }}
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: depot/tools/package-lock.json
+
+      - name: Dépendances (manifold-3d, three) et image de tranchage
+        if: ${{ !steps.deja.outputs.oui }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          (cd depot/tools && npm ci --no-audit --no-fund)
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin > /dev/null
+          t=$(date +%s); docker pull -q "$IMAGE"; echo "Image téléchargée en $(( $(date +%s) - t )) s"
+
+      - name: Génération, tranchage, fiche
+        if: ${{ !steps.deja.outputs.oui }}
+        env:
+          EVARYSTH_IMAGE: ${{ env.IMAGE }}
+        run: |
+          [ -f depot/tools/fabriquer.mjs ] || { echo '{"statut":"echec","motif":"outils de fabrication absents à ce SHA"}' > bilan.json; echo "::error::tools/fabriquer.mjs absent au SHA $SHA"; exit 1; }
+          node depot/tools/fabriquer.mjs --cf="$CF" --produit="$PRODUIT" --cotes="$COTES" --coloris="$COLORIS" --quantite="$QUANTITE" \
+            --sha="$SHA" --docker="$IMAGE" --sortie="$PWD/sortie"
+          ls -l sortie
+
+      - name: Envoi dans R2
+        if: ${{ !inputs.essai && !steps.deja.outputs.oui }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          COURT: ${{ steps.entrees.outputs.court }}
+        run: |
+          s3="aws s3 --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com --only-show-errors"
+          dest="s3://$BUCKET/commandes/$CF/$COURT/"
+          # manifeste.json en dernier : sa présence signifie « article complet » (idempotence)
+          $s3 cp sortie/ "$dest" --recursive --exclude manifeste.json
+          $s3 cp sortie/manifeste.json "$dest" --content-type application/json
+          echo "Envoyé : commandes/$CF/$COURT/ ($(ls sortie | wc -l) fichiers)"
+
+      - name: Bilan d'échec
+        if: ${{ failure() }}
+        run: |
+          [ -f bilan.json ] && grep -q '"echec"' bilan.json && exit 0
+          printf '{"cf":"%s","sha":"%s","statut":"echec","masse_g":null,"temps_min":null,"plateaux":null,"motif":"workflow en échec (run %s)"}\n' "$CF" "$SHA" "$GITHUB_RUN_ID" > bilan.json
+
+      - name: Rappel du Worker (POST /fabrication/retour, signé HMAC)
+        if: ${{ always() && !inputs.essai && steps.entrees.outcome == 'success' }}
+        env:
+          FABRICATION_HMAC: ${{ secrets.FABRICATION_HMAC }}
+        run: |
+          [ -n "$FABRICATION_HMAC" ] && [ -f bilan.json ] || { echo "Pas de rappel (secret ou bilan absent)."; exit 0; }
+          node -e '
+            const crypto = require("crypto"), fs = require("fs");
+            const b = JSON.parse(fs.readFileSync("bilan.json", "utf8"));
+            Object.assign(b, { cf: process.env.CF, sha: process.env.SHA, run: Number(process.env.GITHUB_RUN_ID) });
+            const corps = JSON.stringify(b), ts = String(Math.floor(Date.now() / 1000));
+            const sig = crypto.createHmac("sha256", process.env.FABRICATION_HMAC).update(ts + "." + corps).digest("hex");
+            fetch(process.env.WORKER_URL + "/fabrication/retour", { method: "POST", body: corps,
+              headers: { "Content-Type": "application/json", "X-Evarysth-Horodatage": ts, "X-Evarysth-Signature": sig } })
+              .then(async r => { console.log("Rappel :", r.status, (await r.text()).slice(0, 200)); if (!r.ok) process.exit(1); })
+              .catch(e => { console.error("Rappel impossible :", e.message); process.exit(1); });'
+
+      - name: Résumé
+        if: ${{ always() }}
+        env:
+          DEBUT: ${{ steps.entrees.outputs.debut }}
+        run: |
+          total=$(( $(date +%s) - ${DEBUT:-$(date +%s)} ))
+          {
+            echo "### Fabrication $CF$([ "$ESSAI" = true ] && echo ' (essai, rien envoyé)')"
+            echo "Produit \`$PRODUIT\` · cotes \`$COTES\` · coloris \`${COLORIS:-défaut}\` · ×$QUANTITE · SHA \`${SHA:0:12}\`"
+            echo
+            [ -f bilan.json ] && echo "Bilan : \`$(cat bilan.json)\`"
+            [ -f sortie/manifeste.json ] && node -e 'const m=require("./sortie/manifeste.json");console.log(`Plateaux : ${m.impression.plateaux.length} · durées (s) : génération ${m.durees_s.generation}, tranchage ${m.durees_s.tranchage}`)'
+            echo "Durée totale du job (depuis la 1re étape) : ${total} s"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
