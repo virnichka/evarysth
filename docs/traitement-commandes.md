@@ -107,6 +107,15 @@ elle journalise seulement chaque changement de `Statut` (auteur `worker`).
 | N | Dernier statut notifié | **Worker seulement** (protégée, avertissement, repliée) | une valeur de statut ou vide |
 | O | Notes | propriétaire | libre (le Worker y ajoute une note datée en cas de refus / retrait) |
 | P | Référence externe | propriétaire (/admin ou Sheet) | **facultative** : n° de commande chez le fournisseur (plateforme…) ; en-tête à ajouter pour activer le champ dans /admin |
+| Q | Génération | Worker (chaîne de fabrication) | `a_declencher`, `en_cours`, `prete`, `echec`, `fabrication_non_configuree` |
+| R | SHA | Worker | version du site (commit) utilisée pour les fichiers |
+| S | Masse g | Worker (rappel du workflow) | masse de filament estimée |
+| T | Temps min | Worker (rappel du workflow) | temps d'impression estimé |
+| U | Plateaux | Worker (rappel du workflow) | nombre de plateaux |
+| V | Motif génération | Worker | raison d'un `echec`, vide sinon |
+
+Colonnes Q à V (`docs/chaine-fabrication.md`, Fabrication · phase 2) : lues et écrites **par leur nom** (ordre libre) ;
+absentes → ignorées sans erreur.
 
 Règles d'écriture pour le Worker :
 - **Nouvelle commande** : ligne EV sur la 1re ligne dont A est vide (méthode « écrire puis vérifier », bloc B), puis une

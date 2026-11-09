@@ -35,6 +35,9 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `worker/` | **Le service de paiement** (Cloudflare Worker + Stripe Checkout, **mode test**) : reçoit le panier, recalcule les prix depuis `data.js`, crée la session Stripe, reçoit le webhook. Voir « Paiement » ci-dessous. |
 | `commande/merci/` | Page de retour après paiement (récapitulatif de la commande). |
 | `.github/workflows/worker.yml` | Teste puis déploie le Worker à chaque changement de `worker/` ou de `data.js`. |
+| `.github/workflows/fabrication.yml` | **Génération des fichiers d'une commande** (lancée par le Worker au paiement, ou à la main avec la case « Essai ») : STL, fichier tranché, 3MF, fiche fabricant → R2. |
+| `.github/workflows/stl-standards.yml` | À chaque push sur `main` touchant le catalogue ou les modèles : regénère les STL des 3 tailles standard dans R2 (`<produit>/<taille>.stl`, `.zip` si plusieurs pièces). |
+| `.github/workflows/image-fabrication.yml` + `fabrication/` | Image Docker de tranchage (Bambu Studio en ligne de commande, profils P2S) publiée sur GHCR ; son empreinte est épinglée dans `fabrication.yml`. |
 | `CLAUDE.md` | Méthode pour ajouter un produit 3D à partir de fichiers STL. |
 
 ## Paiement et commandes (mode test)
@@ -48,6 +51,13 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 2. Webhook Stripe payé → Sheet back-office : une ligne `Commandes EV` (n° client `EV-AAAA-NNNN`) et une ligne par article
    dans `Commandes CF` ; e-mail client « Commande reçue » et fiche « Nouvelle commande » au propriétaire (Brevo).
    Article en `a_valider` (STL standard présent dans R2) ou `lien_stl_a_indiquer`. **Rien ne part sans validation.**
+   **En parallèle, génération automatique des fichiers** (`docs/chaine-fabrication.md`) : pour chaque article, le Worker
+   lance `.github/workflows/fabrication.yml` (n° d'article `CF-AAAA-NNNN-<n°>`, sans donnée client). En ~1 min, GitHub
+   produit les STL aux cotes commandées, le fichier tranché pour la P2S (PLA/PETG), un 3MF non tranché et une fiche
+   fabricant, les range dans R2 (`commandes/<n°>/<SHA>/`), puis rappelle le Worker (signature HMAC) qui remplit les
+   colonnes `Génération` (`en_cours` → `prete` ou `echec`), `Masse g`, `Temps min`, `Plateaux` du Sheet. Échec de
+   lancement : nouvel essai par la tâche planifiée. Rien n'est imprimé ni envoyé automatiquement : ces fichiers ne sont
+   pas encore proposés dans /admin (Fabrication · phase 3).
    Chaîne de fabrication (`worker/src/fabrication.js`, éteinte tant que `GH_ACTIONS_TOKEN` et `FABRICATION_HMAC` manquent :
    une ligne de Journal le note) : un run `.github/workflows/fabrication.yml` par article (n° `CF-AAAA-NNNN-<n° d'article>`,
    SHA du site au paiement lu dans `version.json`) → STL, 3MF, `.gcode.3mf` (PLA/PETG) et fiche dans R2, rappel signé
@@ -103,7 +113,8 @@ En mode test, une clé Stripe live est refusée.
 - Paiement différé (SEPA) : cocher aussi `checkout.session.async_payment_succeeded` sur le webhook Stripe.
 - Sécurité : signature Stripe vérifiée, jetons HMAC en temps constant, textes échappés, Sheet écrit en `RAW`, actions
   GitHub épinglées par SHA. Reste hors code : limite d'appels WAF sur `/checkout` et `/promo`.
-- Reporté : livre des recettes et remboursements Stripe synchronisés (`charge.refunded`) ; STL sur-mesure automatiques.
+- Reporté : livre des recettes et remboursements Stripe synchronisés (`charge.refunded`). Les fichiers sur-mesure sont
+  générés automatiquement dans R2 mais le « Lien STL » se saisit encore à la main (Fabrication · phase 3).
 
 **Passage en production** : pages légales sans `[À COMPLÉTER]` ; compte Stripe activé, URL CGV et confidentialité dans
 Stripe (Informations publiques), reçus clients cochés ; clé `sk_live_` + webhook live → secrets ; codes promo recréés en
