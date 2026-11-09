@@ -57,6 +57,12 @@ Sheet (back-office) : son identifiant n'est **pas** écrit ici (dépôt public) 
 Établie au bloc A, revue au bloc F (commande client / commandes fournisseur). Le Worker lit/écrit **par nom de
 colonne** (ligne 1), jamais par position figée ; les lettres ci-dessous sont l'état initial.
 
+**En-têtes renommés (9 nov. 2026)** : les tableaux ci-dessous gardent les noms internes du code. Dans le Sheet, les
+en-têtes affichent des noms plus parlants (ex. `Statut article`, `Fichiers d'impression`, `Lien STL manuel`) ; la
+correspondance est la table `NOMS_AFFICHES` de `worker/src/google.js` (les deux noms sont acceptés). Pour renommer
+une colonne : ajouter la ligne dans `NOMS_AFFICHES`, publier, puis changer l'en-tête. Les 3 en-têtes calculés
+(`Statut commande`, `N° fabricant (CF)` de `Commandes EV`, `Prochaine action`) se changent dans le texte de leur formule.
+
 Deux niveaux, deux numérotations qui ne se croisent jamais :
 - **commande client** `EV-AAAA-NNNN` (onglet `Commandes EV`, une ligne par achat) : seul n° que voit le client ;
 - **commande fournisseur** `CF-AAAA-NNNN-X` (onglet `Commandes CF`, une ligne par article) : seul n° que voit le

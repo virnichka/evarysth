@@ -97,10 +97,28 @@ const plage = (onglet, a1) => `'${onglet.replace(/'/g, "''")}'!${a1}`;
 const valeurs = a1 => "values/" + encodeURIComponent(a1);
 
 /* En-têtes (ligne 1) → { nom: index } */
+/* En-têtes affichés dans le Sheet (noms parlants, 9 nov. 2026) → noms utilisés par le code. Le code lit et écrit
+   toujours par nom de colonne : un en-tête renommé ici reste trouvé, et l'ancien nom reste accepté. Pour renommer
+   une colonne : ajouter la ligne ici, publier, puis changer l'en-tête dans le Sheet. */
+export const NOMS_AFFICHES = {
+  "Commandes EV": { "N° commande": "Commande", "Payée le": "Date", "Statut commande": "Statut", "Standard ou sur-mesure": "Type",
+    "N° fabricant (CF)": "Commandes CF", "Dernier e-mail client": "Dernier statut notifié", "ID paiement Stripe": "Stripe session id" },
+  "Commandes CF": { "N° fabricant (CF)": "Commande CF", "N° commande": "Commande EV", "N° article": "Article n°", "Payée le": "Date",
+    "Statut article": "Statut", "Standard ou sur-mesure": "Type", "Prochaine action": "Action requise", "Lien STL manuel": "Lien STL",
+    "Dernier e-mail envoyé": "Dernier statut notifié", "Réf. chez le fabricant": "Référence externe", "Fichiers d'impression": "Génération",
+    "Version du site": "SHA", "Filament (g)": "Masse g", "Impression (min)": "Temps min", "Motif (fichiers)": "Motif génération" },
+  Journal: { "N° concerné": "Commande", "Par": "Auteur" }
+};
+function enNomsInternes(onglet, cols) {
+  for (const [affiche, interne] of Object.entries(NOMS_AFFICHES[onglet] || {}))
+    if (affiche in cols && !(interne in cols)) cols[interne] = cols[affiche];
+  return cols;
+}
+const colonnesDe = (onglet, noms) => enNomsInternes(onglet, Object.fromEntries(noms.map((n, i) => [String(n).trim(), i]).filter(([n]) => n)));
+
 export async function entetes(env, onglet) {
   const d = await appelSheets(env, "GET", valeurs(plage(onglet, "1:1")));
-  const noms = (d.values && d.values[0]) || [];
-  return Object.fromEntries(noms.map((n, i) => [String(n).trim(), i]).filter(([n]) => n));
+  return colonnesDe(onglet, (d.values && d.values[0]) || []);
 }
 
 function index(cols, nom) {
@@ -127,7 +145,7 @@ export async function lireOnglets(env, demandes) {
   const t = await appelSheets(env, "GET", "values:batchGet", { ranges: demandes.map(d => plage(d.onglet, "1:1")), majorDimension: "ROWS" });
   const parOnglet = demandes.map((d, i) => {
     const noms = ((t.valueRanges && t.valueRanges[i] && t.valueRanges[i].values && t.valueRanges[i].values[0]) || []);
-    const cols = Object.fromEntries(noms.map((n, k) => [String(n).trim(), k]).filter(([n]) => n));
+    const cols = colonnesDe(d.onglet, noms);
     return { cols, noms: [...(d.facultatif ? d.noms.filter(n => n in cols) : d.noms), ...(d.options || []).filter(n => n in cols)] };
   });
   const ranges = parOnglet.flatMap(({ cols, noms }, i) => noms.map(n => { const l = lettreColonne(index(cols, n)); return plage(demandes[i].onglet, `${l}:${l}`); }));

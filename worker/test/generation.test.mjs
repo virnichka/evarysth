@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import worker from "../src/index.js";
-import { viderCacheJeton, reglerAttentes } from "../src/google.js";
+import { viderCacheJeton, reglerAttentes, NOMS_AFFICHES } from "../src/google.js";
 reglerAttentes([0, 0]);
 import { viderCacheAcces } from "../src/acces.js";
 import { tachePlanifiee } from "../src/planifie.js";
@@ -303,4 +303,25 @@ test("Tâche planifiée : fichiers prêts → « Lien STL à indiquer » devient
   assert.equal(art(1).Statut, "a_valider");
   assert.equal(art(2).Statut, "lien_stl_a_indiquer");
   assert.equal(emails.length, 0);
+});
+
+test("En-têtes renommés dans le Sheet (noms parlants) : fiche, validation, tâche planifiée et rappel de fabrication fonctionnent", async () => {
+  for (const onglet of ["Commandes EV", "Commandes CF", "Journal"]) {
+    const vers = Object.fromEntries(Object.entries(NOMS_AFFICHES[onglet]).map(([affiche, interne]) => [interne, affiche]));
+    sheet[onglet][0] = sheet[onglet][0].map(n => vers[n] || n);
+  }
+  assert.equal(sheet["Commandes CF"][0][C.Génération], "Fichiers d'impression");
+  assert.equal(sheet["Commandes CF"][0][C["Lien STL"]], "Lien STL manuel");
+  assert.match(await fiche(), /Fichiers prêts[\s\S]*18\.44 g · 42 min/);
+  await silence(() => tachePlanifiee(env));
+  assert.equal(sheet["Commandes CF"][1][C.Statut], "a_valider", "colonne « Statut article » trouvée");
+  let r = await envoyer("/admin/valider", { fab_1: "Atelier Dupont", stl_1: "" });
+  assert.equal(r.status, 303, bandeau(r));
+  assert.equal(sheet["Commandes CF"][1][C.Statut], "envoyee_fabricant");
+  assert.equal(sheet["Commandes CF"][1][C["Dernier statut notifié"]], "envoyee_fabricant", "« Dernier e-mail envoyé » écrit");
+  assert.equal(emails.length, 1);
+  r = await envoyer("/admin/generation", { n: "2", mode: "relancer" });
+  assert.match(bandeau(r), /génération relancée/);
+  assert.equal(sheet["Commandes CF"][2][C.Génération], "en_cours");
+  assert.equal(sheet.Journal.at(-1)[1], "CF-2026-0004-2", "Journal : colonne « N° concerné »");
 });
