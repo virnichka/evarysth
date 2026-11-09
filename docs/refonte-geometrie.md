@@ -278,7 +278,7 @@ par branche (déjà le cas avant, cotes du bord arrondi).
 - **Références figées** : `tools/references-geometrie.json` (boîte, volume, solides des 189 combinaisons) ;
   `node tools/verifier-geometrie.mjs --mettre-a-jour` affiche les écarts puis réécrit. `comparer-kits.mjs` supprimé.
 - **Tests** : `cd tools && node --test` — 227 tests (16 produits × combinaisons + fiches + outils), ≈ 26 s ;
-  `.github/workflows/geometrie.yml` (PR et push sur `main` touchant `assets/js/`, `assets/models/`, `tools/`).
+  `.github/workflows/geometrie.yml` (job `geometrie` : toutes les PR, tri interne ; push sur `main` touchant `assets/js/`, `assets/models/`, `tools/`). Contrôle obligatoire via une règle de branche sur `main`.
   Mutation d'essai (fût à Ø a + jeu) : bloquée par la cote et la référence.
 - **Ancien kit retiré** (`viewer3d.js` : kit three.js, `?geo=…`, repli, bilan console). WASM ou WebGL indisponible :
   la fiche affiche la 1re photo, sinon la vignette 3D, et « Aperçu 3D indisponible sur ce navigateur » ; aucune erreur JS

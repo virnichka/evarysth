@@ -2,9 +2,9 @@ name: Contrôles de géométrie
 
 # Tests des 16 modèles 3D (tools/test/) : étanchéité, nombre de solides, cotes fonctionnelles, paroi minimale,
 # fiche d'impression, références figées. Une modification qui casse l'un d'eux est bloquée avant la mise en ligne.
+# Sur PR : toujours lancé (contrôle obligatoire sur main) ; sans changement de géométrie, le job finit vert tout de suite.
 on:
   pull_request:
-    paths: ["assets/js/**", "assets/models/**", "tools/**", ".github/workflows/geometrie.yml"]
   push:
     branches: [main]
     paths: ["assets/js/**", "assets/models/**", "tools/**", ".github/workflows/geometrie.yml"]
@@ -18,19 +18,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  tests:
+  geometrie:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          fetch-depth: 0
+      - name: Géométrie touchée ?
+        id: tri
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "lancer=oui" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if git diff --name-only "$BASE" HEAD | grep -qE '^(assets/js/|assets/models/|tools/|\.github/workflows/geometrie\.yml$)'; then
+            echo "lancer=oui" >> "$GITHUB_OUTPUT"
+          else
+            echo "lancer=non" >> "$GITHUB_OUTPUT"; echo "Aucun fichier de géométrie modifié : contrôles sautés."
+          fi
+      - if: steps.tri.outputs.lancer == 'oui'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: tools/package-lock.json
       - name: Dépendances (manifold-3d, three)
+        if: steps.tri.outputs.lancer == 'oui'
         working-directory: tools
         run: npm ci
       - name: Tests de géométrie
+        if: steps.tri.outputs.lancer == 'oui'
         working-directory: tools
         run: node --test

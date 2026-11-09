@@ -92,7 +92,6 @@ EVARYSTH.products = [
     variants: sizes("Épaisseur du plateau", [["18 mm", "standard", { a: 18 }], ["25 mm", "massif", { a: 25 }], ["40 mm", "épais", { a: 40 }]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
-      { id: "olive", label: "Vert olive", hex: "#6f7a45", roughness: 0.68 },
       { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
       { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 }
     ],
@@ -169,8 +168,7 @@ EVARYSTH.products = [
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
-      { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 },
-      { id: "bronze", label: "Bronze", hex: "#9a7240", roughness: 0.38, metalness: 0.55 }
+      { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 }
     ],
     impression: { matiere: "pacf", orientation: POSE.debout, supports: false, parPlateau: 1,
       remarques: "Quatre pièces dans l'orientation des fichiers d'origine : boîte ouverture en haut, couvercle retourné, loquets debout sur leur tranche.", pieces: [
@@ -221,8 +219,7 @@ EVARYSTH.products = [
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "moutarde", label: "Jaune moutarde", hex: "#d4a72c", roughness: 0.62 },
-      { id: "bleu", label: "Bleu lagon", hex: "#5fa8d3", roughness: 0.6 },
-      { id: "rouge", label: "Rouge brique", hex: "#a8382f", roughness: 0.62 }
+      { id: "bleu", label: "Bleu lagon", hex: "#5fa8d3", roughness: 0.6 }
     ],
     impression: { matiere: "pacf", orientation: POSE.debout, supports: false, plateaux: 3,
       remarques: "Chaque module debout sur son fond." },
@@ -289,8 +286,7 @@ EVARYSTH.products = [
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
-      { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 },
-      { id: "bleu", label: "Bleu lagon", hex: "#5fa8d3", roughness: 0.6 }
+      { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 }
     ],
     impression: { matiere: "petg", orientation: POSE.aPlat, supports: false, parPlateau: 15,
       remarques: "Couché, voile contre le plateau." },
@@ -311,8 +307,7 @@ EVARYSTH.products = [
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "gris", label: "Gris béton", hex: "#8a8c8e", roughness: 0.7 },
-      { id: "rouge", label: "Rouge brique", hex: "#a8382f", roughness: 0.62 },
-      { id: "olive", label: "Vert olive", hex: "#6f7a45", roughness: 0.68 }
+      { id: "rouge", label: "Rouge brique", hex: "#a8382f", roughness: 0.62 }
     ],
     impression: { matiere: "asa", orientation: POSE.debout, supports: true, parPlateau: 9,
       remarques: "Debout sur son fond ajouré ; supports sous les crochets et les ergots SKADIS." },
