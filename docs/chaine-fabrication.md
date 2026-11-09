@@ -299,8 +299,8 @@ essai échoue avec la liste de ce qui manque ; sans colonnes, rien n'est écrit.
 - **Entrée `essai`** ajoutée (génération + tranchage, rien d'envoyé, aucun secret requis), pour éprouver le workflow.
 - **Grandes pièces** : `boite-rugged` aux cotes max (252,8 × 253,8 mm) ne tient pas avec la bande avant de 10 mm. Plutôt
   que réduire ses bornes (changement visible des clients), une pièce plus profonde que la surface utile est posée **seule
-  à Y = 0** et marquée `hors_marge_avant` (manifeste, fiche, avertissement) : à surveiller à la 1re couche, ou bornes à
-  réduire (décision propriétaire). `ranger()` essaie aussi deux règles d'orientation (côté long selon X, puis Y) et garde
+  à Y = 0** et marquée `hors_marge_avant` (manifeste, fiche, avertissement). **Décision du propriétaire (9 novembre 2026)** : bornes
+  inchangées, la 1re couche de ces plateaux est surveillée (ligne de chargement au ras de la pièce). `ranger()` essaie aussi deux règles d'orientation (côté long selon X, puis Y) et garde
   la moins gourmande : `boite-rugged` (défaut) et `organiseur-tiroir` gardent leurs plateaux déclarés malgré la marge.
 - **Contrôle de position** du `.gcode.3mf` : compare désormais les centres (une base chanfreinée donne une 1re couche
   plus petite, sans déplacement : faux positif vu sur `equerre-l`).
@@ -327,8 +327,8 @@ secrets : échec net à l'étape « Configuration R2 et rappel » (« Fabricatio
 phase 1a : sans proxy, `snapshot.ubuntu.com` redirige vers HTTPS et l'image de base n'a pas de certificats ; corrigé en
 prêtant le bundle CA du runner en secret de construction (contenu inchangé). L'empreinte obtenue sur GitHub
 (`sha256:b1fe84f8…`) diffère de la construction locale (`sha256:dbb8b63d…`, exportateur `docker` contre registre) :
-celle de GitHub est épinglée dans `fabrication.yml` ; une reconstruction sur GitHub doit redonner la même (à confirmer
-au prochain changement de `fabrication/**`).
+celle de GitHub est épinglée dans `fabrication.yml` ; une reconstruction sur GitHub redonne la même (vérifié : 2e construction,
+run 42639135218, même empreinte).
 
 ### Phase 3 — /admin : génération, validation, envoi des fichiers
 - Fiche commande : statut de génération (en cours / prête / échec + motif), masse, temps, plateaux, liens des fichiers,
