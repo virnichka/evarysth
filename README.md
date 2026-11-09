@@ -2,6 +2,16 @@
 
 > Le site est désormais en ligne sur **[www.evarysth.fr](https://www.evarysth.fr)**.
 
+## Documentation (état au 9 novembre 2026)
+| Document | Contenu | État |
+|---|---|---|
+| `README.md` (ce fichier) | Fonctionnement du site, des commandes et des outils | à jour |
+| `CLAUDE.md` | Consignes pour Claude : ajout d'un produit 3D, contrôles, mise en ligne | à jour |
+| `docs/traitement-commandes.md` | Circuit des commandes : Sheet, e-mails, fabricants, page /admin | en service (blocs A à G faits) |
+| `docs/refonte-geometrie.md` | Moteur 3D unique (manifold-3d), 16 produits, contrôles automatiques | chantier clos |
+| `docs/chaine-fabrication.md` | Commande payée → fichiers d'impression automatiques (R2), puis atelier et prix calculé | en cours : phases 0 à 2b faites, phase 3 (/admin) à venir |
+| `docs/guide-reglages-fabrication.md` | Réglages des comptes Cloudflare, GitHub et Sheet pour la fabrication | fait |
+
 ## 1. Vue d'ensemble
 Evarysth est une boutique en ligne de petites pièces d'intérieur imprimées en 3D (supports, clips, crochets…), présentées en 4 univers : Balcon, Bureau, Meubles, Déco.
 Chaque pièce s'achète en taille standard ou **sur-mesure** : on règle ses cotes en mm avec des curseurs, et le modèle 3D (Three.js), le prix et le résumé se mettent à jour en direct avant l'ajout au panier.
