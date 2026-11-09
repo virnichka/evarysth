@@ -46,7 +46,7 @@ const plage = a1 => { const [, o, ref] = /^'(.+)'!(.+)$/.exec(a1); return { ongl
 async function fauxFetch(url, init = {}) {
   const u = new URL(url), rep = (d, s = 200) => new Response(d === null ? null : JSON.stringify(d), { status: s });
   appels.push({ host: u.host, chemin: u.pathname, corps: init.body, entetes: init.headers });
-  if (u.host === "www.evarysth.fr" && u.pathname === "/version.json") return versionJson ? rep(versionJson) : rep({}, 404);
+  if (u.host === "evarysth.fr" && u.pathname === "/version.json") return versionJson ? rep(versionJson) : rep({}, 404);
   if (u.host === "api.github.com") {
     if (typeof github.statut === "function") return rep(...github.statut());
     return github.statut === 204 ? new Response(null, { status: 204 }) : rep({ message: "Server Error" }, github.statut);
