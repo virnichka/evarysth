@@ -4,4 +4,8 @@ EVARYSTH.viewer3d.define("carapuce", ({ sculpt }) => {
   /* Carapuce : figurine (Bambu MakerLab « Image to 3D »), hauteur nominale 61,0 mm */
   const carapuce = sculpt("assets/models/carapuce/carapuce.stl", 61.0);
   return carapuce;
-}, { solides: 1 });
+}, {
+  solides: 1,
+  /* Mise à l'échelle uniforme : seule la cote hors tout compte */
+  cotes: ({ a }) => [{ nom: "hauteur de la figurine", mesure: "boite", selon: "y", attendu: a }]
+});

@@ -13,25 +13,41 @@ EVARYSTH.universes = [
     pitch: "Des pièces à exposer, imprimées à la taille de votre étagère." }
 ];
 
-/* Matières d'impression : chaque produit en désigne une (champ matiere) */
+/* Matières d'impression : chaque produit en désigne une (champ matiere).
+   jeu (mm) : jeu d'ajustement de la matière, appliqué par le modèle 3D à chaque cote fonctionnelle
+   (pièce qui entre dans un trou du client : cote − jeu ; pièce qui entoure un objet du client : cote + jeu).
+   Il ne change ni la cote saisie par le client ni le prix. */
 EVARYSTH.matieres = {
-  pa12: { label: "Nylon PA12", court: "PA12", perk: ["Très résistant", "Nylon industriel"],
+  pa12: { label: "Nylon PA12", court: "PA12", jeu: 0.3, perk: ["Très résistant", "Nylon industriel"],
     desc: "Nylon PA12, imprimé en 3D industrielle : léger, très résistant aux chocs, à l'humidité et aux UV." },
-  petg: { label: "PETG", court: "PETG", perk: ["Robuste", "Peu cassant"],
+  petg: { label: "PETG", court: "PETG", jeu: 0.3, perk: ["Robuste", "Peu cassant"],
     desc: "PETG, le plastique des bouteilles en version technique : solide, un peu souple plutôt que cassant, et peu sensible à l'humidité." },
-  asa: { label: "ASA", court: "ASA", perk: ["Tient dehors", "Résiste aux UV"],
+  asa: { label: "ASA", court: "ASA", jeu: 0.3, perk: ["Tient dehors", "Résiste aux UV"],
     desc: "ASA, un plastique pensé pour l'extérieur : il encaisse le soleil, la pluie et le gel sans jaunir ni devenir cassant." },
-  pla: { label: "PLA", court: "PLA", perk: ["Rigide", "Fini net"],
+  pla: { label: "PLA", court: "PLA", jeu: 0.2, perk: ["Rigide", "Fini net"],
     desc: "PLA, un plastique d'origine végétale : rigide, au rendu net et précis. Il craint la forte chaleur (au-delà de 50 °C environ) : évitez la plage arrière d'une voiture en plein été." },
-  pacf: { label: "Nylon carbone (PA-CF)", court: "PA-CF", perk: ["Très rigide", "Nylon + carbone"],
+  pacf: { label: "Nylon carbone (PA-CF)", court: "PA-CF", jeu: 0.25, perk: ["Très rigide", "Nylon + carbone"],
     desc: "Nylon chargé de fibres de carbone : très rigide et stable, avec un toucher mat légèrement minéral. Il supporte bien la chaleur et les chocs." }
 };
 EVARYSTH.matiere = p => EVARYSTH.matieres[p && p.matiere] || EVARYSTH.matieres.pa12;
+/* Jeu d'ajustement (mm) de la matière imprimée : celle de la fiche d'impression, sinon celle du produit */
+EVARYSTH.jeu = p => (EVARYSTH.matieres[p && p.impression && p.impression.matiere] || EVARYSTH.matiere(p)).jeu;
 
 /* Petites fabriques pour garder le catalogue lisible */
 const sizes = (label, opts) => ({ label, options: opts.map(([l, hint, values]) => ({ label: l, hint, values })) });
 const param = (key, label, min, max, def, step = 1, pricePerUnit) =>
   ({ key, label, min, max, step, def, ...(pricePerUnit ? { pricePerUnit } : {}) });
+
+/* Fiche d'impression (champ impression, contrôlée par tools/lib/impression.mjs et les tests de tools/test/) :
+   orientation = rotation propre (lignes, déterminant +1) du repère du modèle (Y vers le haut, comme l'aperçu)
+   vers le plateau (Z vers le haut) ; pieces : orientation propre à une pièce, par volume décroissant ;
+   parPlateau = exemplaires complets par plateau (Bambu Lab, 256 × 256 mm) aux cotes par défaut. */
+const POSE = {
+  debout: [[1, 0, 0], [0, 0, -1], [0, 1, 0]],     // comme l'aperçu (Y → Z)
+  retourne: [[1, 0, 0], [0, 0, 1], [0, -1, 0]],   // tête en bas (Y → −Z)
+  aPlat: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],       // profil extrudé selon Z, couché à plat (Z → Z)
+  surLeCote: [[0, 0, -1], [0, 1, 0], [1, 0, 0]]    // X → Z
+};
 
 /* shape : illustration utilisée (voir app.js) · popular : mis en avant sur l'accueil */
 EVARYSTH.products = [
@@ -47,6 +63,8 @@ EVARYSTH.products = [
       { id: "terracotta", label: "Terracotta", hex: "#c0643f", roughness: 0.7 },
       { id: "rose", label: "Rose poudré", hex: "#dca8a4", roughness: 0.62 }
     ],
+    impression: { matiere: "asa", orientation: POSE.aPlat, supports: false, parPlateau: 4,
+      remarques: "Couché sur le flanc : le crochet garde ses fibres dans le sens de l'effort." },
     custom: { surcharge: 4, params: [param("a", "Épaisseur de main courante", 15, 100, 42)] }
   },
   {
@@ -60,7 +78,9 @@ EVARYSTH.products = [
       { id: "blanc", label: "Blanc", hex: "#ecebe6", roughness: 0.6 },
       { id: "rose", label: "Rose poudré", hex: "#dca8a4", roughness: 0.62 }
     ],
-    custom: { surcharge: 8, params: [param("a", "Épaisseur de la rambarde", 15, 100, 45), param("b", "Largeur de la tablette", 160, 400, 220, 10, 0.05)] }
+    impression: { matiere: "asa", orientation: POSE.retourne, supports: false, parPlateau: 1,
+      remarques: "Tablette contre le plateau, ouverture du U vers le haut." },
+    custom: { surcharge: 8, params: [param("a", "Épaisseur de la rambarde", 15, 100, 45), param("b", "Largeur de la tablette", 160, 250, 220, 10, 0.05)] }
   },
 
   /* ---------- 02 · Bureau & Tech ---------- */
@@ -76,6 +96,8 @@ EVARYSTH.products = [
       { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
       { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 }
     ],
+    impression: { matiere: "asa", orientation: POSE.aPlat, supports: false, parPlateau: 4,
+      remarques: "Couché sur le flanc, profil à plat." },
     custom: { surcharge: 4, params: [param("a", "Épaisseur du plateau", 12, 60, 28)] }
   },
   {
@@ -87,9 +109,10 @@ EVARYSTH.products = [
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
-      { id: "bleu", label: "Bleu lagon", hex: "#5fa8d3", roughness: 0.6 },
       { id: "gris", label: "Gris béton", hex: "#8a8c8e", roughness: 0.7 }
     ],
+    impression: { matiere: "pla", orientation: POSE.retourne, supports: false, parPlateau: 5,
+      remarques: "Deux pièces : la bague, collerette contre le plateau (l'épaulement intérieur de 1,5 mm passe sans support), et le couvercle, imprimé à part, à plat." },
     custom: { surcharge: 3, params: [param("a", "Diamètre du trou", 30, 100, 60)] }
   },
   {
@@ -103,6 +126,8 @@ EVARYSTH.products = [
       { id: "gris", label: "Gris béton", hex: "#8a8c8e", roughness: 0.7 },
       { id: "moka", label: "Moka", hex: "#5b4034", roughness: 0.6 }
     ],
+    impression: { matiere: "asa", orientation: POSE.retourne, supports: true, parPlateau: 6,
+      remarques: "Tête en bas, languette à œillet contre le plateau (comme le modèle d'origine) ; supports sous les crochets." },
     custom: { surcharge: 3, params: [
       param("a", "Diamètre de la tige d'appui-tête", 10, 20, 14),
       param("b", "Épaisseur de la tablette", 6, 22, 15),
@@ -127,6 +152,8 @@ EVARYSTH.products = [
       { id: "orange", label: "Orange", hex: "#e2742b", roughness: 0.6 },
       { id: "rose", label: "Rose poudré", hex: "#dca8a4", roughness: 0.62 }
     ],
+    impression: { matiere: "petg", orientation: POSE.aPlat, supports: false, parPlateau: 4,
+      remarques: "Couchée sur une face : le profil en L est à plat." },
     custom: { surcharge: 3, params: [
       param("a", "Longueur de la 1re branche", 50, 200, 100, 1, 0.02),
       param("b", "Longueur de la 2e branche", 50, 200, 100, 1, 0.02),
@@ -145,9 +172,13 @@ EVARYSTH.products = [
       { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 },
       { id: "bronze", label: "Bronze", hex: "#9a7240", roughness: 0.38, metalness: 0.55 }
     ],
+    impression: { matiere: "pacf", orientation: POSE.debout, supports: false, parPlateau: 1,
+      remarques: "Quatre pièces dans l'orientation des fichiers d'origine : boîte ouverture en haut, couvercle retourné, loquets debout sur leur tranche.", pieces: [
+      { nom: "boîte" }, { nom: "couvercle", orientation: POSE.retourne },
+      { nom: "loquet", orientation: [[-1, 0, 0], [0, 1, 0], [0, 0, -1]] }, { nom: "loquet", orientation: [[-1, 0, 0], [0, 1, 0], [0, 0, -1]] }] },
     custom: { surcharge: 6, params: [
-      param("a", "Longueur intérieure", 110, 300, 150, 5, 0.06),
-      param("b", "Largeur intérieure", 60, 250, 100, 5, 0.08),
+      param("a", "Longueur intérieure", 110, 245, 150, 5, 0.06),
+      param("b", "Largeur intérieure", 60, 230, 100, 5, 0.08),
       param("c", "Hauteur intérieure", 35, 150, 50, 5, 0.1)
     ] },
     photos: [
@@ -160,16 +191,18 @@ EVARYSTH.products = [
     id: "support-casque-gyroide", universe: "meubles", matiere: "pacf", shape: "headstand", model: "support-casque-gyroide",
     name: "Support casque Gyroïde", price: 29,
     tagline: "Un vrai présentoir pour votre casque, léger comme une dentelle.",
-    desc: "Socle plein, colonne et tête en treillis gyroïde, appui bombé qui épouse l'arceau sans le marquer. Réglez la hauteur pour que les coussinets ne touchent pas le bureau, et la largeur de l'appui selon votre arceau : le treillis garde la même maille, il gagne simplement des cellules.",
-    variants: sizes("Taille du casque", [["Compact", "supra-auriculaire", { a: 220, b: 100 }], ["Standard", "circum-auriculaire", { a: 250, b: 120 }], ["Grand", "casque de studio", { a: 290, b: 140 }]]),
+    desc: "Socle plein, colonne et tête en treillis gyroïde, appui bombé qui épouse l'arceau sans le marquer. Réglez la hauteur pour que les coussinets ne touchent pas le bureau, et la largeur de votre arceau, que l'appui déborde de 4 mm de chaque côté : le treillis garde la même maille, il gagne simplement des cellules.",
+    variants: sizes("Taille du casque", [["Compact", "supra-auriculaire", { a: 220, b: 100 }], ["Standard", "circum-auriculaire", { a: 250, b: 120 }], ["Grand", "casque de studio", { a: 255, b: 140 }]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "gris", label: "Gris béton", hex: "#8a8c8e", roughness: 0.7 },
       { id: "rouge", label: "Rouge brique", hex: "#a8382f", roughness: 0.62 }
     ],
+    impression: { matiere: "pacf", orientation: POSE.debout, supports: false, parPlateau: 2,
+      remarques: "Debout sur son socle : le treillis gyroïde se soutient seul." },
     custom: { surcharge: 6, params: [
-      param("a", "Hauteur totale du support", 200, 320, 250, 5, 0.05),
-      param("b", "Largeur de l'appui sous l'arceau", 80, 160, 120, 5, 0.06)
+      param("a", "Hauteur totale du support", 200, 255, 250, 5, 0.05),
+      param("b", "Largeur de l'arceau du casque", 80, 160, 120, 5, 0.06)
     ] },
     photos: [
       { src: "assets/photos/support-casque-gyroide/1.webp", alt: "Support casque Gyroïde posé sur un bureau en bois, un casque circum-auriculaire suspendu à son appui" },
@@ -183,7 +216,7 @@ EVARYSTH.products = [
     id: "organiseur-tiroir", universe: "meubles", matiere: "pacf", shape: "tray", model: "organiseur-tiroir", popular: true,
     name: "Organiseur de tiroir", price: 28,
     tagline: "Un casier qui épouse exactement votre tiroir.",
-    desc: "Fini les centimètres perdus : l'organiseur est fabriqué à la cote intérieure de votre tiroir.",
+    desc: "Fini les centimètres perdus : l'organiseur est fabriqué à la cote intérieure de votre tiroir. Au-delà de 25 cm, il arrive en modules qui se posent côte à côte.",
     variants: sizes("Format", [["Petit", "200 × 300", { a: 200, b: 300 }], ["Moyen", "300 × 400", { a: 300, b: 400 }], ["Grand", "400 × 500", { a: 400, b: 500 }]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
@@ -191,6 +224,8 @@ EVARYSTH.products = [
       { id: "bleu", label: "Bleu lagon", hex: "#5fa8d3", roughness: 0.6 },
       { id: "rouge", label: "Rouge brique", hex: "#a8382f", roughness: 0.62 }
     ],
+    impression: { matiere: "pacf", orientation: POSE.debout, supports: false, plateaux: 3,
+      remarques: "Chaque module debout sur son fond." },
     custom: { surcharge: 10, params: [param("a", "Largeur intérieure du tiroir", 120, 560, 320, 5, 0.03), param("b", "Profondeur intérieure du tiroir", 150, 560, 420, 5, 0.02)] }
   },
   {
@@ -204,6 +239,8 @@ EVARYSTH.products = [
       { id: "cacao", label: "Brun cacao", hex: "#5b463d", roughness: 0.62 },
       { id: "blanc", label: "Blanc", hex: "#ecebe6", roughness: 0.6 }
     ],
+    impression: { matiere: "pla", orientation: POSE.surLeCote, supports: false, parPlateau: 6,
+      remarques: "Sur le côté : dosseret, tablette et crochets ont leur profil à plat." },
     custom: { surcharge: 5, params: [
       param("a", "Largeur", 60, 180, 75, 5, 0.06),
       param("b", "Profondeur du bac", 55, 120, 75, 5, 0.04),
@@ -228,6 +265,8 @@ EVARYSTH.products = [
       { id: "olive", label: "Vert olive", hex: "#6f7a45", roughness: 0.68 },
       { id: "bronze", label: "Bronze", hex: "#9a7240", roughness: 0.38, metalness: 0.55 }
     ],
+    impression: { matiere: "pacf", orientation: POSE.debout, supports: false, parPlateau: 4,
+      remarques: "Debout sur son fond, fente et pot ouverts vers le haut." },
     custom: { surcharge: 4, params: [
       param("a", "Diamètre de vos disques de coton", 45, 75, 58, 1, 0.1),
       param("b", "Hauteur du distributeur", 100, 200, 150, 5, 0.05),
@@ -253,6 +292,8 @@ EVARYSTH.products = [
       { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 },
       { id: "bleu", label: "Bleu lagon", hex: "#5fa8d3", roughness: 0.6 }
     ],
+    impression: { matiere: "petg", orientation: POSE.aPlat, supports: false, parPlateau: 15,
+      remarques: "Couché, voile contre le plateau." },
     custom: { surcharge: 3, params: [param("a", "Diamètre de la tringle", 15, 40, 25)] },
     /* Photos commerciales (facultatif) : 1re = vignette du catalogue. note = taille photographiée */
     photos: [
@@ -273,6 +314,8 @@ EVARYSTH.products = [
       { id: "rouge", label: "Rouge brique", hex: "#a8382f", roughness: 0.62 },
       { id: "olive", label: "Vert olive", hex: "#6f7a45", roughness: 0.68 }
     ],
+    impression: { matiere: "asa", orientation: POSE.debout, supports: true, parPlateau: 9,
+      remarques: "Debout sur son fond ajouré ; supports sous les crochets et les ergots SKADIS." },
     custom: { surcharge: 3, params: [
       param("a", "Diamètre de la bombe", 40, 80, 54),
       param("b", "Hauteur du support", 60, 110, 60, 5, 0.05)
@@ -297,6 +340,8 @@ EVARYSTH.products = [
       { id: "marbre", label: "Blanc marbre", hex: "#e6e2d8", roughness: 0.5 },
       { id: "bronze", label: "Bronze", hex: "#9a7240", roughness: 0.38, metalness: 0.55 }
     ],
+    impression: { matiere: "asa", orientation: POSE.debout, supports: true, parPlateau: 6,
+      remarques: "Debout sur son piédouche ; supports sous les épaules." },
     custom: { surcharge: 5, params: [
       param("a", "Hauteur du buste", 80, 220, 150, 5, 0.2)
     ] },
@@ -319,6 +364,8 @@ EVARYSTH.products = [
       { id: "bleu", label: "Bleu lagon", hex: "#5fa8d3", roughness: 0.6 },
       { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 }
     ],
+    impression: { matiere: "pa12", orientation: POSE.debout, supports: true, parPlateau: 2,
+      remarques: "Debout sur ses pattes ; supports sous les bras et la queue." },
     custom: { surcharge: 5, params: [
       param("a", "Hauteur de la figurine", 60, 200, 120, 5, 0.15)
     ] },
@@ -340,6 +387,8 @@ EVARYSTH.products = [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "rouge", label: "Rouge course", hex: "#b8322c", roughness: 0.5 }
     ],
+    impression: { matiere: "asa", orientation: POSE.debout, supports: true, parPlateau: 3,
+      remarques: "Sur ses roues ; supports sous la caisse." },
     custom: { surcharge: 5, params: [
       param("a", "Longueur de la voiture", 100, 240, 140, 5, 0.15)
     ] },

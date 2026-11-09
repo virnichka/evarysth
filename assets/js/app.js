@@ -495,6 +495,17 @@ ${colors.length ? `
         $("#stage").classList.add("is-3d");
         const lab = $("#open3d") && $("#open3d").closest(".stage__open");
         if (lab) lab.hidden = !build.openable;   // curseur « Ouvrir » seulement pour les modèles articulés
+      }, {
+        jeu: EVARYSTH.jeu(p),   // jeu d'ajustement de la matière : l'aperçu est la pièce fabriquée
+        /* 3D impossible (WebGL, WASM ou réseau) : 1re photo, sinon vignette 3D du catalogue, et un message court */
+        onError: () => {
+          const box = $("#viewer3d"), ph = photos[0] || { src: `assets/vignettes/${p.id}-1.webp`, alt: `Aperçu de ${p.name}` };
+          if (!box) return;
+          box.classList.add("viewer3d--repli");
+          box.removeAttribute("role"); box.removeAttribute("aria-label");
+          box.innerHTML = `<img${photos[0] ? "" : ' class="is-rendu"'} src="${ph.src}" alt="${ph.alt}" style="object-position:${ph.pos || "50% 50%"}"><p class="viewer3d__msg mono">Aperçu 3D indisponible sur ce navigateur</p>`;
+          $("#stage").classList.add("is-repli");
+        }
       });
       if (colors.length) viewer.setColor(colors[state.color]);
       const open3d = $("#open3d");

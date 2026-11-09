@@ -1,12 +1,13 @@
-/* Evarysth — moteur géométrique commun (navigateur + Node), basé sur manifold-3d.
-   Refonte, phase 2 (docs/refonte-geometrie.md) : même API que le kit three.js de viewer3d.js
-   (ext, box, cyl, join, tray, overHook, sideClamp), mais chaque brique est un solide Manifold
+/* Evarysth — moteur géométrique commun (navigateur + Node), basé sur manifold-3d (docs/refonte-geometrie.md).
+   Briques ext, box, cyl, rev, join, tray, overHook, sideClamp : chaque brique est un solide Manifold
    et join() est une vraie union booléenne : maillage étanche, sans faces internes.
    Module ES sans dépendance : il reçoit THREE et le module WASM déjà chargés.
-     navigateur : viewer3d.js, moteur par défaut (?geo=ancien : ancien kit three.js, jusqu’à la phase 4) ;
-     Node       : tools/lib/moteur.mjs (tools/generer-stl.mjs, tools/comparer-kits.mjs).
+     navigateur : viewer3d.js (seul moteur de l'aperçu) ;
+     Node       : tools/lib/moteur.mjs (generer-stl, verifier-geometrie, tests de tools/test/).
    Unités : mm. Les solides se manipulent comme des BufferGeometry (translate, rotateX/Y/Z,
-   scale, applyMatrix4, clone, center, dispose), en place, et se convertissent pour l'aperçu. */
+   scale, applyMatrix4, clone, center, dispose), en place, et se convertissent pour l'aperçu.
+   Chaque solide garde sa « pose » : la transformation appliquée depuis le dernier join(), qui ramène les contrôles
+   de cotes déclarés par les modèles (repère de construction) sur le solide final. */
 
 export const MANIFOLD_VERSION = "3.5.4";
 /* Facettisation des cylindres : corde ≤ CORDE mm, au moins SEG_MIN segments, multiple de 4
@@ -17,7 +18,7 @@ export const segments = r => Math.ceil(Math.max(SEG_MIN, Math.ceil(2 * Math.PI *
 
 /* Profils 2D utilisés par les compositions (mêmes définitions que viewer3d.js) */
 const rad = d => d * Math.PI / 180;
-/* Arc et cercle sans n explicite (viewer3d.js, ici overHook) : même règle de corde, jamais moins fin que l'ancien kit */
+/* Arc et cercle sans n explicite (viewer3d.js, ici overHook) : même règle de corde, au moins 32 segments */
 const arc = (ri, ro, a0, a1, n = Math.max(32, Math.ceil(segments(Math.max(ri, ro)) * Math.abs(a1 - a0) / 360 / 4) * 4)) => {
   const at = (r, i) => [r * Math.cos(rad(a0 + (a1 - a0) * i / n)), r * Math.sin(rad(a0 + (a1 - a0) * i / n))];
   return [...Array.from({ length: n + 1 }, (_, i) => at(ro, i)), ...Array.from({ length: n + 1 }, (_, i) => at(ri, n - i))];
@@ -34,18 +35,20 @@ export function createKit(THREE, wasm) {
   /* Radians → degrés, multiples de 90° exacts (manifold-3d les applique sans erreur d'arrondi) */
   const deg = a => { const d = a * 180 / Math.PI, r = Math.round(d); return Math.abs(d - r) < 1e-9 ? r : d; };
 
-  /* Solide : enveloppe mutable d'un Manifold (immuable), à la manière d'une BufferGeometry */
+  /* Solide : enveloppe mutable d'un Manifold (immuable), à la manière d'une BufferGeometry.
+     pose : transformations appliquées depuis la création ou le dernier join() (THREE.Matrix4) */
+  const M4 = () => new THREE.Matrix4();
   class Solid {
-    constructor(mf, horsKit = false) { this.mf = mf; this.horsKit = horsKit; }
+    constructor(mf, horsKit = false, pose = M4()) { this.mf = mf; this.horsKit = horsKit; this.pose = pose; }
     get isSolid() { return true; }
-    set(mf) { this.mf = own(mf); return this; }
-    translate(x, y, z) { return this.set(this.mf.translate([x, y, z])); }
-    rotateX(a) { return this.set(this.mf.rotate([deg(a), 0, 0])); }
-    rotateY(a) { return this.set(this.mf.rotate([0, deg(a), 0])); }
-    rotateZ(a) { return this.set(this.mf.rotate([0, 0, deg(a)])); }
-    scale(x, y = x, z = x) { return this.set(this.mf.scale([x, y, z])); }
-    applyMatrix4(m) { return this.set(this.mf.transform(Array.from(m.elements))); }
-    clone() { return new Solid(this.mf, this.horsKit); }
+    set(mf, m) { this.mf = own(mf); this.pose.premultiply(m); return this; }
+    translate(x, y, z) { return this.set(this.mf.translate([x, y, z]), M4().makeTranslation(x, y, z)); }
+    rotateX(a) { return this.set(this.mf.rotate([deg(a), 0, 0]), M4().makeRotationX(a)); }
+    rotateY(a) { return this.set(this.mf.rotate([0, deg(a), 0]), M4().makeRotationY(a)); }
+    rotateZ(a) { return this.set(this.mf.rotate([0, 0, deg(a)]), M4().makeRotationZ(a)); }
+    scale(x, y = x, z = x) { return this.set(this.mf.scale([x, y, z]), M4().makeScale(x, y, z)); }
+    applyMatrix4(m) { return this.set(this.mf.transform(Array.from(m.elements)), m.clone()); }
+    clone() { return new Solid(this.mf, this.horsKit, this.pose.clone()); }
     center() {
       const { min, max } = this.mf.boundingBox();
       return this.translate(-(min[0] + max[0]) / 2, -(min[1] + max[1]) / 2, -(min[2] + max[2]) / 2);
@@ -110,7 +113,7 @@ export function createKit(THREE, wasm) {
     return solid(mf);
   };
 
-  /* Briques : mêmes signatures et même repère que le kit three.js */
+  /* Briques (repère de l'aperçu : Y vers le haut) */
   const ext = (pts, d, holes = []) => solid(section(pts, holes).cs.extrude(d, 0, 0, [1, 1], true));
   const box = (w, h, d, x = 0, y = 0, z = 0) => solid(Manifold.cube([w, h, d], true)).translate(x, y, z);
   const cyl = (r, h, ri = 0) => {
@@ -193,7 +196,7 @@ export function createKit(THREE, wasm) {
     return g;
   };
 
-  /* Concaténation de triangles (ancien join) : seulement en repli, quand une pièce hors kit n'est pas étanche */
+  /* Concaténation de triangles : seulement en repli, quand une pièce hors kit n'est pas étanche (aperçu seul) */
   const concat = gs => {
     const flat = gs.map(g => { const n = g.index ? g.toNonIndexed() : g; if (!n.attributes.normal) n.computeVertexNormals(); return n; });
     const cat = key => {
@@ -207,7 +210,8 @@ export function createKit(THREE, wasm) {
     return g;
   };
 
-  /* Assemblage : union booléenne, centrée sur sa boîte englobante (comme l'ancien join).
+  /* Assemblage : union booléenne, centrée sur sa boîte englobante ; le repère des pièces assemblées est le
+     « repère de construction » du résultat (sa pose ne garde que ce centrage et les transformations suivantes).
      Les BufferGeometry (modèles hors kit) sont converties si elles sont étanches ; sinon,
      repli sur la concaténation : l'aperçu reste juste, le bilan dit « non étanche ». */
   const join = (...gs) => {

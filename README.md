@@ -19,18 +19,19 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `assets/og/<id>.jpg` | Images d'aperçu quand on partage un lien (WhatsApp, réseaux…), 1200 × 630. |
 | `produit.html` | Ancienne adresse : redirige vers `produits/<produit>/` (les anciens liens `#p-<produit>` aussi). |
 | `assets/css/style.css` | Toute l'apparence : couleurs, polices, mise en page, thème clair/sombre, version mobile. |
-| `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max), photos. C'est le fichier à modifier pour ajouter ou changer un produit. |
+| `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max), photos, matières (avec leur jeu d'ajustement) et fiche d'impression de chaque produit. C'est le fichier à modifier pour ajouter ou changer un produit. |
 | `assets/js/app.js` | **Le chef d'orchestre.** Lit le type de page (`data-product-id`, `data-universe-id`, `data-page="catalogue"` sur le `<body>`, ou `#…` sur l'accueil), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
-| `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js seulement quand une fiche en a besoin, affiche et fait tourner la pièce. |
-| `assets/js/geo.js` | **Nouveau moteur géométrique** (refonte, `docs/refonte-geometrie.md`), commun au navigateur et à Node : même kit que `viewer3d.js` (`ext`, `box`, `cyl`, `join`…) sur **manifold-3d** (unions booléennes, maillage étanche). Moteur par défaut du site depuis la phase 3 (`?geo=ancien` : ancien kit three.js, mémorisé, pour comparer ; `?geo=manifold` revient au défaut). |
-| `assets/vendor/manifold-3d/` | manifold-3d **3.5.4** (`manifold.js` + `manifold.wasm`, licence Apache-2.0), copié depuis `tools/node_modules` ; chargé à la demande par le viewer (moteur par défaut ; `?geo=ancien` rend l'ancien kit three.js pour comparer, jusqu'à la phase 4). Changer de version : `tools/package.json`, recopier les 2 fichiers, `MANIFOLD_VERSION` dans `geo.js`. |
+| `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js et le moteur géométrique seulement quand une fiche en a besoin, affiche et fait tourner la pièce. Si la 3D ne peut pas s'afficher (WebGL absent, WASM bloqué), la fiche montre la 1re photo ou la vignette 3D avec un message court. |
+| `assets/js/geo.js` | **Moteur géométrique** (`docs/refonte-geometrie.md`), commun au navigateur et à Node : kit `ext`, `box`, `cyl`, `rev`, `join`, `tray`… sur **manifold-3d** (unions booléennes, maillage étanche). Seul moteur du site depuis la phase 4 (l'ancien kit three.js est retiré). |
+| `assets/vendor/manifold-3d/` | manifold-3d **3.5.4** (`manifold.js` + `manifold.wasm`, licence Apache-2.0), copié depuis `tools/node_modules` ; chargé à la demande par le viewer. Changer de version : `tools/package.json`, recopier les 2 fichiers, `MANIFOLD_VERSION` dans `geo.js`. |
 | `assets/js/modeles/` | **Un fichier par pièce 3D** : le « plan » qui transforme des cotes en mm en pièce 3D. Seul le fichier de la fiche ouverte est chargé. |
 | `assets/js/cart.js` | Le panier latéral : ajout, quantités, code promo de démo `BIENVENUE10` (codes Stripe en mode test), total, envoi au paiement ; mémorisé dans le navigateur. |
 | `assets/js/ui.js` | Le confort : thème clair/sombre, recherche (touche `/`), favoris, notifications, fenêtres modales. |
 | `assets/models/<produit>/` | Fichiers STL d'origine des produits qui partent d'un modèle existant. |
 | `assets/photos/<produit>/` | Photos commerciales (`1.webp` = vignette du catalogue). |
-| `tools/` | Outils d'atelier : analyse des STL (`analyse-stl.py`, `bgcode-decode.py`), `generer-pages.mjs` (pages produit, univers, catalogue, légales, 404, sitemap ; textes légaux dans `pages-legales/`), `captures-og.cjs` (images de partage et vignettes 3D), `icones-admin.mjs` (icônes de /admin). Fabrication : `generer-stl.mjs` (STL + manifeste, voir ci-dessous), `comparer-kits.mjs` (contrôle ancien/nouveau kit). Dépendances Node épinglées dans `tools/package.json` (three 0.170.0, manifold-3d 3.5.4 : `cd tools && npm ci`) ; la publication du site n'en a pas besoin. |
+| `tools/` | Outils d'atelier : analyse des STL (`analyse-stl.py`, `bgcode-decode.py`), `generer-pages.mjs` (pages produit, univers, catalogue, légales, 404, sitemap ; textes légaux dans `pages-legales/`), `captures-og.cjs` (images de partage et vignettes 3D), `icones-admin.mjs` (icônes de /admin). Fabrication et contrôles (voir « Générer un STL ») : `generer-stl.mjs`, `verifier-geometrie.mjs`, `references-geometrie.json` (référence figée), `lib/` (moteur Node, contrôles, fiche d'impression), `test/` (tests Node). Dépendances Node épinglées dans `tools/package.json` (three 0.170.0, manifold-3d 3.5.4 : `cd tools && npm ci`) ; la publication du site n'en a pas besoin. |
 | `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages (le dossier `worker/` n'est pas publié). |
+| `.github/workflows/geometrie.yml` | **Contrôles de géométrie** sur chaque PR et chaque push sur `main` qui touche `assets/js/` (dont `data.js`), `assets/models/` ou `tools/` : `cd tools && npm ci && node --test`. |
 | `worker/` | **Le service de paiement** (Cloudflare Worker + Stripe Checkout, **mode test**) : reçoit le panier, recalcule les prix depuis `data.js`, crée la session Stripe, reçoit le webhook. Voir « Paiement » ci-dessous. |
 | `commande/merci/` | Page de retour après paiement (récapitulatif de la commande). |
 | `.github/workflows/worker.yml` | Teste puis déploie le Worker à chaque changement de `worker/` ou de `data.js`. |
@@ -104,15 +105,37 @@ commande réelle à petit prix puis remboursement.
 ## Générer un STL (fabrication)
 
 `cd tools && npm ci` une fois, puis depuis la racine :
-`node tools/generer-stl.mjs <produit> [a=… b=… c=…] [--taille=<libellé ou 1-3>]`. Le calcul est **celui de l'aperçu**
-(moteur par défaut du site) : mêmes fichiers `assets/js/modeles/*.js`, même `geo.js`, même manifold-3d. Sortie dans `sortie-stl/`
-(ignoré par git) : STL binaire en Z vers le haut + manifeste JSON (produit, modèle, cotes, SHA git, versions, étanche,
-volume, boîte englobante, nombre de solides obtenu et attendu). **Erreur** si une cote sort des bornes de `data.js`, si le
-maillage n'est pas étanche ou si le nombre de solides diffère de celui que déclare le modèle
-(`define(id, factory, { solides: n })`) ; `--forcer` écrit quand même le fichier, pour diagnostic.
-`node tools/comparer-kits.mjs [produit…] [--ref=origin/main]` compare l'ancien kit three.js (fichiers actuels, ou ceux du
-commit `--ref`) et le nouveau sur toutes les combinaisons min/défaut/max : boîte, volume, étanchéité, solides, temps de calcul.
-`node tools/verifier-trous.mjs [produit…]` contrôle par coupe (`Manifold.slice`) les diamètres fonctionnels (± 0,05 mm).
+`node tools/generer-stl.mjs <produit> [a=… b=… c=…] [--taille=<libellé ou 1-3>] [--impression]`. Le calcul est **celui de
+l'aperçu** : mêmes fichiers `assets/js/modeles/*.js`, même `geo.js`, même manifold-3d, même jeu de matière. Sortie dans
+`sortie-stl/` (ignoré par git) + manifeste JSON (produit, cotes, matière, jeu, SHA git, versions, étanche, volume, boîte,
+solides obtenus et attendus, contrôles) :
+- sans `--impression` : un STL des pièces assemblées comme sur le site, Z vers le haut ;
+- `--impression` : les **pièces séparées**, orientées selon la fiche d'impression, posées à z = 0 et rangées sur le plateau
+  de la Bambu Lab (256 × 256 × 256 mm, 5 mm entre pièces), un STL par pièce dans les coordonnées du plateau
+  (`<produit>-<cotes>-plateau<n>-<pièce>.stl`), positions dans le manifeste.
+
+**Erreur** si une cote sort des bornes de `data.js` ou si un contrôle échoue (ci-dessous) ; `--forcer` écrit quand même,
+pour diagnostic.
+
+**Jeu par matière.** Chaque matière de `data.js` a un `jeu` en mm (PLA 0,2 ; PETG 0,3 ; ASA 0,3 ; PA-CF 0,25 ; PA12 0,3),
+passé au modèle avec les cotes (`EVARYSTH.jeu(p)`, dans l'aperçu comme en fabrication). Le modèle l'applique à chaque
+ajustement fonctionnel : pièce qui entre dans un trou du client → cote − jeu ; pièce qui entoure un objet du client →
+cote + jeu. La cote saisie par le client et le prix ne changent pas.
+
+**Contrôles** (`node tools/verifier-geometrie.mjs [produit…] [--detail]`, et les tests `cd tools && node --test`, < 1 min),
+à toutes les combinaisons min/défaut/max des cotes de chaque produit :
+- maillage étanche, nombre de solides déclaré par le modèle (`define(id, factory, { solides })`) ;
+- **cotes fonctionnelles** déclarées par le modèle (`cotes: v => [{ nom, axe, en, mesure, selon?, attendu }]`), mesurées
+  par coupe (`Manifold.slice`) à ± 0,05 mm : diamètre libre d'un trou, diamètre d'un fût, largeur d'une ouverture,
+  étendue hors tout (syntaxe en tête de `tools/lib/controles.mjs`) ;
+- **paroi minimale** (1,2 mm par défaut, `paroi: { min, seuil, coupes }` dans le modèle) : chaque coupe est « ouverte »
+  par `offset(−e/2)` puis `offset(+e/2)` ; ce qui disparaît est plus fin que e ;
+- **fiche d'impression** (`impression` du produit dans `data.js` : orientation = rotation propre du repère du modèle vers
+  le plateau, supports, `parPlateau` ou `plateaux`, matière, remarques) : pièces dans le volume, surface d'appui non nulle,
+  autant de pièces que de solides déclarés, exemplaires par plateau tenus aux cotes par défaut ;
+- **référence figée** `tools/references-geometrie.json` (boîte, volume, solides par combinaison) : tout écart échoue.
+  Après un changement de forme voulu : `node tools/verifier-geometrie.mjs [produit…] --mettre-a-jour` (affiche les écarts),
+  à committer avec le modèle.
 
 ## Sécurité du site (CSP)
 

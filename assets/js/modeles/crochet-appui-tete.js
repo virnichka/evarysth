@@ -3,7 +3,8 @@
    le STL est imprimé tête en bas). En haut, une languette pliée vers l'arrière porte un œillet qui s'enfile
    sur une tige d'appui-tête ; la plaque pend contre le dos du siège. En bas, deux grands crochets (sacs,
    mousqueton) ; au milieu, deux petits crochets où se pose la tranche d'une tablette.
-   a = diamètre de la tige d'appui-tête, b = épaisseur de la tablette (avec coque),
+   a = diamètre de la tige d'appui-tête (œillet : Ø a + 1 mm de marge + jeu), b = épaisseur de la tablette (avec coque ;
+   petits crochets : b + jeu),
    c = distance entre l'axe de la tige et le dos du siège. Repère : Y vers le haut, crochets vers +Z. */
 EVARYSTH.viewer3d.define("crochet-appui-tete", ({ m, circ, arc }) => {
   /* Polygone aux angles arrondis (rayon r, ou r[i] par sommet) */
@@ -20,9 +21,9 @@ EVARYSTH.viewer3d.define("crochet-appui-tete", ({ m, circ, arc }) => {
   });
   const shift = (pts, du, dv) => pts.map(([u, v]) => [u + du, v + dv]);
 
-  return m((k, { a, b, c }) => {
+  return m((k, { a, b, c, jeu = 0 }) => {
     const t = 3, H = 100, W = 110, cut = 30, ym = 45;
-    const rh = (a + 1) / 2, R = Math.max(18, rh + 9);       // œillet : jeu de 1 mm sur la tige, paroi ≥ 9 mm
+    const rh = (a + 1 + jeu) / 2, R = Math.max(18, rh + 9); // œillet : marge de 1 mm + jeu sur la tige, paroi ≥ 9 mm
     /* Crochet en J (profil dans le plan profondeur/hauteur, extrudé sur la largeur w, centré en x) */
     const hook = (gap, y0, leg, w, x) => {
       const ri = gap / 2, ro = ri + t, zc = t + ri, yc = y0 + ro;
@@ -47,6 +48,12 @@ EVARYSTH.viewer3d.define("crochet-appui-tete", ({ m, circ, arc }) => {
     const tongue = k.ext(tab, t, [circ(rh, 0, -c)]).rotateX(Math.PI / 2).translate(0, H - t / 2, 0);
     return k.join(plate, bend, tongue,
       ...hook(15, 0, 12.5, W / 2 - cut, -(W / 2 + cut) / 2), ...hook(15, 0, 12.5, W / 2 - cut, (W / 2 + cut) / 2),
-      ...hook(b, ym, 5, 20, -15), ...hook(b, ym, 5, 20, 15));
+      ...hook(b + jeu, ym, 5, 20, -15), ...hook(b + jeu, ym, 5, 20, 15));
   });
-}, { solides: 1 });
+}, {
+  solides: 1,
+  /* Repère de construction : plaque en z de 0 à 3, crochets vers +z, œillet centré en (0, 98,5, -c) */
+  cotes: ({ a, b, c, jeu }) => [
+    { nom: "œillet sur la tige", axe: "y", en: [0, 98.5, -c], mesure: "trou", attendu: a + 1 + jeu },
+    ...[-15, 15].map(x => ({ nom: `petit crochet x = ${x} (tablette)`, axe: "x", en: [x, 48 + (b + jeu) / 2, 3 + (b + jeu) / 2], mesure: "trou", attendu: b + jeu }))]
+});

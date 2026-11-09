@@ -29,8 +29,8 @@ beforeEach(() => {
         : rep({ data: [] });
     }
     if (u.pathname === "/v1/coupons/72RlPcIT") return rep({ id: "72RlPcIT", percent_off: 10, valid: true });
-    if (u.pathname.endsWith("/line_items")) return rep({ data: [{ description: "Tablette café de balcon — Sur-mesure", quantity: 2, amount_total: 8200,
-      price: { product: { metadata: { produit: "tablette-rambarde", mode: "custom", cotes_mm: '{"a":45,"b":300}', coloris: "rose" } } } }] });
+    if (u.pathname.endsWith("/line_items")) return rep({ data: [{ description: "Tablette café de balcon — Sur-mesure", quantity: 2, amount_total: 7700,
+      price: { product: { metadata: { produit: "tablette-rambarde", mode: "custom", cotes_mm: '{"a":45,"b":250}', coloris: "rose" } } } }] });
     if (u.host === "api.brevo.com") { brevo.push({ cle: init.headers["api-key"], corps: JSON.parse(init.body) }); return new Response('{"messageId":"m1"}', { status: brevoStatut }); }
     return vraiFetch(url, init);
   };
@@ -41,7 +41,7 @@ const poster = (chemin, corps, origine = SITE) => worker.fetch(new Request(`http
   method: "POST", headers: { "Content-Type": "application/json", ...(origine ? { Origin: origine } : {}) }, body: JSON.stringify(corps)
 }), env);
 
-const tablette = { id: "tablette-rambarde", mode: "custom", values: { a: 45, b: 300 }, color: "noir", qty: 2 };
+const tablette = { id: "tablette-rambarde", mode: "custom", values: { a: 45, b: 250 }, color: "noir", qty: 2 };
 
 test("prix recalculés depuis le catalogue (standard et sur-mesure avec supplément au mm)", () => {
   const [std, sm] = lirePanier({ items: [
@@ -50,8 +50,8 @@ test("prix recalculés depuis le catalogue (standard et sur-mesure avec supplém
   ] });
   assert.equal(std.unitCents, 2900);
   assert.deepEqual(std.values, { a: 50, b: 220 });
-  /* 29 + 8 de sur-mesure + (300 − 220) × 0,05 = 41 € */
-  assert.equal(sm.unitCents, 4100);
+  /* 29 + 8 de sur-mesure + (250 − 220) × 0,05 = 38,50 € */
+  assert.equal(sm.unitCents, 3850);
 });
 
 test("panier refusé : cotes hors bornes, hors pas, inconnues, produit/coloris/quantité invalides", () => {
@@ -74,15 +74,15 @@ test("panier refusé : cotes hors bornes, hors pas, inconnues, produit/coloris/q
 test("session Stripe : lignes, cotes en métadonnées, livraison, promo, retours", () => {
   const lignes = lirePanier({ items: [tablette] });
   const p = decode(encoder(parametresSession(lignes, { base: SITE + "/", retour: SITE + "/produits/tablette-rambarde/", ref: "EV-1", catalogue: "abc", environnement: "test" })));
-  assert.equal(p["line_items[0][price_data][unit_amount]"], "4100");
+  assert.equal(p["line_items[0][price_data][unit_amount]"], "3850");
   assert.equal(p["line_items[0][quantity]"], "2");
-  assert.equal(p["line_items[0][price_data][product_data][metadata][cotes_mm]"], '{"a":45,"b":300}');
-  assert.match(p["line_items[0][price_data][product_data][description]"], /A · .* : 45 mm · B · Largeur de la tablette : 300 mm · Matière : ASA · Coloris : Noir mat/);
+  assert.equal(p["line_items[0][price_data][product_data][metadata][cotes_mm]"], '{"a":45,"b":250}');
+  assert.match(p["line_items[0][price_data][product_data][description]"], /A · .* : 45 mm · B · Largeur de la tablette : 250 mm · Matière : ASA · Coloris : Noir mat/);
   assert.equal(p["shipping_options[0][shipping_rate_data][fixed_amount][amount]"], "490");
   assert.equal(p.allow_promotion_codes, "true");
   assert.equal(p.success_url, SITE + "/commande/merci/?session_id={CHECKOUT_SESSION_ID}");
   assert.equal(p.cancel_url, SITE + "/produits/tablette-rambarde/?panier=annule");
-  assert.equal(p["metadata[panier]"], "tablette-rambarde:sm:a45,b300:noir:x2");
+  assert.equal(p["metadata[panier]"], "tablette-rambarde:sm:a45,b250:noir:x2");
   assert.match(p["custom_text[submit][message]"], /L221-28/);
   assert.equal(p.payment_method_types, undefined, "moyens de paiement dynamiques (PayPal, CB…)");
 });
@@ -95,7 +95,7 @@ test("POST /checkout : renvoie l'URL Stripe, ignore tout prix envoyé par le nav
   assert.equal(j.url, "https://checkout.stripe.com/c/pay/cs_test_abc");
   assert.match(j.ref, /^EV-\d{6}-[A-Z2-9]{4}$/);
   const p = decode(appels.at(-1).corps);
-  assert.equal(p["line_items[0][price_data][unit_amount]"], "4100");
+  assert.equal(p["line_items[0][price_data][unit_amount]"], "3850");
   assert.equal(p.cancel_url, SITE + "/?panier=annule", "retour vers un autre site refusé");
   assert.match(p["metadata[catalogue]"], /^[0-9a-f]{12}$/);
 });
@@ -170,7 +170,7 @@ test("webhook : e-mail « Nouvelle commande » envoyé par Brevo, nouvel essai s
   assert.deepEqual(m.corps.sender, { name: "Evarysth", email: "commandes@evarysth.fr" });
   assert.deepEqual(m.corps.replyTo, { email: "client@example.com", name: "Camille Test" });
   assert.match(m.corps.subject, /^\[TEST\] Nouvelle commande EV-261107-ABCD — 96,90/);
-  assert.match(m.corps.textContent, /B · Largeur de la tablette : 300 mm/);
+  assert.match(m.corps.textContent, /B · Largeur de la tablette : 250 mm/);
   assert.match(m.corps.textContent, /Coloris : Rose poudré/);
   assert.match(m.corps.textContent, /75011 Paris/);
   assert.match(m.corps.textContent, /dashboard\.stripe\.com\/test\/payments\/pi_123/);

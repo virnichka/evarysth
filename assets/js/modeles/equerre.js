@@ -1,34 +1,19 @@
 /* Modèle 3D « equerre » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
-/* Équerre en L : a = 1re branche, b = 2e branche, c = largeur de la pièce. Paroi fixe.
-   Profil en L (paroi 5 mm, congé de 4 mm dans l'angle intérieur), grossi de 0,8 mm et arêtes arrondies
-   au même rayon : kit manifold → k.extArrondi (CrossSection + offset arrondi) ; ancien kit → biseau three.js. */
-EVARYSTH.viewer3d.define("equerre", ({ kit }) => {
-  const t = 5, bevel = 0.8; // épaisseur de paroi, rayon des arêtes (mm)
-  const cotes = v => { const a = Math.max(v.a, t * 2), b = Math.max(v.b, t * 2); return { a, b, w: v.c, r: Math.min(4, a - t, b - t) }; };
-  /* Ancien kit (?geo=ancien, retiré en phase 4) : ExtrudeGeometry biseautée */
-  const ancien = (THREE, v) => {
-    const { a, b, w, r } = cotes(v);
-    const s = new THREE.Shape();
-    s.moveTo(0, 0);
-    s.lineTo(a, 0);
-    s.lineTo(a, t);
-    s.lineTo(t + r, t);
-    s.quadraticCurveTo(t, t, t, t + r);
-    s.lineTo(t, b);
-    s.lineTo(0, b);
-    s.closePath();
-    const g = new THREE.ExtrudeGeometry(s, {
-      depth: w - bevel * 2, curveSegments: 8,
-      bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2
-    });
-    g.center();
-    return g;
-  };
-  return function (THREE, v) {
-    const k = kit(THREE);
-    if (!k.isManifold) return ancien(THREE, v);
-    const { a, b, w, r } = cotes(v);
+/* Équerre en L : a = 1re branche, b = 2e branche, c = largeur de la pièce, cotes hors tout exactes.
+   Profil cœur en L (paroi 5 mm, congé de 4 mm dans l'angle intérieur), grossi de 0,8 mm et arêtes arrondies
+   au même rayon (k.extArrondi) : le cœur est raccourci de 2 × 0,8 mm pour que chaque branche mesure a (ou b). */
+EVARYSTH.viewer3d.define("equerre", ({ m }) => {
+  const t = 5, bevel = 0.8; // épaisseur du profil cœur (paroi finie : 6,6 mm), rayon des arêtes (mm)
+  return m((k, v) => {
+    const a = Math.max(v.a, t * 2) - 2 * bevel, b = Math.max(v.b, t * 2) - 2 * bevel, r = Math.min(4, a - t, b - t);
     const L = k.conge([[0, 0], [a, 0], [a, t], [t, t], [t, b], [0, b]], r, { convexes: false });
-    return k.join(k.extArrondi(L, w, bevel));
-  };
-}, { solides: 1 });
+    return k.join(k.extArrondi(L, v.c, bevel));
+  });
+}, {
+  solides: 1,
+  /* Repère de construction : angle extérieur du cœur en (0, 0), branches selon +x (a) et +y (b), largeur selon z */
+  cotes: ({ a, b, c }) => [
+    { nom: "1re branche (hors tout)", axe: "z", en: [0, 3, 0], mesure: "etendue", selon: "x", attendu: a },
+    { nom: "2e branche (hors tout)", axe: "z", en: [3, 0, 0], mesure: "etendue", selon: "y", attendu: b },
+    { nom: "largeur de la pièce", axe: "x", en: [3, 3, 0], mesure: "etendue", selon: "z", attendu: c }]
+});
