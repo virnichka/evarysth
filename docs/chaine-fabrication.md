@@ -1,11 +1,10 @@
 # Chaîne de fabrication (commande payée → fichier prêt à imprimer)
 
-> **État (9 novembre 2026)** : **Fabrication · phase 2b faite en grande partie** : R2 branché au Worker, STL standards
-> remplis par workflow, run réel dans R2 vérifié (voir § « Résultats Fabrication · phase 2b »). **Reste** : l'étape 6 du
-> guide (secrets du Worker `GH_ACTIONS_TOKEN` et `FABRICATION_HMAC`, par le propriétaire) puis la commande test de bout
-> en bout (critères d'acceptation de la phase 2 non encore tous contrôlés). Fabrication · phase 1a terminée (tranchage
+> **État (9 novembre 2026)** : **Fabrication · phase 2b faite** : R2 branché au Worker, STL standards remplis par
+> workflow, secrets du Worker posés, commande test de bout en bout réussie (Sheet à `prete`) ; voir § « Résultats
+> Fabrication · phase 2b ». **Reste** : rejouer un webhook Stripe (test) pour constater l'absence de second run. Fabrication · phase 1a terminée (tranchage
 > sans écran **oui** ; points machine B1 oui probable, B2 et B3 incertains).
-> Prochaine étape : étape 6 + commande test, puis clôture de la phase 2b ; ensuite Fabrication · phase 3.
+> Prochaine étape : rejeu du webhook, puis Fabrication · phase 3.
 > Fabrication · phase 1b à l'achat de la machine.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
@@ -356,9 +355,21 @@ l'ancienne clé. Un écart de contrôle sur une taille n'empêche pas l'envoi de
 **Image** : l'empreinte reproductible est confirmée (deux constructions sur GitHub, même empreinte `sha256:b1fe84f8…`,
 run 42639135218 pour la seconde) ; il n'y avait plus de « à confirmer » à retirer dans la doc.
 
-**Reste à faire pour clore la phase 2** (propriétaire, guide étape 6, puis commande test) : acceptation = fichiers dans R2
-en < 10 min et Sheet à « prete » ; webhook rejoué → aucun second run ; journal sans donnée client ; aucun artifact ;
-mauvaise signature sur `/fabrication/retour` → 401 ; tests `worker` et `tools` verts (119 et 237 : verts à la fusion).
+**Étape 6 faite par le propriétaire (9 novembre 2026)** : secrets du Worker `GH_ACTIONS_TOKEN` et `FABRICATION_HMAC`.
+- 1er essai : `/fabrication/retour` → **401** (valeurs de `FABRICATION_HMAC` différentes, la clé d'origine n'était plus connue) ;
+  clé refaite des deux côtés → **404** « article introuvable » (signature acceptée).
+- Commande test `EV-2026-0004` (`passe-cable` Ø 60, Noir mat, × 1) : le Worker a lancé la fabrication, 1er essai refusé
+  par GitHub (**401 Bad credentials**, jeton mal collé) → `a_declencher`, « essai 2/6 » au Sheet ; jeton recréé ;
+  l'essai planifié suivant a lancé le [run 42670148338](https://github.com/virnichka/evarysth/actions/runs/42670148338)
+  (CF-2026-0004-1, 40 s, rappel accepté) → Sheet à **`prete`**, 18,44 g, 42 min, 1 plateau, SHA du site au paiement.
+  Le nouvel essai automatique a fonctionné comme prévu (6 essais, toutes les 10 min).
+- Mauvaise signature sur `/fabrication/retour` → **401** (vérifié en ligne). Aucun artifact sur les runs. Journal : entrées
+  limitées à n° d'article, produit, cotes, coloris, quantité, SHA.
+
+**Acceptation de la phase 2** : fichiers dans R2 et Sheet à `prete` (délai : 1 essai raté puis rejoué par la tâche
+planifiée, soit ≈ 40 min en tout à cause du jeton ; avec un jeton valide, le run part dans la minute) ; mauvaise
+signature → 401 ; aucun artifact ; journal sans donnée client ; tests verts. **Reste à contrôler** : webhook Stripe rejoué
+→ aucun second run (à rejouer depuis le tableau de bord Stripe, mode test).
 
 ### Phase 3 — /admin : génération, validation, envoi des fichiers
 - Fiche commande : statut de génération (en cours / prête / échec + motif), masse, temps, plateaux, liens des fichiers,
