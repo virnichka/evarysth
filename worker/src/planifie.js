@@ -14,6 +14,7 @@
 import { appelSheets, googleConfigure, lettreColonne, lireOnglets } from "./google.js";
 import { creerJeton, jetonConfigure } from "./jeton.js";
 import { liensStandards } from "./fichier.js";
+import { COLS as GEN_COLS, GEN, liensGeneres, refArticle } from "./fabrication.js";
 import { EVARYSTH } from "./catalogue.js";
 import { contenuExpedition, contenuFabricant, contenuRelance, envoyerEmail } from "./email.js";
 import { A_VALIDER, CF, dateParis, FABRICANTS, REF_EXTERNE, REFUSEE, STL_A_INDIQUER, JOURNAL, journaliser, majArticle, ONGLET, ONGLET_CF } from "./sheet.js";
@@ -51,12 +52,15 @@ export function parisVersMs(s) {
 /* Fiche du fabricant par son nom (onglet Fabricants) */
 const COLS_FAB = ["Nom", "E-mail", "Délai (jours)", "Livre le client", "Envoi"];
 /* Colonne facultative « Envoi » de l'onglet Fabricants : « manuel » = commande transmise par le propriétaire (atelier
-   interne, plateforme, téléphone…) : ni e-mail ni liens au fabricant, ni relance ; tout autre valeur (ou vide) = e-mail */
-export const estManuel = v => /^\s*manuel/i.test(String(v || ""));
+   interne, plateforme, téléphone…) : ni e-mail ni liens au fabricant, ni relance ; tout autre valeur (ou vide) = e-mail.
+   « atelier » = imprimante d'Evarysth (Fabrication · phase 3) : traité comme « manuel » en attendant l'agent d'atelier
+   (phase 4), proposé seulement pour un article dont la matière a un profil de tranchage (PLA, PETG). */
+export const estAtelier = v => /^\s*atelier/i.test(String(v || ""));
+export const estManuel = v => /^\s*manuel/i.test(String(v || "")) || estAtelier(v);
 const COLS_JOURNAL = ["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"];
 function fabricantsDe(v) {
   const fabs = {};
-  (v.Nom || []).forEach((n, i) => { if (n.trim()) fabs[n.trim()] = { email: (v["E-mail"] || [])[i] || "", delai: (v["Délai (jours)"] || [])[i] || "", livre: oui((v["Livre le client"] || [])[i]), manuel: estManuel((v.Envoi || [])[i]) }; });
+  (v.Nom || []).forEach((n, i) => { if (n.trim()) fabs[n.trim()] = { email: (v["E-mail"] || [])[i] || "", delai: (v["Délai (jours)"] || [])[i] || "", livre: oui((v["Livre le client"] || [])[i]), manuel: estManuel((v.Envoi || [])[i]), atelier: estAtelier((v.Envoi || [])[i]) }; });
   return fabs;
 }
 
@@ -115,17 +119,30 @@ export function statutEV(statuts) {
   return "payee";
 }
 
-/* Liens STL d'un groupe d'articles : Lien STL saisi sur la ligne, sinon fichier standard de R2 (bloc E) ;
-   un seul lien → l'URL seule, sinon « produit taille : URL » par article. Renvoie { texte, manquants } :
-   manquants = articles sans aucun lien (l'e-mail fabricant ne part jamais sans fichier). */
-export async function liensGroupe(env, lignes, base) {
+/* Fichiers d'un groupe d'articles, par ordre de préférence : Lien STL saisi sur la ligne, sinon fichiers générés à la
+   commande (Génération « prete » : STL, 3MF non tranché, fiche ; + fichier tranché si gcode), sinon fichier standard
+   de R2 (bloc E). Un seul lien → l'URL seule, sinon « produit taille : URL » par article. Renvoie { texte, manquants,
+   generes } : manquants = articles sans aucun lien (l'e-mail fabricant ne part jamais sans fichier) ; generes = au moins
+   un article avec ses fichiers générés (texte sur plusieurs lignes « STL : … », « 3MF non tranché : … », « Fiche : … »). */
+export async function liensGroupe(env, lignes, base, { gcode = false } = {}) {
   const liens = [], manquants = [];
+  let generes = false;
   for (const l of lignes) {
-    const url = l.stl.trim() || await liensStandards(env, l.article, base).catch(e => { console.warn("R2", e.message); return ""; });
     const nom = l.article.split(" · ").slice(0, 2).join(" ");
+    let url = l.stl.trim();
+    const g = l.gen || {};
+    if (!url && g.statut === GEN.prete && l.ev) {
+      const f = await liensGeneres(env, refArticle(l.ev, l.n), g.sha, base).catch(e => { console.warn("R2", e.message); return null; });
+      if (f) {
+        generes = true;
+        url = [`STL${f.nbStl > 1 ? ` (${f.nbStl} fichiers, archive zip)` : ""} : ${f.stl}`, f.troismf ? `3MF non tranché : ${f.troismf}` : "",
+          f.fiche ? `Fiche d'impression : ${f.fiche}` : "", ...(gcode ? f.gcode.map(x => `Fichier tranché P2S (${x.nom}) : ${x.url}`) : [])].filter(Boolean).join("\n");
+      }
+    }
+    url ||= await liensStandards(env, l.article, base).catch(e => { console.warn("R2", e.message); return ""; });
     if (url) liens.push({ nom, url }); else manquants.push(nom);
   }
-  return { texte: liens.length === 1 ? liens[0].url : liens.map(x => `${x.nom} : ${x.url}`).join("\n"), manquants };
+  return { texte: liens.length === 1 ? liens[0].url : liens.map(x => `${x.nom} :${x.url.includes("\n") ? "\n" : " "}${x.url}`).join("\n\n"), manquants, generes };
 }
 
 /* E-mail dû pour un groupe (même CF, même statut). Renvoie true (envoyé ou aucun e-mail prévu), ou une raison si le groupe attend. */
@@ -142,7 +159,7 @@ export async function envoyerSelonStatut(env, g, ev, tous, fabs) {
     if (stl.manquants.length) return `lien STL manquant (${stl.manquants.join(", ")})`;
     const lien = async action => `${base}/f/${await creerJeton(env, { commande: g.cf, action, fabricant: nom })}`;
     const [nomClient = "", , adresse = ""] = ev.client.split("\n");
-    const m = contenuFabricant({ numero: g.cf, piece: g.lignes.map(l => l.article).join("\n"), lienStl: stl.texte,
+    const m = contenuFabricant({ numero: g.cf, piece: g.lignes.map(l => l.article).join("\n"), lienStl: stl.texte, generes: stl.generes,
       delai: f.delai, test, livraison: f.livre ? [nomClient, adresse].filter(Boolean).join("\n") : null,
       liens: { accepter: await lien("accepter"), expedier: await lien("expedier"), refuser: await lien("refuser") } });
     await envoyerEmail(env, { to: [{ email: f.email.trim(), name: nom }], replyTo: repondreA(env), subject: m.sujet, htmlContent: m.html, textContent: m.texte, tags: ["fabricant", test ? "test" : "live"] });
@@ -187,7 +204,7 @@ export async function journaliserSiNouveau(env, journal, numero, ancien, nouveau
 export async function lireEtat(env) {
   /* 2 appels au Sheet en tout (en-têtes des 4 onglets, puis leurs colonnes) : moins de quota, moins de ratés */
   const [{ v, cols: colsCF }, { v: e }, { v: vFab }, { v: vJournal }] = await lireOnglets(env, [
-    { onglet: ONGLET_CF, noms: COLS_CF, options: ["Notes", REF_EXTERNE] }, { onglet: ONGLET, noms: COLS_EV },
+    { onglet: ONGLET_CF, noms: COLS_CF, options: ["Notes", REF_EXTERNE, ...Object.values(GEN_COLS)] }, { onglet: ONGLET, noms: COLS_EV },
     { onglet: FABRICANTS, noms: COLS_FAB, facultatif: true }, { onglet: JOURNAL, noms: COLS_JOURNAL }]);
   const fabs = fabricantsDe(vFab), journal = journalDe(vJournal);
 
@@ -196,10 +213,11 @@ export async function lireEtat(env) {
     date: e.Date[i] || "", type: e.Type[i] || "", cadeau: e["Cadeau / message"][i] || "" }; });
   const lignes = v[CF.ev].map((n, i) => ({ ev: n.trim(), n: (v[CF.art][i] || "").trim(), cf: (v[CF.num][i] || "").trim(), statut: (v.Statut[i] || "").trim(),
     article: v.Article[i] || "", fabricant: v.Fabricant[i] || "", stl: v["Lien STL"][i] || "", transporteur: v.Transporteur[i] || "",
-    suivi: v["N° de suivi"][i] || "", notes: (v.Notes || [])[i] || "", ref: (v[REF_EXTERNE] || [])[i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim(), ligne: i + 2 })).filter(l => l.ev && l.n);
+    suivi: v["N° de suivi"][i] || "", notes: (v.Notes || [])[i] || "", ref: (v[REF_EXTERNE] || [])[i] || "", notifie: (v["Dernier statut notifié"][i] || "").trim(), ligne: i + 2,
+    gen: Object.fromEntries(Object.entries(GEN_COLS).map(([k, nom]) => [k === "generation" ? "statut" : k, String((v[nom] || [])[i] ?? "").trim()])) })).filter(l => l.ev && l.n);
   const parEV = {};
   for (const l of lignes) (parEV[l.ev] ||= []).push(l);
-  return { evs, lignes, parEV, fabs, journal, refExterne: REF_EXTERNE in colsCF };
+  return { evs, lignes, parEV, fabs, journal, refExterne: REF_EXTERNE in colsCF, generation: GEN_COLS.generation in colsCF };
 }
 
 /* Un passage. Renvoie un bilan { attribuees, notifiees, attente, erreurs, relances, commandes } (ou { inactive: true }). */
@@ -208,9 +226,10 @@ export async function tachePlanifiee(env, maintenant = Date.now()) {
   const { evs, lignes, parEV, fabs, journal } = await lireEtat(env);
   const bilan = { attribuees: [], notifiees: [], attente: [], erreurs: [], relances: [], commandes: [] };
 
-  /* 0. lien STL collé à la main dans le Sheet : lien_stl_a_indiquer → a_valider (aucun e-mail, l'envoi reste à valider) */
+  /* 0. lien STL collé à la main dans le Sheet, ou fichiers générés prêts (Génération « prete ») :
+        lien_stl_a_indiquer → a_valider (aucun e-mail, l'envoi reste à valider) */
   for (const l of lignes) {
-    if (l.statut !== STL_A_INDIQUER || !l.stl.trim() || l.notifie !== STL_A_INDIQUER) continue;
+    if (l.statut !== STL_A_INDIQUER || (!l.stl.trim() && l.gen.statut !== GEN.prete) || l.notifie !== STL_A_INDIQUER) continue;
     try { await majArticle(env, l.ev, l.n, { Statut: A_VALIDER, "Dernier statut notifié": A_VALIDER }); l.statut = l.notifie = A_VALIDER; }
     catch (x) { bilan.erreurs.push(`${l.ev} n° ${l.n} : ${x.message}`); }
   }

@@ -9,7 +9,7 @@
 | `CLAUDE.md` | Consignes pour Claude : ajout d'un produit 3D, contrôles, mise en ligne | à jour |
 | `docs/traitement-commandes.md` | Circuit des commandes : Sheet, e-mails, fabricants, page /admin | en service (blocs A à G faits) |
 | `docs/refonte-geometrie.md` | Moteur 3D unique (manifold-3d), 16 produits, contrôles automatiques | chantier clos |
-| `docs/chaine-fabrication.md` | Commande payée → fichiers d'impression automatiques (R2), puis atelier et prix calculé | en cours : phases 0 à 2b faites, phase 3 (/admin) à venir |
+| `docs/chaine-fabrication.md` | Commande payée → fichiers d'impression automatiques (R2), puis atelier et prix calculé | en cours : phases 0 à 3 faites, phase 4 (agent d'atelier) à venir |
 | `docs/guide-reglages-fabrication.md` | Réglages des comptes Cloudflare, GitHub et Sheet pour la fabrication | fait |
 
 ## 1. Vue d'ensemble
@@ -66,8 +66,9 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    produit les STL aux cotes commandées, le fichier tranché pour la P2S (PLA/PETG), un 3MF non tranché et une fiche
    fabricant, les range dans R2 (`commandes/<n°>/<SHA>/`), puis rappelle le Worker (signature HMAC) qui remplit les
    colonnes `Génération` (`en_cours` → `prete` ou `echec`), `Masse g`, `Temps min`, `Plateaux` du Sheet. Échec de
-   lancement : nouvel essai par la tâche planifiée. Rien n'est imprimé ni envoyé automatiquement : ces fichiers ne sont
-   pas encore proposés dans /admin (Fabrication · phase 3).
+   lancement : nouvel essai par la tâche planifiée. Rien n'est imprimé ni envoyé automatiquement : les fichiers sont
+   proposés dans /admin (pli « Fichiers d'impression » de la fiche, Fabrication · phase 3) et partent avec l'e-mail
+   fabricant une fois l'article validé. Fichiers prêts → l'article passe de « Lien STL à indiquer » à « À valider ».
    Chaîne de fabrication (`worker/src/fabrication.js`, éteinte tant que `GH_ACTIONS_TOKEN` et `FABRICATION_HMAC` manquent :
    une ligne de Journal le note) : un run `.github/workflows/fabrication.yml` par article (n° `CF-AAAA-NNNN-<n° d'article>`,
    SHA du site au paiement lu dans `version.json`) → STL, 3MF, `.gcode.3mf` (PLA/PETG) et fiche dans R2, rappel signé
@@ -77,8 +78,13 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    (téléphone, derrière Cloudflare Access). Onglet Commandes = liste des commandes client (n° EV) avec recherche (n° EV,
    n° CF ou nom) et filtres `?f=` : À traiter (défaut : à valider ou bloquées), Chez le fabricant, Expédiées, Bloquées,
    Toutes. Une commande s'ouvre en fiche (`?q=<n°>`) : en-tête (client, ville, statut, lien du paiement Stripe), articles
-   à valider (fabricant + lien STL obligatoire → « Valider et envoyer » → `envoyee_fabricant`, n° fournisseur
-   `CF-AAAA-NNNN-X`, seul n° vu par le fabricant, lettre = fabricant, e-mail fabricant immédiat), articles bloqués
+   à valider (fabricant + fichiers prêts ou lien STL saisi → « Valider et envoyer » → `envoyee_fabricant`, n° fournisseur
+   `CF-AAAA-NNNN-X`, seul n° vu par le fabricant, lettre = fabricant, e-mail fabricant immédiat avec 3 liens signés
+   14 jours : STL (zip s'il y en a plusieurs), 3MF non tranché, fiche d'impression), pli « Fichiers d'impression » par
+   article (état de génération, motif d'échec, masse, temps, plateaux, liens dont le fichier tranché P2S ; « Relancer la
+   génération » au même SHA, « Régénérer au SHA actuel » avec case de confirmation et ligne d'Historique, tant que
+   l'article n'est pas envoyé ; « Valider et envoyer » refusé tant que les fichiers ne sont pas prêts, sauf lien STL
+   saisi à la main), articles bloqués
    (« Débloquer »), un pli par envoi fabricant (articles, STL, suivi, « Renvoyer l'e-mail » au fabricant ou d'expédition
    au client, sans changer le statut ; « Retirer au fabricant » tant que rien n'est expédié : fabricant prévenu par e-mail,
    articles de nouveau à valider sans fabricant, n° CF jamais réattribué), Historique replié, et un pli « Bloquer, annuler ou rembourser » (« Bloquer » →
@@ -86,21 +92,25 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    remboursement fait dans Stripe, case « Je confirme » obligatoire, aucun e-mail ; un geste commercial sans retour se fait
    seulement dans Stripe). Badge « En attente fabricant » (affichage seul, le Sheet garde `en_fabrication`) tant qu'aucun
    envoi n'est accepté ; envoi non accepté signalé en jaune, en orange après 48 h sans réponse. Autres onglets : Tableau de bord (compteurs, alertes), Catalogue
-   (STL présents dans R2), Fabricants (en cours / en retard), Système (voyants, « Lancer la tâche maintenant »), Liens. Icônes de /admin intégrées au Worker
+   (STL présents dans R2), Fabricants (en cours / en retard), Système (voyants dont R2 lu pour de vrai, expiration du
+   jeton GitHub avec alerte à J-30, dernier run de fabrication ; « Lancer la tâche maintenant »), Liens. Tableau de bord :
+   alerte par génération en échec d'un article pas encore envoyé. Icônes de /admin intégrées au Worker
    (`worker/src/icones.js`, à régénérer par `node tools/icones-admin.mjs` si `assets/icons/` change).
 4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours),
    ou « Je ne peux pas la fabriquer » (motif facultatif, possible tant que rien n'est expédié) : articles de nouveau à
    valider dans /admin (« fabricant à changer »), note datée dans `Notes`, e-mail au propriétaire, anciens liens sans effet.
-   Hors e-mail : fabricant `manuel` (colonne `Envoi` de `Fabricants`, ex. atelier interne ou plateforme) validé
+   Hors e-mail : fabricant `manuel` ou `atelier` (colonne `Envoi` de `Fabricants`) validé
    directement « acceptée », fiche à transmettre sur le pli, champ « Référence externe » (colonne facultative de
-   `Commandes CF`) ; pour tout fabricant, « Marquer acceptée » / « Déclarer l'expédition » depuis /admin (e-mail client).
+   `Commandes CF`) ; `atelier` (l'imprimante d'Evarysth) : comme `manuel`, mais proposé et accepté seulement pour un
+   article en PLA ou PETG (matières tranchées pour la P2S), fichier tranché sur la fiche ; pour tout fabricant, « Marquer acceptée » / « Déclarer l'expédition » depuis /admin (e-mail client).
 5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas
    d'acceptation sous 48 h, renvoi des e-mails en échec, Journal. Statut client (`Commandes EV`) = formule du Sheet.
 
 **Fichiers** (`worker/src/`) : `index.js` (routes), `commande.js` (panier → Stripe), `sheet.js` / `google.js` (Sheet,
 lecture/écriture par nom de colonne, jamais par position), `planifie.js` (tâche), `admin.js` + `acces.js` (page
 d'administration, jeton Access revérifié), `fournisseur.js` + `jeton.js` (liens fabricant), `fichier.js` (STL R2),
-`email.js` (contenus Brevo), `fabrication.js` (déclenchement de la génération, rappel HMAC). Tests : `cd worker && node --test`.
+`email.js` (contenus Brevo), `fabrication.js` (déclenchement de la génération, rappel HMAC, liens des fichiers générés,
+relance depuis /admin, état GitHub), `zip.js` (archive des STL d'un article, faite à la demande). Tests : `cd worker && node --test`.
 
 **Deux Workers** (`worker/wrangler.toml`) : `evarysth-checkout` (tout le code et les secrets ; sert `/admin` seulement
 pour l'adresse `ADMIN_HOST`) et `evarysth-admin` (`[env.admin]`, simple relais sans secret, protégé par Access :
@@ -123,8 +133,7 @@ En mode test, une clé Stripe live est refusée.
 - Paiement différé (SEPA) : cocher aussi `checkout.session.async_payment_succeeded` sur le webhook Stripe.
 - Sécurité : signature Stripe vérifiée, jetons HMAC en temps constant, textes échappés, Sheet écrit en `RAW`, actions
   GitHub épinglées par SHA. Reste hors code : limite d'appels WAF sur `/checkout` et `/promo`.
-- Reporté : livre des recettes et remboursements Stripe synchronisés (`charge.refunded`). Les fichiers sur-mesure sont
-  générés automatiquement dans R2 mais le « Lien STL » se saisit encore à la main (Fabrication · phase 3).
+- Reporté : livre des recettes et remboursements Stripe synchronisés (`charge.refunded`).
 
 **Passage en production** : pages légales sans `[À COMPLÉTER]` ; compte Stripe activé, URL CGV et confidentialité dans
 Stripe (Informations publiques), reçus clients cochés ; clé `sk_live_` + webhook live → secrets ; codes promo recréés en

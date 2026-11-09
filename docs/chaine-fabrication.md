@@ -4,7 +4,10 @@
 > workflow, secrets du Worker posés, commande test de bout en bout réussie (Sheet à `prete`) ; voir § « Résultats
 > Fabrication · phase 2b ». Webhook Stripe rejoué le 9 nov. (200 OK) : aucun second run, aucune ligne en double. Fabrication · phase 1a terminée (tranchage
 > sans écran **oui** ; points machine B1 oui probable, B2 et B3 incertains).
-> Prochaine étape : Fabrication · phase 3.
+> **Fabrication · phase 3 publiée (9 novembre 2026)** : fichiers générés visibles et relançables dans /admin, e-mail
+> fabricant avec 3 liens, fabricant « atelier » selon la matière, voyants GitHub et R2 ; voir § « Résultats Fabrication ·
+> phase 3 ». Reste : vérifications du propriétaire sur téléphone avec EV-2026-0004 et passage de la ligne
+> « Atelier Evarysth » à `Envoi` = `atelier`. Prochaine étape : Fabrication · phase 4 (agent d'atelier).
 > Fabrication · phase 1b à l'achat de la machine.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
@@ -384,6 +387,46 @@ test) → 200 OK, **aucun second run** (toujours 7 « Fabrication »), aucune li
 - Acceptation : parcours complet en mode test (paiement → prête → validation → e-mail avec 3 liens valides 14 jours) ;
   échec simulé → motif affiché, relance OK ; atelier refusé pour un article en ASA ; tests verts.
 - **Toi** : ligne « Atelier » dans l'onglet `Fabricants` du Sheet ; sinon rien.
+
+#### Résultats Fabrication · phase 3 (9 novembre 2026)
+**Fait** (Worker, `worker/src/{admin,planifie,fabrication,fichier,email,zip}.js`, tests `worker/test/generation.test.mjs`) :
+- Fiche commande : pli « Fichiers d'impression » par article (état `a_declencher` / `en_cours` / `prete` / `echec` +
+  motif, masse, temps, plateaux, matière, SHA court), liens signés 2 jours vers STL (une archive `stl.zip` faite à la
+  demande s'il y en a plusieurs), 3MF non tranché (`3mf.zip` si plusieurs plateaux), fichiers tranchés P2S et
+  `fiche.html` (affichée dans le navigateur, isolée : CSP `sandbox`, aucun script). Liste des fichiers lue dans le
+  `manifeste.json` de R2 (`commandes/<n° d'article>/<SHA court>/`).
+- « Relancer la génération » (même SHA ; proposé si pas `prete`) et « Régénérer au SHA actuel » (case « Je confirme »,
+  SHA de `version.json`, colonnes SHA / masse / temps / plateaux réécrites ou vidées) : seulement pour un article pas
+  encore envoyé ; ligne au Journal sous le n° d'article (`generation_relancee`, `regeneree_sha_actuel`, ancien = statut
+  ou SHA précédent), visible dans l'Historique de la fiche. Refus de GitHub → message clair et `a_declencher` (la
+  tâche planifiée réessaie).
+- « Valider et envoyer » refusé si `Génération` est remplie et différente de `prete`, sauf lien STL saisi à la main ;
+  sans génération (commande antérieure), règle d'avant (fichier standard R2 ou lien). Fichiers prêts : la colonne
+  « Lien STL » reste vide, les liens sont recalculés à chaque e-mail (renvoi = nouveaux liens 14 jours).
+- E-mail fabricant externe : « Fichiers d'impression » = STL, 3MF non tranché, fiche (liens 14 jours, jamais le fichier
+  tranché). Fiche à transmettre (fabricant manuel) : mêmes liens ; atelier : + fichier tranché P2S.
+- Fabricant `atelier` (colonne `Envoi`) : traité comme `manuel` (acceptée directement, sans e-mail) ; proposé dans la
+  liste et accepté seulement si la matière de la fiche d'impression du produit est PLA ou PETG (`MATIERES_ATELIER`,
+  test : même liste que `PROFILS_FILAMENT` de `tools/trancher.mjs`). Onglet Fabricants : « Atelier (… PLA, PETG seulement) ».
+- Tâche planifiée : `lien_stl_a_indiquer` → `a_valider` aussi quand les fichiers sont `prete` (aucun e-mail).
+- Système : section « Fabrication » (secrets ; jeton GitHub : date lue dans l'en-tête `github-authentication-token-expiration`
+  d'un appel à l'API des runs, orange à J-30, rouge expiré ou refusé ; dernier run de `fabrication.yml` avec lien) ;
+  voyant R2 = vraie lecture du bucket. Tableau de bord : une alerte par génération en échec d'un article pas encore envoyé.
+- Prix plafonnés : phase 5.
+
+**Écarts et choix** :
+- Lien « STL » unique même avec plusieurs pièces (archive zip sans compression faite par le Worker, 90 Mo au plus),
+  pour garder 3 liens dans l'e-mail ; idem pour plusieurs 3MF.
+- Atelier = « manuel » jusqu'à la phase 4 (décision du propriétaire, 9 nov. 2026) ; la ligne existante
+  « Atelier Evarysth » est réutilisée (`Envoi` : `manuel` → `atelier`, à faire par le propriétaire ; `manuel` continue
+  de fonctionner, sans filtre de matière).
+- Liens de /admin valables 2 jours (page consultée sur le moment) ; ceux des e-mails 14 jours.
+
+**Tests** : Worker 129 (dont 10 nouveaux : zip lisible par Python, clés refusées, fiche isolée, validation refusée puis
+acceptée, e-mail à 3 liens valides 14 jours, atelier PLA / ASA, relance et rappel, régénération au SHA actuel, refus
+GitHub, Tableau de bord, Système, tâche planifiée) ; géométrie 237 ; tout vert.
+
+**Acceptation en ligne** (propriétaire, sur téléphone, EV-2026-0004) : à faire, liste dans le compte rendu de la session.
 
 ### Phase 4 — agent d'atelier
 - Programme Node sans dépendance lourde (`atelier/agent/`), service systemd ; interroge le Worker toutes les 30 s

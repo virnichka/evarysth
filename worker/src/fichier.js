@@ -4,12 +4,20 @@
    d'utiliser un lien fournisseur comme lien de fichier (et inversement : 4 champs au lieu de 5).
    Clés R2 : <produit>/<taille>.<stl|3mf|zip>, taille = libellé de la taille standard en minuscules sans accents
    (ex. boite-rugged/m.stl, support-velo/moyenne.stl, rampe/12.stl pour « Ø 12 »).
-   Sans binding STL ou sans HMAC_SECRET : 503 propre, et la tâche planifiée ne propose aucun lien. */
+   Sans binding STL ou sans HMAC_SECRET : 503 propre, et la tâche planifiée ne propose aucun lien.
+   Fichiers générés à la commande (Fabrication · phase 3) : commandes/<n° d'article>/<SHA court>/<fichier>, fichier =
+   STL, 3MF (non tranché ou .gcode.3mf) ou fiche.html (affichée dans le navigateur, sans script : CSP « sandbox »).
+   Clés virtuelles stl.zip et 3mf.zip : archive des STL (ou des 3MF non tranchés) du dossier, faite à la demande. */
 import { b64Texte, egal, ErreurJeton, signature, texteB64, VALIDITE_JOURS } from "./jeton.js";
+import { zipStocke } from "./zip.js";
 
 export const EXTENSIONS = ["stl", "3mf", "zip"];
-const TYPES = { stl: "model/stl", "3mf": "model/3mf", zip: "application/zip" };
-const RE_CLE = /^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*\.(stl|3mf|zip)$/;
+const TYPES = { stl: "model/stl", "3mf": "model/3mf", zip: "application/zip", html: "text/html; charset=utf-8" };
+const RE_STANDARD = /^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*\.(stl|3mf|zip)$/;
+export const RE_GENERE = /^commandes\/CF-\d{4}-\d{4,}-\d{1,3}\/[0-9a-f]{12}\/[a-z0-9][a-z0-9._-]{0,80}\.(stl|3mf|zip|html)$/;
+const RE_CLE = { test: c => RE_STANDARD.test(c) || (RE_GENERE.test(c) && !c.includes("..")) };
+const VIRTUELS = { "stl.zip": f => f.endsWith(".stl"), "3mf.zip": f => f.endsWith(".3mf") && !f.endsWith(".gcode.3mf") };
+const ZIP_MAX = 90 * 1024 * 1024;      /* archive faite en mémoire : au-delà, fichiers à télécharger un par un */
 
 export const fichiersConfigures = env => Boolean(env.STL && typeof env.STL.get === "function" && env.HMAC_SECRET);
 
@@ -50,15 +58,40 @@ export async function routeFichier(req, env, jeton) {
     return texte("Lien invalide.", 403);
   }
   let obj;
-  try { obj = req.method === "HEAD" ? await env.STL.head(cle) : await env.STL.get(cle); }
-  catch (e) { console.error("R2", e.message); return texte("Fichiers indisponibles pour le moment.", 503); }
+  try { obj = await lireObjet(env, cle, req.method === "HEAD"); }
+  catch (e) { console.error("R2", e.message); return texte(e.code === "volume" ? e.message : "Fichiers indisponibles pour le moment.", e.code === "volume" ? 413 : 503); }
   if (!obj) return texte("Fichier introuvable.", 404);
   const ext = cle.split(".").pop();
-  const nom = cle.replace("/", "-");
+  const generee = cle.startsWith("commandes/");
+  /* Nom proposé : « CF-2026-0004-1-plateau-1.gcode.3mf » (n° d'article + fichier), « passe-cable-m.stl » (standard) */
+  const nom = generee ? `${cle.split("/")[1]}-${cle.split("/").pop()}` : cle.replace("/", "-");
+  const html = ext === "html";
   return new Response(req.method === "HEAD" ? null : obj.body, { status: 200, headers: {
-    "Content-Type": TYPES[ext], "Content-Disposition": `attachment; filename="${nom}"`,
+    "Content-Type": TYPES[ext], "Content-Disposition": `${html ? "inline" : "attachment"}; filename="${nom}"`,
     ...(obj.size != null ? { "Content-Length": String(obj.size) } : {}),
+    /* fiche.html : affichée, mais isolée (aucun script, aucune requête, origine opaque) */
+    ...(html ? { "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:" } : {}),
     "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow", "X-Content-Type-Options": "nosniff" } });
+}
+
+/* Objet R2 (ou archive virtuelle stl.zip / 3mf.zip d'un dossier généré) : { body, size } ; null si absent */
+async function lireObjet(env, cle, tete) {
+  const dossier = cle.slice(0, cle.lastIndexOf("/") + 1), virtuel = VIRTUELS[cle.slice(dossier.length)];
+  if (!cle.startsWith("commandes/") || !virtuel) return tete ? env.STL.head(cle) : env.STL.get(cle);
+  const liste = await env.STL.list({ prefix: dossier, limit: 1000 });
+  const objets = (liste.objects || []).filter(o => virtuel(o.key.slice(dossier.length))).sort((a, b) => a.key.localeCompare(b.key));
+  if (!objets.length) return null;
+  const total = objets.reduce((s, o) => s + (o.size || 0), 0);
+  if (total > ZIP_MAX) throw Object.assign(new Error("Archive trop volumineuse : téléchargez les fichiers un par un depuis /admin."), { code: "volume" });
+  if (tete) return { body: null, size: null };
+  const fichiers = [];
+  for (const o of objets) {
+    const r = await env.STL.get(o.key);
+    if (!r) return null;
+    fichiers.push({ nom: o.key.slice(dossier.length), octets: new Uint8Array(await r.arrayBuffer()) });
+  }
+  const zip = zipStocke(fichiers);
+  return { body: zip, size: zip.length };
 }
 
 /* Clé R2 existante pour un produit et une taille standard (null si absente) */
