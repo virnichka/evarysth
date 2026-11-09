@@ -45,11 +45,11 @@ const tablette = { id: "tablette-rambarde", mode: "custom", values: { a: 45, b: 
 
 test("prix recalculés depuis le catalogue (standard et sur-mesure avec supplément au mm)", () => {
   const [std, sm] = lirePanier({ items: [
-    { id: "jardiniere-clip", mode: "standard", variant: 1, color: "sauge", qty: 1 },
+    { id: "tablette-rambarde", mode: "standard", variant: 1, color: "blanc", qty: 1 },
     tablette
   ] });
-  assert.equal(std.unitCents, 2400);
-  assert.deepEqual(std.values, { a: 50 });
+  assert.equal(std.unitCents, 2900);
+  assert.deepEqual(std.values, { a: 50, b: 220 });
   /* 29 + 8 de sur-mesure + (300 − 220) × 0,05 = 41 € */
   assert.equal(sm.unitCents, 4100);
 });
@@ -64,7 +64,7 @@ test("panier refusé : cotes hors bornes, hors pas, inconnues, produit/coloris/q
     { ...tablette, color: "violet" },
     { ...tablette, qty: 0 },
     { ...tablette, qty: 1.5 },
-    { id: "jardiniere-clip", mode: "standard", variant: 9, color: "noir", qty: 1 },
+    { id: "tablette-rambarde", mode: "standard", variant: 9, color: "noir", qty: 1 },
     { ...tablette, mode: "gratuit" }
   ];
   for (const it of cas) assert.throws(() => lirePanier({ items: [it] }), ErreurPanier, JSON.stringify(it));
