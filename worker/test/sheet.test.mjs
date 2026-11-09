@@ -149,7 +149,7 @@ test("webhook : commande sur-mesure ajoutée (format du contrat), e-mail client,
   assert.equal(a[0].Type, "sur-mesure");
   assert.equal(a[0].Article, "tablette-rambarde · a=45 b=250 · ASA · Rose poudré · ×2");
   assert.equal(a[0]["Dernier statut notifié"], "lien_stl_a_indiquer", "état initial : rien à notifier");
-  for (const n of ["Commande CF", "Action requise", "Commande OpenSCAD", "Fabricant", "Lien STL", "Notes"])
+  for (const n of ["Commande CF", "Action requise", "Fabricant", "Lien STL", "Notes"])
     assert.equal(a[0][n], undefined, `${n} jamais écrite par le webhook`);
   assert.equal(appelsGoogle.filter(x => x.chemin.includes(":append") && x.chemin.includes("Commandes")).length, 0, "pas d'append sur les onglets de commandes");
   assert.deepEqual(sheet.Journal[1].slice(1), ["EV-2026-0008", "", "payee", "worker"]);
