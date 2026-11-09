@@ -187,6 +187,10 @@ test("Valider : refusé tant que la génération n'est pas prête (sauf lien STL
   const t = emails[0].textContent;
   assert.match(t, /Fichiers d'impression \(liens valables 14 jours[\s\S]*STL \(2 fichiers, archive zip\) : https:\/\/public\.dev\/fichier\/\S+\n3MF non tranché : https:\/\/public\.dev\/fichier\/\S+\nFiche d'impression : https:\/\/public\.dev\/fichier\/\S+/);
   assert.doesNotMatch(t, /gcode|Tranché/, "fabricant externe : pas de fichier tranché");
+  const h = emails[0].htmlContent;
+  assert.match(h, /<a href="https:\/\/public\.dev\/fichier\/[^"]+"[^>]*>STL \(2 fichiers, archive zip\)<\/a><br><a href="https:\/\/public\.dev\/fichier\/[^"]+"[^>]*>3MF non tranché<\/a><br><a href="[^"]+"[^>]*>Fiche d&#39;impression<\/a>/,
+    "liens nommés, une ligne chacun");
+  assert.doesNotMatch(h.replace(/<a [^>]*>/g, ""), /https:\/\//, "aucune URL en texte brut (Gmail y collait la ligne suivante)");
   const liens = [...t.matchAll(/https:\/\/public\.dev\/fichier\/(\S+)/g)].map(m => decodeURIComponent(m[1]));
   assert.equal(liens.length, 3);
   for (const j of liens) {

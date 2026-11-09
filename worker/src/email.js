@@ -155,10 +155,21 @@ export async function envoyerConfirmationClient(env, f, commande) {
 /* ——— Bloc D : e-mails envoyés par la tâche planifiée selon le statut (planifie.js) ——— */
 export const envoyerEmail = envoyerBrevo;
 const prefixe = test => (test ? "[TEST] " : "");
+/* Ligne de texte en HTML : « Libellé : https://… » devient un lien nommé par son libellé, une URL seule un lien explicite.
+   Jamais d'URL en texte brut : Gmail les relie lui-même et y collait le mot de la ligne suivante (lien cassé). */
+const URL_RE = /https?:\/\/[^\s<>"]+/g;
+const lienHtml = (url, texte) => `<a href="${esc(url)}" style="color:#1a1a18">${esc(texte)}</a>`;
+function ligneHtml(ligne) {
+  const m = /^(.+?) : (https?:\/\/\S+)$/.exec(ligne);
+  if (m && !/https?:\/\//.test(m[1])) return lienHtml(m[2], m[1]);
+  let html = "", i = 0;
+  for (const x of ligne.matchAll(URL_RE)) { html += esc(ligne.slice(i, x.index)) + lienHtml(x[0], x[0]); i = x.index + x[0].length; }
+  return html + esc(ligne.slice(i));
+}
 const page = (titre, paragraphes) => `<!DOCTYPE html><html lang="fr"><body style="margin:0;background:#f4f1ea;font:15px/1.5 Arial,sans-serif;color:#1a1a18">
 <div style="max-width:600px;margin:0 auto;padding:24px"><h1 style="font-size:20px;margin:0 0 12px">${esc(titre)}</h1>
 ${paragraphes.map(p => (p.lien ? `<p style="margin:16px 0"><a href="${esc(p.lien)}" style="display:inline-block;background:#1a1a18;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">${esc(p.texte)}</a></p>`
-    : `<p style="margin:0 0 12px;white-space:pre-line">${esc(p)}</p>`)).join("\n")}
+    : `<p style="margin:0 0 12px">${String(p).split("\n").map(ligneHtml).join("<br>")}</p>`)).join("\n")}
 </div></body></html>`;
 const texteBrut = paragraphes => paragraphes.map(p => (p.lien ? `${p.texte} : ${p.lien}` : p)).join("\n\n");
 
