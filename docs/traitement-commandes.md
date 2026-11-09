@@ -4,7 +4,7 @@
 > du **bloc G** (point de verrou + page `/admin`) ; les blocs A à F sont l'historique de construction (certains détails,
 > comme « fourni séparément » ou le choix du fabricant dans le Sheet, ont été remplacés par le bloc G).
 > Depuis le 9 novembre 2026 : R2 activé et génération automatique des fichiers à chaque commande payée, voir
-> `docs/chaine-fabrication.md` (colonnes Q à V de `Commandes CF`).
+> `docs/chaine-fabrication.md` (colonnes P à U de `Commandes CF`).
 
 Chantier piloté par la session `session_01GS5VpHVaTuCX1b9qmaJGA4` (chef de projet). Chaque bloc de code
 (B à E) est réalisé dans une session séparée, un par un, dans l'ordre.
@@ -21,14 +21,12 @@ Sheet (back-office) : son identifiant n'est **pas** écrit ici (dépôt public) 
 - **Statuts** (menu déroulant, valeurs exactes) : `payee`, `fichier_a_produire`, `envoyee_fabricant`,
   `acceptee`, `expediee`, `livree`, `incident`, `remboursee`, `annulee`.
   - Standard : `payee` → **le propriétaire valide à la main** en passant à `envoyee_fabricant` (pas d'envoi auto en V1).
-  - Sur-mesure (la majorité des ventes) : arrivée directe en `fichier_a_produire` ; le propriétaire produit le STL
-    en local avec OpenSCAD (modèles écrits par lui), colle un lien Drive, puis passe à `envoyee_fabricant`.
+  - Sur-mesure (la majorité des ventes) : arrivée directe en `fichier_a_produire` ; le propriétaire fournit le STL
+    (aujourd'hui généré par la chaîne de fabrication, `docs/chaine-fabrication.md`), colle un lien, puis passe à `envoyee_fabricant`.
 - **Onglets** (bloc F : `Commandes` remplacé par `Commandes EV` + `Commandes CF`, voir « Structure du Sheet ») : `Commandes`, `Journal` (une ligne par changement de statut : date, commande,
   ancien → nouveau, auteur), `Fabricants` (**un seul** en V1 : nom, e-mail, délai), `Listes`.
 - **Colonnes de Commandes** : Commande (`EV-AAAA-NNNN`, clé unique) · Date · Statut ▼ · Type
-  (standard/sur-mesure) · Action requise (formule) · Pièce (produit, taille ou cotes, coloris, qté) ·
-  Commande OpenSCAD (ex. `openscad -D largeur=142 -D hauteur=60 -o EV-2026-0042.stl modeles/<modèle>.scad`,
-  noms de paramètres = `custom.params` de `data.js`) · Client (nom, e-mail, adresse) · Fabricant ▼ ·
+  (standard/sur-mesure) · Action requise (formule) · Pièce (produit, taille ou cotes, coloris, qté) · Client (nom, e-mail, adresse) · Fabricant ▼ ·
   Lien STL · Transporteur · N° de suivi · Dernier statut notifié (protégée, réservée au Worker) ·
   Stripe session id · Cadeau / message · Notes.
 - **Toujours chercher une ligne par son n° de commande**, jamais par sa position (le propriétaire trie et filtre).
@@ -101,20 +99,19 @@ elle journalise seulement chaque changement de `Statut` (auteur `worker`).
 | F | Type | Worker | `standard` ou `sur-mesure` |
 | G | Action requise | **formule** (en-tête, `MAP`) | ne jamais écrire |
 | H | Article | Worker | `<produit> · <taille M \| a=45 b=32> · <matière> · <coloris> · ×<qté>` (matière du catalogue) |
-| I | Commande OpenSCAD | **formule** (en-tête, `MAP`) | sur-mesure seulement ; fichier `<EV>-<n°>-<produit>.stl` |
-| J | Fabricant | **propriétaire** | menu (`Fabricants!A`) ; vide à la création |
-| K | Lien STL | propriétaire (sur-mesure) | URL Drive |
-| L | Transporteur | Worker (lien fournisseur) ou propriétaire | menu (`Listes!C`) |
-| M | N° de suivi | Worker (lien fournisseur) ou propriétaire | texte |
-| N | Dernier statut notifié | **Worker seulement** (protégée, avertissement, repliée) | une valeur de statut ou vide |
-| O | Notes | propriétaire | libre (le Worker y ajoute une note datée en cas de refus / retrait) |
-| P | Référence externe | propriétaire (/admin ou Sheet) | **facultative** : n° de commande chez le fournisseur (plateforme…) ; en-tête à ajouter pour activer le champ dans /admin |
-| Q | Génération | Worker (chaîne de fabrication) | `a_declencher`, `en_cours`, `prete`, `echec`, `fabrication_non_configuree` |
-| R | SHA | Worker | version du site (commit) utilisée pour les fichiers |
-| S | Masse g | Worker (rappel du workflow) | masse de filament estimée |
-| T | Temps min | Worker (rappel du workflow) | temps d'impression estimé |
-| U | Plateaux | Worker (rappel du workflow) | nombre de plateaux |
-| V | Motif génération | Worker | raison d'un `echec`, vide sinon |
+| I | Fabricant | **propriétaire** | menu (`Fabricants!A`) ; vide à la création |
+| J | Lien STL | propriétaire (sur-mesure) | URL Drive |
+| K | Transporteur | Worker (lien fournisseur) ou propriétaire | menu (`Listes!C`) |
+| L | N° de suivi | Worker (lien fournisseur) ou propriétaire | texte |
+| M | Dernier statut notifié | **Worker seulement** (protégée, avertissement, repliée) | une valeur de statut ou vide |
+| N | Notes | propriétaire | libre (le Worker y ajoute une note datée en cas de refus / retrait) |
+| O | Référence externe | propriétaire (/admin ou Sheet) | **facultative** : n° de commande chez le fournisseur (plateforme…) ; en-tête à ajouter pour activer le champ dans /admin |
+| P | Génération | Worker (chaîne de fabrication) | `a_declencher`, `en_cours`, `prete`, `echec`, `fabrication_non_configuree` |
+| Q | SHA | Worker | version du site (commit) utilisée pour les fichiers |
+| R | Masse g | Worker (rappel du workflow) | masse de filament estimée |
+| S | Temps min | Worker (rappel du workflow) | temps d'impression estimé |
+| T | Plateaux | Worker (rappel du workflow) | nombre de plateaux |
+| U | Motif génération | Worker | raison d'un `echec`, vide sinon |
 
 Colonnes Q à V (`docs/chaine-fabrication.md`, Fabrication · phase 2) : lues et écrites **par leur nom** (ordre libre) ;
 absentes → ignorées sans erreur.
@@ -159,15 +156,14 @@ affichage ; valeur hors liste refusée ; onglet illisible → liste de secours d
 
 - **Objectif** : préparer le Sheet selon la structure ci-dessus (réalisé par le chef de projet, connecteur Google Sheets).
 - **Fichiers** : aucun (Sheet seulement) ; ce document.
-- **Critères d'acceptation** : 4 onglets ; en-têtes exacts ; menus Statut et Fabricant ; formules Action requise
-  et Commande OpenSCAD en en-tête ; colonne M protégée ; mise en forme conditionnelle sur `fichier_a_produire` ;
+- **Critères d'acceptation** : 4 onglets ; en-têtes exacts ; menus Statut et Fabricant ; formule Action requise
+  en en-tête (la formule « Commande OpenSCAD » de l'époque a été retirée avec la refonte géométrique) ; colonne M protégée ; mise en forme conditionnelle sur `fichier_a_produire` ;
   ligne d'exemple vérifiée puis supprimée.
 - **Réalisé (2026-11-07)** : les anciens onglets du suivi manuel `Commandes` et `Listes` ont été renommés
   `Commandes (ancien)` et `Listes (ancien)` (rien supprimé) ; les 4 onglets du plan sont créés. Les onglets
   existants `Synthèse`, `Livre des recettes`, `Checklist`, `Modèles d'e-mails`, `Après-vente`, `Mode d'emploi`
   pointent toujours sur l'ancien onglet (à rebrancher plus tard si utile). Fuseau passé à `Europe/Paris`.
-  Formules E et G testées sur une commande mixte (`openscad -D a=45 -D b=32 -o EV-2026-0001-pince-parasol.stl
-  modeles/pince-parasol.scad`), protections en mode avertissement sur E, G et M, mise en forme conditionnelle
+  Formules E et G testées sur une commande mixte, protections en mode avertissement sur E, G et M, mise en forme conditionnelle
   (ligne orange en `fichier_a_produire`, Statut rouge en `incident`).
 
 ## Bloc B — Webhook → Sheet + e-mail « commande reçue »
@@ -361,8 +357,8 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
 ### Règles d'usage du Sheet
 - Ne jamais supprimer une ligne de commande : passer son statut à `annulee` (ou `remboursee` après remboursement dans Stripe),
   sur les lignes de `Commandes CF` (le statut client suit), ou dans `Statut forcé` de la commande EV.
-- Ne rien écrire dans `Statut` et `Commandes CF` (Commandes EV), ni dans `Commande CF`, `Action requise`,
-  `Commande OpenSCAD` et `Dernier statut notifié` (Commandes CF).
+- Ne rien écrire dans `Statut` et `Commandes CF` (Commandes EV), ni dans `Commande CF`, `Action requise`
+  et `Dernier statut notifié` (Commandes CF).
 - Au quotidien, on travaille dans `Commandes CF` : choisir le fabricant, puis passer **toutes les lignes d'une même CF**
   à `envoyee_fabricant`. Le statut de `Commandes EV` se met à jour seul.
 - Fabricant qui répond autrement que par ses liens (téléphone, e-mail) : sur le pli de la CF, « Il a répondu
@@ -372,7 +368,6 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
   un autre fabricant (à défaut, dans le Sheet : remettre les lignes à `payee`, choisir le nouveau fabricant, repasser à
   `envoyee_fabricant` ; l'ancien fabricant reçoit un refus s'il utilise encore ses liens).
 - Trier et filtrer librement : le Worker retrouve chaque ligne par sa clé, jamais par sa position.
-- Modèles OpenSCAD : `modeles/<id-produit>.scad`, paramètres nommés `a`, `b`, `c` comme dans `custom.params` de `data.js`.
 - Les onglets `Synthèse` et `Livre des recettes` lisent encore `Commandes (ancien)` : à rebrancher si tu veux les garder.
 
 ## Bloc G — Point de verrou + page d'administration (« télécommande »)
