@@ -29,6 +29,7 @@
 import { verifierAcces } from "./acces.js";
 import { ErreurGoogle, googleConfigure } from "./google.js";
 import { egal, jetonConfigure, signature } from "./jeton.js";
+import { NON_CONFIGUREE } from "./fabrication.js";
 import { EXTENSIONS, fichierStandardDispo, segmentTaille } from "./fichier.js";
 import { A_ENVOYER, STATUTS, statutEV, baseWorker, cfsRendues, DELAI_RELANCE_MS, envoyerSelonStatut, estTest, journaliserSiNouveau, lancerTache, liensGroupe, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
 import { A_VALIDER, dateParis, journaliser, majArticle, majLignesCF, REF_EXTERNE, REFUSEE, rendreCF, RETIRABLES, STL_A_INDIQUER } from "./sheet.js";
@@ -43,7 +44,8 @@ const LIBELLES = {
   lien_stl_a_indiquer: "Lien STL à indiquer", a_valider: "À valider", payee: "Payée (ancien circuit)",
   fichier_a_produire: "Fichier à produire (ancien circuit)", envoyee_fabricant: "Envoyée au fabricant", acceptee: "Acceptée",
   expediee: "Expédiée", livree: "Livrée", incident: "Bloquée", remboursee: "Remboursée", annulee: "Annulée",
-  [REFUSEE]: "Rendue par le fabricant"
+  [REFUSEE]: "Rendue par le fabricant",
+  [NON_CONFIGUREE]: "Fichiers non générés (fabrication pas encore réglée)"
 };
 /* Refus (auteur fabricant) ou retrait (propriétaire) d'une CF, au Journal */
 const libelleRendu = j => (j.auteur === "fabricant" ? "Refusée par le fabricant" : "Retirée au fabricant");

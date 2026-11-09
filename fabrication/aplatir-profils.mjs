@@ -18,7 +18,8 @@ const modele = "Bambu Lab P2S"; /* fichier « machine_model » (model_id, platea
 const CIBLES = [
   { fichier: "machine.json", type: "machine", source: "Bambu Lab P2S 0.4 nozzle", nom: MACHINE },
   { fichier: "process-0.20mm.json", type: "process", source: "0.20mm Standard @BBL P2S", nom: "Evarysth 0.20mm Standard P2S" },
-  { fichier: "filament-pla.json", type: "filament", source: "Generic PLA @BBL P2S", nom: "Evarysth Generic PLA P2S" }
+  { fichier: "filament-pla.json", type: "filament", source: "Generic PLA @BBL P2S", nom: "Evarysth Generic PLA P2S" },
+  { fichier: "filament-petg.json", type: "filament", source: "Generic PETG @BBL P2S", nom: "Evarysth Generic PETG P2S" }
 ];
 /* Clés de structure (héritage, identifiants système) : retirées du profil autonome. */
 const RETIRER = ["inherits", "include", "from", "setting_id", "instantiation", "base_id", "renamed_from"];

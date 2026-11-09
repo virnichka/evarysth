@@ -39,6 +39,18 @@
         "fdm_filament_common",
         "fdm_filament_template_direct_dual_e3d"
       ]
+    },
+    {
+      "fichier": "filament-petg.json",
+      "nom": "Evarysth Generic PETG P2S",
+      "source": "Generic PETG @BBL P2S",
+      "chaine": [
+        "Generic PETG @BBL P2S",
+        "Generic PETG @base",
+        "fdm_filament_pet",
+        "fdm_filament_common",
+        "fdm_filament_template_direct_dual_e3d"
+      ]
     }
   ]
 }

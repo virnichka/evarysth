@@ -1,6 +1,8 @@
 # Worker de paiement Evarysth — déployé par .github/workflows/worker.yml (ou `npx wrangler deploy`)
 # Secrets (jamais ici) : `wrangler secret put STRIPE_SECRET_KEY` et `wrangler secret put STRIPE_WEBHOOK_SECRET`
 # Back-office (facultatif, inactif sans eux) : GOOGLE_SA_EMAIL, GOOGLE_SA_KEY, SHEET_ID, HMAC_SECRET — voir docs/traitement-commandes.md
+# Chaîne de fabrication (facultatif, éteinte sans eux, src/fabrication.js) : GH_ACTIONS_TOKEN (jeton GitHub fine-grained,
+# ce dépôt, Actions : écriture) et FABRICATION_HMAC (même valeur que le secret d'Actions) — docs/guide-reglages-fabrication.md
 name = "evarysth-checkout"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
@@ -41,7 +43,9 @@ enabled = true
 
 # STL standards (bloc E), servis par GET /fichier/<jeton>. Sans ce binding : /fichier/ répond 503 et les e-mails
 # fabricant des articles standard attendent un lien STL saisi à la main. Ne décommenter qu'APRÈS `npx wrangler r2 bucket create evarysth-stl`
-# (un binding vers un bucket inexistant fait échouer le déploiement). Clés : <produit>/<taille>.stl (ex. boite-rugged/m.stl).
+# (un binding vers un bucket inexistant fait échouer le déploiement). Clés : <produit>/<taille>.stl (ex. boite-rugged/m.stl) ;
+# fichiers des commandes (écrits par .github/workflows/fabrication.yml) : commandes/<n° d'article>/<SHA court>/…
+# Activation : Fabrication · phase 2b, après les réglages de docs/guide-reglages-fabrication.md.
 # [[r2_buckets]]
 # binding = "STL"
 # bucket_name = "evarysth-stl"

@@ -48,6 +48,11 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 2. Webhook Stripe payé → Sheet back-office : une ligne `Commandes EV` (n° client `EV-AAAA-NNNN`) et une ligne par article
    dans `Commandes CF` ; e-mail client « Commande reçue » et fiche « Nouvelle commande » au propriétaire (Brevo).
    Article en `a_valider` (STL standard présent dans R2) ou `lien_stl_a_indiquer`. **Rien ne part sans validation.**
+   Chaîne de fabrication (`worker/src/fabrication.js`, éteinte tant que `GH_ACTIONS_TOKEN` et `FABRICATION_HMAC` manquent :
+   une ligne de Journal le note) : un run `.github/workflows/fabrication.yml` par article (n° `CF-AAAA-NNNN-<n° d'article>`,
+   SHA du site au paiement lu dans `version.json`) → STL, 3MF, `.gcode.3mf` (PLA/PETG) et fiche dans R2, rappel signé
+   `POST /fabrication/retour` → colonnes `Génération`, `SHA`, `Masse g`, `Temps min`, `Plateaux`, `Motif génération`
+   (facultatives). Réglages : `docs/guide-reglages-fabrication.md` ; architecture : `docs/chaine-fabrication.md`.
 3. Le propriétaire gère les commandes sur la page d'administration `https://evarysth-admin.virnichka.workers.dev/admin`
    (téléphone, derrière Cloudflare Access). Onglet Commandes = liste des commandes client (n° EV) avec recherche (n° EV,
    n° CF ou nom) et filtres `?f=` : À traiter (défaut : à valider ou bloquées), Chez le fabricant, Expédiées, Bloquées,
@@ -75,7 +80,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 **Fichiers** (`worker/src/`) : `index.js` (routes), `commande.js` (panier → Stripe), `sheet.js` / `google.js` (Sheet,
 lecture/écriture par nom de colonne, jamais par position), `planifie.js` (tâche), `admin.js` + `acces.js` (page
 d'administration, jeton Access revérifié), `fournisseur.js` + `jeton.js` (liens fabricant), `fichier.js` (STL R2),
-`email.js` (contenus Brevo). Tests : `cd worker && node --test`.
+`email.js` (contenus Brevo), `fabrication.js` (déclenchement de la génération, rappel HMAC). Tests : `cd worker && node --test`.
 
 **Deux Workers** (`worker/wrangler.toml`) : `evarysth-checkout` (tout le code et les secrets ; sert `/admin` seulement
 pour l'adresse `ADMIN_HOST`) et `evarysth-admin` (`[env.admin]`, simple relais sans secret, protégé par Access :
@@ -83,7 +88,9 @@ pour l'adresse `ADMIN_HOST`) et `evarysth-admin` (`[env.admin]`, simple relais s
 `.github/workflows/worker.yml` à chaque push sur `main` touchant `worker/` ou `data.js`.
 
 **Secrets** (Cloudflare, Worker `evarysth-checkout`, jamais dans le dépôt public) : `STRIPE_SECRET_KEY`,
-`STRIPE_WEBHOOK_SECRET`, `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET`.
+`STRIPE_WEBHOOK_SECRET`, `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET` ;
+facultatifs (chaîne de fabrication) : `GH_ACTIONS_TOKEN`, `FABRICATION_HMAC`. Secrets d'Actions (GitHub) :
+`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `FABRICATION_HMAC`, variable `R2_ACCOUNT_ID`.
 En mode test, une clé Stripe live est refusée.
 
 **Points d'attention**
@@ -111,8 +118,17 @@ l'aperçu** : mêmes fichiers `assets/js/modeles/*.js`, même `geo.js`, même ma
 solides obtenus et attendus, contrôles) :
 - sans `--impression` : un STL des pièces assemblées comme sur le site, Z vers le haut ;
 - `--impression` : les **pièces séparées**, orientées selon la fiche d'impression, posées à z = 0 et rangées sur le plateau
-  de la Bambu Lab (256 × 256 × 256 mm, 5 mm entre pièces), un STL par pièce dans les coordonnées du plateau
-  (`<produit>-<cotes>-plateau<n>-<pièce>.stl`), positions dans le manifeste.
+  de la Bambu Lab (256 × 256 × 256 mm, 5 mm entre pièces, bande avant de 10 mm laissée libre pour la ligne de chargement
+  de la P2S), un STL par pièce dans les coordonnées du plateau (`<produit>-<cotes>-plateau<n>-<pièce>.stl`), positions
+  dans le manifeste ; `--quantite=n` (exemplaires répartis sur plusieurs plateaux, fichiers `-ex<k>`), `--coloris=<id>`,
+  `--cf=<n°>`, `--3mf` (3MF non tranché par plateau, pour un fabricant externe).
+
+**Chaîne de fabrication** (`docs/chaine-fabrication.md`) : `node tools/fabriquer.mjs --cf=… --produit=… --cotes='{"a":60}'
+[--coloris=…] [--quantite=n] [--docker=<image>]` enchaîne `generer-stl` → `tools/trancher.mjs` (Bambu Studio dans l'image
+`fabrication/Dockerfile`, profils P2S PLA/PETG, couleur du coloris) → `tools/fiche-impression.mjs` (fiche.html pour le
+fabricant, sans donnée client) et range le tout dans `sortie-fabrication/` (manifeste.json, STL, plateau-<n>.3mf,
+plateau-<n>.gcode.3mf). C'est ce que lance `.github/workflows/fabrication.yml` (essai à la main : onglet Actions →
+« Fabrication » → Run workflow, case « Essai »). Image publiée sur GHCR par `image-fabrication.yml`.
 
 **Erreur** si une cote sort des bornes de `data.js` ou si un contrôle échoue (ci-dessous) ; `--forcer` écrit quand même,
 pour diagnostic.

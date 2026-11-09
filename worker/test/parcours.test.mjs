@@ -141,7 +141,7 @@ test("Parcours standard : paiement → a_valider → validation → e-mail fabri
     assert.deepEqual(new Uint8Array(await f.arrayBuffer()), STL);
     assert.doesNotMatch(texte, /rue des Lilas/, "adresse non transmise : le fabricant ne livre pas le client");
   });
-  assert.deepEqual(journal, ["EV:payee/worker", "CF:envoyee_fabricant/proprietaire", "EV:en_fabrication/worker", "CF:acceptee/fabricant",
+  assert.deepEqual(journal, ["EV:payee/worker", "EV:fabrication_non_configuree/worker", "CF:envoyee_fabricant/proprietaire", "EV:en_fabrication/worker", "CF:acceptee/fabricant",
     "CF:expediee/fabricant", "EV:expediee/worker"]);
 });
 
@@ -163,7 +163,7 @@ test("Parcours sur-mesure : paiement → lien_stl_a_indiquer → lien Drive → 
     assert.match(texte, /À expédier directement au client :\nCamille Test\n.*rue des Lilas/);
     assert.doesNotMatch(texte, /client@example\.com/, "pas d'e-mail client transmis");
   });
-  assert.deepEqual(journal, ["EV:payee/worker", "CF:envoyee_fabricant/proprietaire", "EV:en_fabrication/worker", "CF:acceptee/fabricant",
+  assert.deepEqual(journal, ["EV:payee/worker", "EV:fabrication_non_configuree/worker", "CF:envoyee_fabricant/proprietaire", "EV:en_fabrication/worker", "CF:acceptee/fabricant",
     "CF:expediee/fabricant", "EV:expediee/worker"]);
 });
 

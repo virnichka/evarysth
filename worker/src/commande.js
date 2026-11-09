@@ -121,7 +121,7 @@ const LIGNE_CADEAU = {
   }
 };
 
-export function parametresSession(lignes, { base, retour, ref, promotionCode, catalogue, environnement, cadeau = null, consentement = false }) {
+export function parametresSession(lignes, { base, retour, ref, promotionCode, catalogue, environnement, cadeau = null, consentement = false, sha = "" }) {
   const surMesure = lignes.some(l => l.mode === "custom");
   const cgv = `[conditions générales de vente](${URL_CGV})`;
   const avertissement = surMesure ? " Les pièces sur-mesure sont fabriquées selon vos cotes : elles ne bénéficient pas du droit de rétractation (art. L221-28 3° du Code de la consommation)." : "";
@@ -156,6 +156,7 @@ export function parametresSession(lignes, { base, retour, ref, promotionCode, ca
     payment_intent_data: { description: `Commande ${ref}`, metadata: { ref } },
     metadata: {
       ref, panier: panierCompact(lignes), catalogue, environnement,
+      ...(sha ? { sha } : {}),                       /* SHA du site (version.json) : fichiers de fabrication figés à ce SHA */
       cadeau: cadeau ? "oui" : "non",
       ...(cadeau && cadeau.message ? { message_cadeau: cadeau.message } : {})
     },

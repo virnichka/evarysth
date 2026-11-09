@@ -2,7 +2,9 @@
    POST /checkout   panier du site → session Stripe Checkout → { url }
    POST /promo      vérifie un code promo Stripe → { code, rate, amount }
    GET  /session    résumé d'une commande payée (page commande/merci/)
-   POST /webhook    événements Stripe signés (checkout.session.completed → Sheet back-office, e-mail client, fiche de fabrication)
+   POST /webhook    événements Stripe signés (checkout.session.completed → Sheet back-office, e-mail client, fiche de fabrication,
+                    génération des fichiers par GitHub Actions si configurée : fabrication.js)
+   POST /fabrication/retour  rappel signé HMAC du workflow de fabrication (fabrication.js)
    /admin (admin.js) : servi seulement pour les requêtes relayées par le Worker d'administration (ROLE = "admin"). */
 import { lancerTache } from "./planifie.js";
 import { versionCatalogue } from "./catalogue.js";
@@ -14,6 +16,7 @@ import { routeFournisseur } from "./fournisseur.js";
 import { routeFichier } from "./fichier.js";
 import { routeAdmin } from "./admin.js";
 import { enregistrerCommande, journaliserCreation, majCommande } from "./sheet.js";
+import { lancerFabrication, relancerDeclenchements, routeRetour, versionSite } from "./fabrication.js";
 
 const TAILLE_MAX = 20000;
 const EVENEMENTS_COMMANDE = ["checkout.session.completed", "checkout.session.async_payment_succeeded"];
@@ -91,6 +94,7 @@ async function creerSession(req, env, origine) {
     promotionCode,
     cadeau,
     catalogue: await versionCatalogue(),
+    sha: await versionSite(env),
     environnement: env.CHECKOUT_MODE === "live" ? "live" : "test"
   };
   /* Case CGV obligatoire sur la page Stripe ; si le compte n'a pas d'URL de CGV (Stripe → Paramètres → Public details),
@@ -157,6 +161,7 @@ async function backOffice(env, fiche, session) {
   try {
     const cmd = await enregistrerCommande(env, fiche, session);
     fiche.commande = cmd.numero;
+    fiche.nouvelle = cmd.nouveau;
     if (cmd.nouveau) {
       /* Échec de l'e-mail client : journalisé seulement (« Dernier statut notifié » reste vide) */
       try {
@@ -204,6 +209,8 @@ async function recevoirWebhook(req, env) {
       }))
     };
     const erreurSheet = attente ? null : await backOffice(env, fiche, s);
+    /* Fichiers de fabrication (GitHub Actions) : jamais bloquant, éteint sans GH_ACTIONS_TOKEN et FABRICATION_HMAC */
+    if (!attente && !erreurSheet) await lancerFabrication(env, fiche, s.metadata && s.metadata.sha);
     /* Journal sans donnée personnelle (nom, e-mail, adresse, message cadeau restent dans Stripe, le Sheet et l'e-mail) */
     console.log(JSON.stringify(resumeJournal(fiche)));
     /* En cas d'échec, réponse 500 : Stripe renverra l'événement (rien n'est perdu) */
@@ -220,6 +227,7 @@ export default {
   async scheduled(evenement, env, ctx) {
     if (env.ROLE === "admin") return;                         /* le Worker d'administration n'a pas de tâche planifiée */
     ctx.waitUntil(lancerTache(env));
+    ctx.waitUntil(relancerDeclenchements(env));               /* fabrication : nouveaux essais des déclenchements en échec */
   },
 
   async fetch(req, env) {
@@ -257,6 +265,12 @@ export default {
     /* STL standards (bloc E) : 503 propre sans binding R2 STL ou sans HMAC_SECRET */
     const lienFichier = /^\/fichier\/([^/]+)$/.exec(url.pathname);
     if (lienFichier) return routeFichier(req, env, lienFichier[1]);
+
+    /* Rappel du workflow de fabrication (signé HMAC, indépendant de Stripe et des origines du site) */
+    if (url.pathname === "/fabrication/retour") {
+      try { return await routeRetour(req, env); }
+      catch (e) { console.error("Fabrication : rappel", e.message); return json({ error: "Erreur interne." }, 500); }
+    }
 
     const route = `${req.method} ${url.pathname}`;
     const routesSite = ["POST /checkout", "POST /promo", "GET /session"];

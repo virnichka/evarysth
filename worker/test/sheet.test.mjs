@@ -165,7 +165,8 @@ test("webhook : commande sur-mesure ajoutée (format du contrat), e-mail client,
   assert.equal((await webhook(envGoogle)).status, 200);
   assert.equal(sheet["Commandes EV"].filter(l => l[SID] === "cs_test_nouveau").length, 1, "une seule ligne");
   assert.equal(articles("EV-2026-0008").length, 1, "articles non dupliqués");
-  assert.equal(sheet.Journal.length, 2, "une seule ligne de Journal");
+  /* Journal : création + « fabrication non configurée » (GH_ACTIONS_TOKEN, FABRICATION_HMAC absents), une seule fois chacune */
+  assert.deepEqual(sheet.Journal.slice(1).map(l => l[3]), ["payee", "fabrication_non_configuree"], "Journal non dupliqué au 2e webhook");
   assert.equal(brevo.filter(m => m.tags[0] === "commande-recue").length, 1, "e-mail client envoyé une fois");
   assert.match(brevo.filter(m => m.tags[0] === "commande").at(-1).textContent, /Back-office : EV-2026-0008/);
   assert.equal(sheet["Commandes EV"][1][COL_EV.Notes], "à garder", "ligne existante intacte");
