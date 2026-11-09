@@ -32,8 +32,8 @@ beforeEach(() => {
     Fabricants: [["Nom", "E-mail", "Délai (jours)", "Livre le client"], ["À renseigner", "", "5", "non"]]
   };
   jetons = 0; brevo = []; appelsGoogle = []; panneGoogle = false; apresEcriture = null;
-  lignesStripe = [{ description: "Tablette café de balcon — Sur-mesure", quantity: 2, amount_total: 8200,
-    price: { product: { metadata: { produit: "tablette-rambarde", mode: "custom", cotes_mm: '{"a":45,"b":300}', coloris: "rose" } } } }];
+  lignesStripe = [{ description: "Tablette café de balcon — Sur-mesure", quantity: 2, amount_total: 7700,
+    price: { product: { metadata: { produit: "tablette-rambarde", mode: "custom", cotes_mm: '{"a":45,"b":250}', coloris: "rose" } } } }];
   globalThis.fetch = fauxFetch;
 });
 
@@ -134,7 +134,7 @@ test("webhook : commande sur-mesure ajoutée (format du contrat), e-mail client,
   assert.match(r.Date, /^2026-\d\d-\d\d \d\d:\d\d$/);
   assert.equal(r.Statut, undefined, "Statut : formule du Sheet, jamais écrite par le Worker");
   assert.equal(r.Type, "sur-mesure");
-  assert.equal(r.Articles, "tablette-rambarde · a=45 b=300 · ASA · Rose poudré · ×2");
+  assert.equal(r.Articles, "tablette-rambarde · a=45 b=250 · ASA · Rose poudré · ×2");
   assert.equal(r.Client, "Camille Test\nclient@example.com\n1 rue des Lilas, 75011 Paris, FR");
   assert.equal(r["Dernier statut notifié"], "payee", "noté après l'e-mail client");
   assert.equal(r["Cadeau / message"], "");
@@ -147,7 +147,7 @@ test("webhook : commande sur-mesure ajoutée (format du contrat), e-mail client,
   assert.equal(a[0].Date, r.Date);
   assert.equal(a[0].Statut, "lien_stl_a_indiquer", "point de verrou : sur-mesure en attente du lien STL");
   assert.equal(a[0].Type, "sur-mesure");
-  assert.equal(a[0].Article, "tablette-rambarde · a=45 b=300 · ASA · Rose poudré · ×2");
+  assert.equal(a[0].Article, "tablette-rambarde · a=45 b=250 · ASA · Rose poudré · ×2");
   assert.equal(a[0]["Dernier statut notifié"], "lien_stl_a_indiquer", "état initial : rien à notifier");
   for (const n of ["Commande CF", "Action requise", "Commande OpenSCAD", "Fabricant", "Lien STL", "Notes"])
     assert.equal(a[0][n], undefined, `${n} jamais écrite par le webhook`);
@@ -186,7 +186,7 @@ test("webhook : articles déjà en partie écrits (écriture interrompue) → se
 
 test("webhook : commande standard → lien_stl_a_indiquer (sans R2), emballage cadeau dans « Cadeau / message », pas dans les articles", async () => {
   lignesStripe = [
-    { description: "Tablette — Standard", quantity: 1, amount_total: 3500, price: { product: { metadata: { produit: "tablette-rambarde", mode: "standard", taille: "M", cotes_mm: '{"a":45,"b":300}', coloris: "noir" } } } },
+    { description: "Tablette — Standard", quantity: 1, amount_total: 3500, price: { product: { metadata: { produit: "tablette-rambarde", mode: "standard", taille: "M", cotes_mm: '{"a":45,"b":250}', coloris: "noir" } } } },
     { description: "Emballage cadeau", quantity: 1, amount_total: 300, price: { product: { metadata: { produit: "emballage-cadeau" } } } }
   ];
   assert.equal((await webhook(envGoogle, "cs_test_std", { metadata: { ref: "EV-1", cadeau: "oui", message_cadeau: "Joyeux anniversaire" } })).status, 200);

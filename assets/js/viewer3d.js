@@ -1,7 +1,11 @@
 /* Evarysth — viewer 3D paramétrique.
    Three.js n'est chargé (via l'importmap d'index.html) qu'à l'ouverture d'une fiche produit qui a un modèle 3D.
-   Usage : const v = EVARYSTH.viewer3d.mount(conteneur, "equerre", p.custom.params, onReady);
+   Usage : const v = EVARYSTH.viewer3d.mount(conteneur, "equerre", p.custom.params, onReady, { jeu, onError });
            v.update({ a, b, c });  v.dispose();
+   Géométrie : kit manifold-3d (assets/js/geo.js + WASM), même calcul que le STL de fabrication (tools/generer-stl.mjs).
+   jeu : jeu d'ajustement de la matière (EVARYSTH.jeu(p)), passé au modèle avec les cotes.
+   onError : appelé si la 3D ne peut pas s'afficher (WebGL absent, WASM ou modèle non chargé) ; la fiche montre alors
+   une image à la place.
    Unités de la scène : 1 unité = 1 mm.
    Un modèle peut aussi partir de fichiers STL (assets/models/) : il expose alors prepare(THREE),
    appelé une fois avant le premier rendu, puis se reconstruit de façon synchrone comme les autres.
@@ -15,20 +19,6 @@
   ]).then(([THREE, ctrl]) => ({ THREE, OrbitControls: ctrl.OrbitControls }))
     .catch(err => { libs = null; throw err; }));
 
-  /* Moteur géométrique (refonte : docs/refonte-geometrie.md). Par défaut, kit manifold-3d (assets/js/geo.js + WASM) :
-     unions exactes, maillage étanche, même calcul que le STL de fabrication. ?geo=ancien (ou ?geo=off) rend l'ancien kit
-     three.js pour comparer, mémorisé dans le navigateur ; ?geo=manifold (ou ?geo=nouveau) revient au défaut et affiche
-     le bilan du modèle dans la console (diagnostic). L'ancien kit sera retiré en phase 4. */
-  const GEO_FLAG = "evarysth.geo";
-  let geoBilan = false;
-  const geoOn = (() => {
-    try {
-      const st = window.EVARYSTH && EVARYSTH.store, q = new URLSearchParams(location.search).get("geo");
-      if (q === "ancien" || q === "off") { if (st) st.set(GEO_FLAG, "ancien"); return false; }
-      if (q === "manifold" || q === "nouveau") { if (st) st.set(GEO_FLAG, ""); geoBilan = true; return true; }
-      return !(st && st.get(GEO_FLAG, "") === "ancien");
-    } catch { return true; }
-  })();
   let GEO = null, geoLoad = null;
   /* Kit manifold (assets/js/geo.js + WASM de assets/vendor/manifold-3d/), chargé à la demande comme three.js */
   const loadGeo = THREE => geoLoad || (geoLoad = Promise.all([
@@ -39,10 +29,10 @@
 
   /* Profils 2D : listes de points [x, y] en mm */
   const rad = d => d * Math.PI / 180;
-  /* Facettisation : n fixe donné par le modèle (contour décoratif, ou profil découpé par indices) ; sans n, 40 segments
-     (cercle) ou 32 (arc) avec l'ancien kit, et avec le kit manifold la règle de cyl() (corde ≤ 0,5 mm, multiple de 4),
-     jamais moins fin qu'avant : un trou ou une cote fonctionnelle reste à moins de 0,05 mm de sa valeur nominale. */
-  const nArc = (r, deg, n0) => GEO ? Math.max(n0, Math.ceil(GEO.segments(r) * Math.abs(deg) / 360 / 4) * 4) : n0;
+  /* Facettisation : n fixe donné par le modèle (contour décoratif, ou profil découpé par indices) ; sans n, la règle de
+     cyl() (corde ≤ 0,5 mm, multiple de 4), au moins 40 segments (cercle) ou 32 (arc) : un trou ou une cote fonctionnelle
+     reste à moins de 0,05 mm de sa valeur nominale. */
+  const nArc = (r, deg, n0) => Math.max(n0, Math.ceil(GEO.segments(r) * Math.abs(deg) / 360 / 4) * 4);
   const circ = (r, x = 0, y = 0, n = nArc(r, 360, 40)) =>
     Array.from({ length: n }, (_, i) => [x + r * Math.cos(i / n * 2 * Math.PI), y + r * Math.sin(i / n * 2 * Math.PI)]);
   const rect = (w, h, x = 0, y = 0) => [[x - w / 2, y - h / 2], [x + w / 2, y - h / 2], [x + w / 2, y + h / 2], [x - w / 2, y + h / 2]];
@@ -55,35 +45,9 @@
   const uPts = (o, L, t) => [[-o / 2 - t, 0], [-o / 2 - t, L + t], [o / 2 + t, L + t], [o / 2 + t, 0],
     [o / 2, 0], [o / 2, L], [-o / 2, L], [-o / 2, 0]];
 
-  /* Briques 3D (dépendent de THREE) : pavé, cylindre/tube (axe Y), profil extrudé (axe Z, centré), assemblage centré */
-  let kitCache = null;
-  const kit = T => GEO || kitCache || (kitCache = (() => {
-    const v2 = p => new T.Vector2(p[0], p[1]);
-    const ext = (pts, d, holes = []) => {
-      const s = new T.Shape(pts.map(v2));
-      holes.forEach(h => s.holes.push(new T.Path(h.map(v2))));
-      return new T.ExtrudeGeometry(s, { depth: d, bevelEnabled: false }).translate(0, 0, -d / 2);
-    };
-    const box = (w, h, d, x = 0, y = 0, z = 0) => new T.BoxGeometry(w, h, d).translate(x, y, z);
-    const cyl = (r, h, ri = 0) => ri > 0 ? ext(circ(r), h, [circ(ri)]).rotateX(Math.PI / 2) : new T.CylinderGeometry(r, r, h, 40);
-    /* Révolution d'un profil [rayon, hauteur] autour de Y (kit manifold : Manifold.revolve) */
-    const rev = pts => new T.LatheGeometry([...pts, pts[0]].map(v2), 40);
-    const join = (...gs) => {
-      const pos = [], nor = [];
-      gs.forEach(g => {
-        const n = g.index ? g.toNonIndexed() : g;
-        pos.push(n.attributes.position.array); nor.push(n.attributes.normal.array);
-        if (n !== g) n.dispose(); g.dispose();
-      });
-      const cat = arrs => { const out = new Float32Array(arrs.reduce((s, a) => s + a.length, 0)); let o = 0; arrs.forEach(a => { out.set(a, o); o += a.length; }); return out; };
-      const g = new T.BufferGeometry();
-      g.setAttribute("position", new T.BufferAttribute(cat(pos), 3));
-      g.setAttribute("normal", new T.BufferAttribute(cat(nor), 3));
-      return g.center();
-    };
-    return { ext, box, cyl, rev, join };
-  })());
-  const m = f => (T, v) => f(kit(T), v);
+  /* Briques 3D (geo.js) : pavé, cylindre/tube (axe Y), profil extrudé (axe Z, centré), révolution, assemblage centré */
+  const kit = () => GEO;
+  const m = f => (T, v) => f(GEO, v);
 
   /* Fichiers STL : chargés une seule fois, à la demande */
   const stlCache = {};
@@ -111,33 +75,18 @@
     return model;
   };
 
-  /* Compositions récurrentes (avec le kit manifold : ses propres versions, assemblées par union) */
-  const trayThree = ({ box }, w, d, h, nx, nz) => [
-    box(w, 3, d, 0, 1.5, 0),
-    box(w, h, 3, 0, h / 2, d / 2 - 1.5), box(w, h, 3, 0, h / 2, -d / 2 + 1.5),
-    box(3, h, d, w / 2 - 1.5, h / 2, 0), box(3, h, d, -w / 2 + 1.5, h / 2, 0),
-    ...Array.from({ length: nx - 1 }, (_, i) => box(2, h * 0.85, d, -w / 2 + (i + 1) * w / nx, h * 0.425, 0)),
-    ...Array.from({ length: nz - 1 }, (_, i) => box(w, h * 0.85, 2, 0, h * 0.425, -d / 2 + (i + 1) * d / nz))
-  ];
-  /* Pose sur un support d'épaisseur a, bras qui descend côté extérieur, crochet en bas */
-  const overHookThree = (k, a, drop, r, w, t = 5) => k.join(
-    k.ext(uPts(a, 30, t), w),
-    k.box(t, drop + 30 + t, w, a / 2 + t / 2, (30 + t - drop) / 2, 0),
-    k.ext(arc(r, r + t, 180, 360), w).translate(a / 2 + r + t, -drop, 0)
-  );
-  /* Pince latérale sur un plateau d'épaisseur a (ouverture vers +x, corps en x < 0) */
-  const sideClampThree = (k, a, L, t, w) => k.ext(uPts(a, L, t), w).rotateZ(Math.PI / 2);
-  const tray = (k, ...a) => k.isManifold ? k.tray(...a) : trayThree(k, ...a);
-  const overHook = (k, ...a) => k.isManifold ? k.overHook(...a) : overHookThree(k, ...a);
-  const sideClamp = (k, ...a) => k.isManifold ? k.sideClamp(...a) : sideClampThree(k, ...a);
+  /* Compositions récurrentes (geo.js) : bac à cases, crochet sur support, pince latérale */
+  const tray = (k, ...a) => k.tray(...a);
+  const overHook = (k, ...a) => k.overHook(...a);
+  const sideClamp = (k, ...a) => k.sideClamp(...a);
 
-  /* Modèles paramétriques : valeurs en mm -> BufferGeometry centrée */
+  /* Modèles paramétriques : valeurs en mm (+ jeu) -> solide (kit) ou BufferGeometry (modèles hors kit), centré */
   const MODELS = {};
   /* Briques mises à disposition des fichiers de modèles */
   const LIB = { m, kit, rad, circ, rect, arc, uPts, fetchSTL, sculpt, tray, overHook, sideClamp };
   /* Appelé par chaque fichier assets/js/modeles/<id>.js : factory(LIB) -> fonction (THREE, valeurs) -> géométrie.
-     opts.solides : nombre de pièces séparées que le modèle produit (1, ou plus pour un assemblage voulu) ;
-     tools/generer-stl.mjs et tools/comparer-kits.mjs refusent tout écart. */
+     opts (contrôlés sous Node, tools/lib/controles.mjs, tests de tools/test/) : solides (nombre de pièces séparées,
+     ou fonction des valeurs), cotes (cotes fonctionnelles mesurées par coupe), paroi (épaisseur minimale). */
   const define = (id, factory, opts = {}) => { MODELS[id] = Object.assign(factory(LIB), opts); };
   const modelCache = {};
   const loadModel = id => modelCache[id] || (modelCache[id] = new Promise((ok, ko) => {
@@ -154,7 +103,7 @@
     catch { return false; }
   };
 
-  function mount(container, modelId, params, onReady) {
+  function mount(container, modelId, params, onReady, { jeu = 0, onError } = {}) {
     let disposed = false, ready = false, pending = null, api = null, open = 0, queued = 0, finish = null;
     /* Une reconstruction par image au plus : pendant un glissé de curseur, seule la dernière valeur compte */
     const flush = () => { queued = 0; if (api && pending) api.rebuild(pending); };
@@ -166,21 +115,17 @@
       setColor(c) { finish = c; if (api) api.tint(); },
       dispose() { disposed = true; cancelAnimationFrame(queued); if (api) api.destroy(); api = null; }
     };
-    if (!container || !modelId || !webglOK()) return handle;
+    /* Pas de 3D possible : la fiche affiche une image à la place (onError), sans erreur dans la console */
+    const fail = err => { if (!disposed && onError) onError(err); };
+    if (!container || !modelId) return handle;
+    if (!webglOK()) { fail(new Error("WebGL indisponible")); return handle; }
 
     Promise.all([load(), loadModel(modelId)]).then(async ([{ THREE, OrbitControls }, build]) => {
-      /* WASM indisponible (navigateur ancien, réseau) : repli sur l'ancien kit plutôt que pas de 3D du tout */
-      if (geoOn) await loadGeo(THREE).catch(err => console.warn("Moteur manifold-3d indisponible, ancien kit utilisé.", err));
+      await loadGeo(THREE);
       if (build.prepare) await build.prepare(THREE);
       if (disposed) return;
-      /* Avec le kit manifold, le modèle rend un solide : converti ici pour l'aperçu (même calcul que le STL) */
-      const make = vals => GEO ? GEO.preview(build(THREE, vals)) : build(THREE, vals);
-      /* Diagnostic (?geo=manifold) : bilan du modèle aux cotes par défaut, après le premier rendu */
-      if (GEO && geoBilan) setTimeout(() => {
-        const b = GEO.bilan(build(THREE, Object.fromEntries(params.map(p => [p.key, p.def])))); GEO.flush();
-        console.info(`[geo=manifold] ${modelId} : ${b.horsKit ? "hors kit" : "kit"}, ${b.etanche ? "étanche" : "NON étanche"}`
-          + (b.volume ? `, ${Math.round(b.volume)} mm³, ${b.solides} solide(s)` : "") + (build.solides ? ` (attendu : ${build.solides})` : ""));
-      }, 500);
+      /* Le modèle rend un solide (ou une BufferGeometry hors kit) : converti ici pour l'aperçu (même calcul que le STL) */
+      const make = vals => GEO.preview(build(THREE, { ...vals, jeu }));
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -281,7 +226,7 @@
       ready = true;
       resize(); tick();
       if (onReady) onReady(build);
-    }).catch(err => { console.warn("Viewer 3D indisponible, illustration conservée.", err); });
+    }).catch(err => { console.info("Aperçu 3D indisponible, image affichée.", err && err.message); fail(err); });
 
     return handle;
   }

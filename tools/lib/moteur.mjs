@@ -1,11 +1,10 @@
 /* Evarysth — exécution des modèles 3D du site sous Node, avec le même code que le navigateur.
-   Charge assets/js/data.js, assets/js/viewer3d.js et assets/js/modeles/<modèle>.js tels quels ;
-   moteur « manifold » (assets/js/geo.js + manifold-3d) ou « three » (ancien kit, concaténation).
+   Charge assets/js/data.js, assets/js/viewer3d.js et assets/js/modeles/<modèle>.js tels quels,
+   avec le kit assets/js/geo.js + manifold-3d (même calcul que l'aperçu du site).
    Dépendances : tools/package.json (npm ci dans tools/). */
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
-import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import * as THREE from "three";
 import Module from "manifold-3d";
@@ -20,10 +19,7 @@ if (versionNode !== MANIFOLD_VERSION) throw new Error(`manifold-3d ${versionNode
 /* Option stable en pratique (Node ≥ 21) ; seul son avertissement « expérimental » est tu */
 const emit = process.emitWarning;
 process.emitWarning = (w, ...a) => String(w).includes("USE_MAIN_CONTEXT_DEFAULT_LOADER") ? undefined : emit.call(process, w, ...a);
-/* Lecture d'un fichier du site : sur disque, ou tel qu'il était au commit ref (comparaison avec la version publiée) */
-const lire = (fichier, ref) => ref ? execFileSync("git", ["show", `${ref}:${fichier}`], { cwd: RACINE, encoding: "utf8", maxBuffer: 1 << 26 })
-  : fs.readFileSync(path.join(RACINE, fichier), "utf8");
-const run = (fichier, ref) => vm.runInThisContext(lire(fichier, ref), {
+const run = fichier => vm.runInThisContext(fs.readFileSync(path.join(RACINE, fichier), "utf8"), {
   filename: path.join(RACINE, "tools", path.basename(fichier)),   // résolution de « three » depuis tools/node_modules
   importModuleDynamically: vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER   // import("three/addons/…") de viewer3d.js
 });
@@ -50,37 +46,39 @@ export const produit = id => {
   return p;
 };
 
-let wasm = null;
-const instances = {};
-/* Une instance de viewer3d.js par moteur (closures indépendantes, comme deux pages) ; ref : fichiers du commit ref */
-const instance = async (moteur, ref) => {
-  const cle = `${moteur}@${ref || ""}`;
-  if (instances[cle]) return instances[cle];
-  run("assets/js/viewer3d.js", ref);
+let wasm = null, inst = null;
+/* Une instance de viewer3d.js, branchée sur le kit manifold */
+const instance = async () => {
+  if (inst) return inst;
+  run("assets/js/viewer3d.js");
   const v = EVARYSTH.viewer3d;
-  let kit = null;
-  if (moteur === "manifold") {
-    if (!wasm) { wasm = await Module(); wasm.setup(); }
-    kit = createKit(THREE, wasm);
-    v.useGeo(kit);
-  }
-  return (instances[cle] = { v, kit, ref, charges: {} });
+  if (!wasm) { wasm = await Module(); wasm.setup(); }
+  const kit = createKit(THREE, wasm);
+  v.useGeo(kit);
+  return (inst = { v, kit, charges: {} });
 };
 
-/* Modèle prêt à calculer : (valeurs) → résultat brut du modèle (Solid ou BufferGeometry) */
-export async function modele(id, moteur = "manifold", ref) {
-  const inst = await instance(moteur, ref);
-  if (!inst.charges[id]) {
-    EVARYSTH.viewer3d = inst.v;
-    run(`assets/js/modeles/${id}.js`, ref);
-    const build = inst.v.models[id];
+/* Modèle prêt à calculer : calc(valeurs, jeu) → résultat brut du modèle (Solid ou BufferGeometry).
+   jeu : jeu d'ajustement de la matière (data.js), passé au modèle comme valeur « jeu » */
+export async function modele(id) {
+  const { v, kit, charges } = await instance();
+  if (!charges[id]) {
+    run(`assets/js/modeles/${id}.js`);
+    const build = v.models[id];
     if (!build) throw new Error(`Modèle 3D « ${id} » non défini`);
     if (build.prepare) await build.prepare(THREE);
-    inst.charges[id] = build;
+    charges[id] = build;
   }
-  const build = inst.charges[id];
-  return { build, kit: inst.kit, calc: vals => build(THREE, vals) };
+  const build = charges[id];
+  return { build, kit, calc: (vals, jeu = 0) => build(THREE, { ...vals, jeu }) };
 }
+
+/* Nombre de solides déclaré par le modèle (nombre, ou fonction des valeurs pour un nombre variable de modules) */
+export const solidesAttendus = (build, vals) => typeof build.solides === "function" ? build.solides(vals) : build.solides;
+/* Jeu de la matière imprimée du produit (data.js) */
+export const jeu = p => EVARYSTH.jeu(p);
+/* Combinaisons min/défaut/max des cotes d'un produit */
+export const combinaisons = prm => prm.reduce((acc, q) => acc.flatMap(c => [...new Set([q.min, q.def, q.max])].map(x => ({ ...c, [q.key]: x }))), [{}]);
 
 /* Cotes : défauts data.js, puis taille standard, puis valeurs explicites ; contrôle des bornes */
 export function cotes(p, { taille, valeurs = {} } = {}) {
@@ -101,20 +99,6 @@ export function cotes(p, { taille, valeurs = {} } = {}) {
       throw new Error(`Cote ${q.key} = ${v[q.key]} hors bornes pour ${p.id} (${q.label} : ${q.min} à ${q.max} mm)`);
   }
   return v;
-}
-
-/* Mesures d'une BufferGeometry (ancien kit) : boîte englobante et volume signé des triangles */
-export function mesureGeometrie(g) {
-  g.computeBoundingBox();
-  const p = g.attributes.position, ix = g.index, n = ix ? ix.count : p.count;
-  let vol = 0;
-  const at = i => (ix ? ix.getX(i) : i);
-  for (let t = 0; t < n; t += 3) {
-    const a = at(t), b = at(t + 1), c = at(t + 2);
-    const ax = p.getX(a), ay = p.getY(a), az = p.getZ(a), bx = p.getX(b), by = p.getY(b), bz = p.getZ(b), cx = p.getX(c), cy = p.getY(c), cz = p.getZ(c);
-    vol += (ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)) / 6;
-  }
-  return { bbox: { min: g.boundingBox.min.toArray(), max: g.boundingBox.max.toArray() }, volume: vol, triangles: n / 3 };
 }
 
 /* STL binaire depuis un Manifold */

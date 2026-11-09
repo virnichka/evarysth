@@ -1,9 +1,9 @@
 /* Modèle 3D « cintre-sac » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
-/* a = diamètre de la tringle. Profil repris du STL (cintre à sac) : crochet sur la tringle,
+/* a = diamètre de la tringle (crochet : Ø a + 1 mm de marge + jeu de la matière). Profil repris du STL (cintre à sac) : crochet sur la tringle,
    voile de 10 mm sur une face, barre courbe de 50 mm où se pose la bretelle. */
 EVARYSTH.viewer3d.define("cintre-sac", ({ m, circ, arc }) => {
-  return m((k, { a }) => {
-    const t = 7, ri = a / 2 + 0.5, ro = ri + t, c = 13, W = 50;
+  return m((k, { a, jeu = 0 }) => {
+    const t = 7, ri = (a + 1 + jeu) / 2, ro = ri + t, c = 13, W = 50;
     const half = [[0, -25], [4.5, -25.3], [6.9, -25.7], [10.3, -26.5], [12.6, -27.2], [15.9, -28.6], [18, -29.7],
       [17.9, -30.5], [17.6, -31.3], [16.9, -32.6], [16.3, -33.3], [15.2, -34.1], [14.3, -34.5], [12.9, -34.8],
       [12, -34.8], [10.9, -34.6], [8.8, -33.9], [6.7, -33.3], [3.6, -32.7], [1.4, -32.5], [0, -32.5]];
@@ -21,4 +21,9 @@ EVARYSTH.viewer3d.define("cintre-sac", ({ m, circ, arc }) => {
       k.ext(web, 10).translate(0, 0, -(W - 10) / 2),
       k.ext(bar, W));
   });
-}, { solides: 1 });
+}, {
+  solides: 1,
+  /* Repère de construction : centre du crochet en (0, 13), largeur de 50 mm selon z (voile en z de -25 à -15) */
+  cotes: ({ a, jeu }) => [-20, 0].map(z => (
+    { nom: `crochet sur la tringle (${z ? "voile" : "milieu"})`, axe: "z", en: [0, 13, z], mesure: "trou", attendu: a + 1 + jeu }))
+});

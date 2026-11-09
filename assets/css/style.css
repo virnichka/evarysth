@@ -312,6 +312,12 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .viewer3d:active { cursor: grabbing; }
 .viewer3d canvas { display: block; width: 100%; height: 100%; outline: none; }
 .stage.is-3d > .shape { display: none; }
+/* Repli sans 3D (WebGL ou WASM indisponible) : image fixe + message court */
+.viewer3d--repli { cursor: default; touch-action: auto; display: grid; }
+.viewer3d--repli img { width: 100%; height: 100%; object-fit: cover; }
+.viewer3d--repli img.is-rendu { object-fit: contain; padding: 8%; box-sizing: border-box; }
+.viewer3d__msg { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); margin: 0; font-size: 11px; padding: 6px 12px; border-radius: 999px; background: var(--bg-2); color: var(--soft); white-space: nowrap; }
+.stage.is-repli > .shape, .stage.is-repli .stage__mat { display: none; }
 .stage .dims, .stage__mat { pointer-events: none; z-index: 1; }
 /* Curseur d'ouverture (modèles ouvrables) : affichage seulement */
 .stage__open { position: absolute; top: 18px; right: 18px; z-index: 1; display: flex; align-items: center; gap: 10px; font-size: 11px; padding: 8px 14px; border-radius: 999px; background: var(--bg-2); color: var(--soft); opacity: 0; pointer-events: none; transition: opacity .4s; }

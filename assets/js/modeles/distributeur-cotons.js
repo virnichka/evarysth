@@ -1,9 +1,10 @@
 /* Modèle 3D « distributeur-cotons » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define).
    Reconstruction paramétrique d'après le STL d'origine (assets/models/distributeur-cotons/) :
    tube à disques avec fente frontale en U + pot à cotons-tiges accolé, raccord arrondi.
-   a = diamètre des disques de coton, b = hauteur du distributeur, c = hauteur du pot. */
+   a = diamètre des disques de coton (tube : Ø a + 5 mm + jeu), b = hauteur du distributeur, c = hauteur du pot. */
 EVARYSTH.viewer3d.define("distributeur-cotons", ({ m, rad }) => {
   const T = 3, FLOOR = 3, RC = 26, RF = 8;           // paroi, fond, rayon ext. du pot, congé du raccord
+  const PER_RI = 144;                                // tube des disques (cote fonctionnelle) : flèche ≤ 0,01 mm
   const pt = (cx, cy, r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   /* Arc de a0 à a1 (radians), n segments par tour, extrémités incluses */
   const arcPts = (cx, cy, r, a0, a1, per = 96) => {
@@ -12,8 +13,8 @@ EVARYSTH.viewer3d.define("distributeur-cotons", ({ m, rad }) => {
   };
   /* Retire les points confondus (jonctions d'arcs, fermeture) */
   const clean = pts => pts.filter((p, i) => { const q = pts[(i + 1) % pts.length]; return Math.hypot(p[0] - q[0], p[1] - q[1]) > 1e-4; });
-  return m((k, { a, b, c }) => {
-    const ri = a / 2 + 2.5, ro = ri + T;              // tube : jeu de 2,5 mm autour des disques
+  return m((k, { a, b, c, jeu = 0 }) => {
+    const ri = (a + 5 + jeu) / 2, ro = ri + T;        // tube : 2,5 mm de marge autour des disques, plus le jeu
     const d = ro + RC - 12;                           // entraxe tube / pot (recouvrement 12 mm)
     const w = Math.min(28, Math.max(18, 0.42 * a));   // largeur de la fente
     /* Raccord arrondi entre les deux cercles extérieurs */
@@ -26,7 +27,7 @@ EVARYSTH.viewer3d.define("distributeur-cotons", ({ m, rad }) => {
       if (s > 0) {
         const doo = Math.asin(s / ro), di = Math.asin(s / ri), mid = rad(270);
         pts.push(...arcPts(0, 0, ro, th1, mid - doo));
-        pts.push(...arcPts(0, 0, ri, mid - di, mid + di - 2 * Math.PI));
+        pts.push(...arcPts(0, 0, ri, mid - di, mid + di - 2 * Math.PI, PER_RI));
         pts.push(...arcPts(0, 0, ro, mid + doo, 2 * Math.PI - th1));
       } else pts.push(...arcPts(0, 0, ro, th1, 2 * Math.PI - th1));
       pts.push(...arcPts(fx, -fy, RF, -fa1, -fa2, 48));             // congé bas
@@ -37,13 +38,13 @@ EVARYSTH.viewer3d.define("distributeur-cotons", ({ m, rad }) => {
     /* Tube seul (au-dessus du pot) */
     const tubeOnly = s => {
       const doo = Math.asin(s / ro), di = Math.asin(s / ri), mid = rad(270);
-      return [...arcPts(0, 0, ro, mid + doo - 2 * Math.PI, mid - doo), ...arcPts(0, 0, ri, mid - di, mid + di - 2 * Math.PI)];
+      return [...arcPts(0, 0, ro, mid + doo - 2 * Math.PI, mid - doo), ...arcPts(0, 0, ri, mid - di, mid + di - 2 * Math.PI, PER_RI)];
     };
     /* Cavité du pot : intérieur du pot moins le tube (cloison = paroi du tube) */
     const rci = RC - T, ix = (d * d + ro * ro - rci * rci) / (2 * d), iy = Math.sqrt(ro * ro - ix * ix);
     const gc = Math.atan2(iy, ix - d), gt = Math.atan2(iy, ix);
     const cupHole = clean([...arcPts(d, 0, rci, -gc, gc), ...arcPts(0, 0, ro, gt, -gt)]);
-    const tubeHole = arcPts(0, 0, ri, 0, 2 * Math.PI).slice(0, -1);
+    const tubeHole = arcPts(0, 0, ri, 0, 2 * Math.PI, PER_RI).slice(0, -1);
     const layer = (pts0, z0, z1, holes = []) => k.ext(clean(pts0), z1 - z0, holes).translate(0, 0, (z0 + z1) / 2).rotateX(-Math.PI / 2);
     const zs = FLOOR + 3, r = w / 2, N = 14, parts = [];
     parts.push(layer(outline(0), 0, FLOOR));                                  // fond plein
@@ -63,4 +64,8 @@ EVARYSTH.viewer3d.define("distributeur-cotons", ({ m, rad }) => {
     parts.push(layer(tubeOnly(r), c, b));                                     // tube seul
     return k.join(...parts).rotateY(0.55);              // fente tournée vers la vue par défaut
   });
-}, { solides: 1 });
+}, {
+  solides: 1,
+  /* Repère de construction : axe du tube = Y, fond de y = 0 à 3, fente à partir de y = 6 */
+  cotes: ({ a, jeu }) => [{ nom: "tube des disques", axe: "y", en: [0, 4.5, 0], mesure: "trou", attendu: a + 5 + jeu }]
+});

@@ -1,6 +1,6 @@
 # Refonte du moteur géométrique (manifold-3d)
 
-> **État (9 novembre 2026)** : phases 0 à 3 terminées. Depuis la phase 3, le moteur manifold-3d est celui **par défaut** du site (ancien kit three.js : `?geo=ancien`, mémorisé, jusqu'à sa suppression en phase 4). Prochaine étape : phase 4, sur feu vert du propriétaire.
+> **État (9 novembre 2026)** : **phase 4 terminée, chantier clos.** manifold-3d est le seul moteur du site et des outils (ancien kit three.js retiré) ; contrôles automatiques (tests Node + workflow « Contrôles de géométrie »), jeu par matière, fiche d'impression par produit. Suite : chantier « atelier » (hors périmètre ci-dessous).
 > Écarts phase 1 : `jardiniere-clip` → `tablette-rambarde` (index.html, tests Worker) ; « popular » ajouté à `crochet-balcon`, `passe-cable`, `vide-poche-cles` (4 mis en avant retirés + 1 conservé) ; icônes `clamp`, `clip`, `riser`, `reel`, `stand`, `handle` retirées de `SHAPES` ; fonctions du kit intactes ; `docs/traitement-commandes.md` (historique OpenSCAD) non modifié.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Modèle conseillé : Opus effort élevé pour les phases 2 à 4 ; Sonnet suffit pour la phase 1.
@@ -231,6 +231,90 @@ par branche (déjà le cas avant, cotes du bord arrondi).
   paroi minimale (section + `offset(−e/2)`).
 - Chaque modèle déclare ses contrôles de cotes ; `data.js` reçoit la fiche d'impression (orientation, matériau,
   jeu, pièces par plateau).
+
+**Phase 4 terminée (9 novembre 2026) — chantier clos.**
+- **Corrections héritées** : `passe-cable` ramené à 3 coloris (noir mat, bleu nuit, gris béton ; *bleu lagon retiré*).
+  `equerre-l` : profil cœur raccourci de 2 × 0,8 mm, chaque branche mesure exactement a (b), largeur c (avant : a + 1,6).
+  `support-casque-gyroide` : appui remonté de 1,5 mm, hauteur exactement a (avant : a − 1,5) ; b, qui n'était pas la
+  largeur de l'appui (b + 8), est renommé « Largeur de l'arceau du casque » (l'appui le déborde de 4 mm par côté).
+- **Jeu par matière** (`jeu` des matières de `data.js` : PLA 0,2, PETG 0,3, *ASA 0,3, PA-CF 0,25, PA12 0,3* — valeurs
+  de départ choisies, à confirmer par essais) ; `EVARYSTH.jeu(p)` ; reçu par le modèle avec les cotes (`v.jeu`), dans
+  l'aperçu (`mount(…, { jeu })`) comme sous Node. Cote saisie et prix inchangés. Ajustements (marge de conception + jeu) :
+
+| Produit | Ajustement | Sens | Valeur |
+|---|---|---|---|
+| passe-cable | fût dans le trou du plateau | entre | Ø a − jeu |
+| crochet-balcon | ouverture sur la main courante | entoure | a + jeu |
+| tablette-rambarde | ouverture du U sur la rambarde | entoure | a + jeu |
+| support-casque | pince sur le plateau | entoure | a + jeu |
+| cintre-sac | crochet sur la tringle | entoure | Ø a + 1 + jeu |
+| crochet-appui-tete | œillet sur la tige ; petits crochets sur la tablette | entoure | Ø a + 1 + jeu ; b + jeu |
+| distributeur-cotons | tube des disques | entoure | Ø a + 5 + jeu |
+| support-aerosol-skadis | gobelet autour de la bombe | entoure | Ø a + 1,5 + jeu |
+| boite-rugged | intérieur (longueur, largeur, hauteur) | entoure | a, b, c + jeu |
+| organiseur-tiroir | organiseur dans le tiroir | entre | a − jeu, b − jeu (hors tout) |
+
+  Sans ajustement sur un objet du client : equerre-l, vide-poche-cles, support-casque-gyroide, chat-lord, carapuce,
+  voiture-voronoi. Le couvercle du passe-câble (pièce Evarysth sur pièce Evarysth) garde son jeu de 0,5 mm au rayon.
+- **Contrôles déclarés par modèle** (`define(id, factory, { solides, cotes, paroi })`, `tools/lib/controles.mjs`) :
+  cotes mesurées par `Manifold.slice` (trou, diamètre, largeur, étendue, boîte ; ± 0,05 mm) dans le repère de
+  construction (la « pose » de chaque solide, suivie par `geo.js`, ramène le résultat dans le repère du dernier `join`) ;
+  paroi minimale par coupe + `offset(−e/2)` puis `offset(+e/2)` (1,2 mm ; *0,8 mm pour les nervures Voronoï de la
+  voiture, seuil de 3 à 5 mm² pour les éclats de coupe rasante des formes organiques et du treillis*).
+  `verifier-trous.mjs` est absorbé (ses 3 produits y sont, avec le jeu) ; 31 cotes sur 16 produits.
+- **Fiche d'impression** (`impression` dans `data.js`, `tools/lib/impression.mjs`) : orientation = rotation propre
+  (`POSE.debout`, `retourne`, `aPlat`, `surLeCote` ; par pièce pour la boîte rugged), supports, `parPlateau`
+  (ou `plateaux` pour l'organiseur), matière, remarques. `generer-stl --impression` : pièces séparées, posées à z = 0,
+  rangées sur le plateau Bambu Lab (256 mm, rangées « premier emplacement libre », 5 mm d'écart). Contrôles : pièce dans le
+  volume, appui non nul (coupe à 0,1 mm), autant de pièces que de solides, exemplaires par plateau tenus.
+- **Bornes réduites pour tenir sur le plateau** : `tablette-rambarde` b ≤ 250 (400) ; `boite-rugged` a ≤ 245 (300),
+  b ≤ 230 (250) ; `support-casque-gyroide` a ≤ 255 (320 ; taille « Grand » 290 → 255). `organiseur-tiroir` (jusqu'à
+  560 × 560) : *découpé en modules de cases entières ≤ 250 mm, posés côte à côte (0,5 mm d'écart), `solides` fonction
+  des cotes* (6 modules et 3 plateaux aux cotes par défaut, 12 modules au max).
+- **Défaut hérité corrigé** : les loquets de `boite-rugged` descendaient dans la bande étirée en hauteur (z = 21,6 < 22,4)
+  et s'allongeaient de 4,4 mm à c = 150 ; ils sont maintenant seulement translatés.
+- **Facettisation** : tube du distributeur (144 segments au lieu de 96) et dos du gobelet SKADIS (96 au lieu de 48) :
+  écart de cote 0,045 → 0,02 mm. `support-casque` : montant noyé de 1 mm dans la pince (2 solides sinon, faces jointives).
+- **Références figées** : `tools/references-geometrie.json` (boîte, volume, solides des 189 combinaisons) ;
+  `node tools/verifier-geometrie.mjs --mettre-a-jour` affiche les écarts puis réécrit. `comparer-kits.mjs` supprimé.
+- **Tests** : `cd tools && node --test` — 227 tests (16 produits × combinaisons + fiches + outils), ≈ 26 s ;
+  `.github/workflows/geometrie.yml` (PR et push sur `main` touchant `assets/js/`, `assets/models/`, `tools/`).
+  Mutation d'essai (fût à Ø a + jeu) : bloquée par la cote et la référence.
+- **Ancien kit retiré** (`viewer3d.js` : kit three.js, `?geo=…`, repli, bilan console). WASM ou WebGL indisponible :
+  la fiche affiche la 1re photo, sinon la vignette 3D, et « Aperçu 3D indisponible sur ce navigateur » ; aucune erreur JS
+  (seule la requête bloquée apparaît dans la console du navigateur).
+
+Bilan (`node tools/verifier-geometrie.mjs`, Node, calcul du modèle seul) :
+
+| Produit | Comb. | Écart max des cotes (mm) | Plateaux max | Par plateau (défaut) | Calcul moyen |
+|---|---|---|---|---|---|
+| crochet-balcon | 3 | 0,000 | 1 | 4 | 13 ms |
+| tablette-rambarde | 9 | 0,000 | 1 | 1 | 1 ms |
+| support-casque | 3 | 0,000 | 1 | 4 | 8 ms |
+| passe-cable | 3 | 0,001 | 1 | 5 | 29 ms |
+| crochet-appui-tete | 27 | 0,011 | 1 | 6 | 20 ms |
+| equerre-l | 27 | 0,000 | 1 | 4 | 4 ms |
+| boite-rugged | 27 | 0,000 | 3 | 1 | 5 ms |
+| support-casque-gyroide | 9 | 0,030 | 1 | 2 | 380 ms |
+| organiseur-tiroir | 9 | 0,000 | 10 | 3 plateaux / ex. | 13 ms |
+| vide-poche-cles | 27 | 0,000 | 1 | 6 | 20 ms |
+| distributeur-cotons | 27 | 0,019 | 1 | 4 | 99 ms |
+| cintre-sac | 3 | 0,002 | 1 | 15 | 8 ms |
+| support-aerosol-skadis | 6 | 0,011 | 1 | 9 | 60 ms |
+| chat-lord | 3 | 0,032 | 1 | 6 | 6 ms |
+| carapuce | 3 | 0,025 | 1 | 2 | 4 ms |
+| voiture-voronoi | 3 | 0,029 | 1 | 3 | 6 ms |
+
+Points ouverts (propriétaire) :
+- Jeux ASA, PA-CF, PA12 et marges de conception (cintre-sac, œillet : +1 mm ; distributeur +5 ; aérosol +1,5) à valider
+  par une impression d'essai ; le jeu de 0,2 mm sur un fût de passe-câble en PLA est serré.
+- Orientations et supports des fiches à confirmer au tranchage (chantier suivant), en particulier crochet-appui-tete,
+  support-aerosol-skadis et les figurines (supports « oui » par prudence) et les loquets de la boîte rugged.
+- `parPlateau` = maximum du rangement (5 mm d'écart) : à baisser si l'atelier préfère des plateaux moins chargés.
+- Bornes réduites (tablette, boîte, gyroïde) et organiseur en modules : choix produit à confirmer ; prix inchangés.
+- `support-casque-gyroide` ≈ 0,4 s de calcul sous Node (au-dessus de la cible de 0,3 s sur cette machine).
+- Coloris : `support-casque`, `boite-rugged`, `organiseur-tiroir`, `cintre-sac` en ont encore 4 (règle : 2 ou 3).
+- Licence des modèles sous droits de tiers (carapuce, chat-lord, voiture-voronoi) : inchangé, avant l'ouverture des ventes.
 
 ### Hors périmètre (chantier suivant)
 Tranchage CLI dans Docker (version et profils épinglés, versionnés), stockage R2, génération à la commande depuis le

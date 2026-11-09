@@ -40,4 +40,11 @@ EVARYSTH.viewer3d.define("vide-poche-cles", ({ m, circ, arc }) => {
     const rim = k.ext(outer, hT, [inner]).rotateX(Math.PI / 2).translate(0, hT / 2, 0);
     return k.join(side(k, back, a), floor, rim, ...hooks);
   });
-}, { solides: 1 });
+}, {
+  solides: 1,
+  /* Aucun ajustement sur un objet du client : cotes hors tout. Repère de construction : sol en y = 0, dos en z = 0 */
+  cotes: ({ a, b, c }) => [
+    { nom: "largeur", axe: "y", en: [0, 6, 0], mesure: "etendue", selon: "x", attendu: a },
+    { nom: "profondeur du bac", axe: "y", en: [0, 6, 0], mesure: "etendue", selon: "z", attendu: b },
+    { nom: "hauteur totale", mesure: "boite", selon: "y", attendu: c }]
+});

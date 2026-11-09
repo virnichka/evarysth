@@ -1,15 +1,17 @@
 /* Modèle 3D « support-casque-gyroide » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
-/* a = hauteur totale, b = largeur de l'appui (reconstruction paramétrique, treillis gyroïde) */
+/* a = hauteur totale (exacte, du dessous du socle au sommet de l'appui), b = largeur de l'arceau du casque
+   (l'appui le déborde de 4 mm de chaque côté) ; reconstruction paramétrique, treillis gyroïde */
 EVARYSTH.viewer3d.define("support-casque-gyroide", () => {
   /* Support de casque gyroïde. Reconstruit d'après le STL « gyroid headphone holder » (210 000 triangles,
      trop lourd et non paramétrable) : socle plein, colonne puis tête évasée en treillis gyroïde, appui
      bombé plein sous l'arceau. Le treillis est recalculé (champ implicite + « surface nets ») à cellule
      fixe : quand on agrandit, il gagne des cellules au lieu d'épaissir. Montants pleins aux 4 arêtes.
-     a = hauteur totale, b = largeur de l'appui. Repère : y vers le haut, sol en y = 0. */
+     a = hauteur totale, b = largeur de l'arceau. Repère : y vers le haut, sol en y = 0 (puis centré). */
   const gyroStand = (T, { a, b }) => {
     const BT = 8, S = 8, CT = 6, B = b + 8;           // socle, flèche et épaisseur de l'appui, largeur de l'appui
     const cw = 44, cd = 32, hd = 44, HH = 0.6 * b;     // colonne (x, z), profondeur de la tête, hauteur de la tête
-    const yT = a - S - CT, yH = yT - HH;               // dessous de l'appui (au bord), début de l'évasement
+    const yT = a - S - CT + 1.5, yH = yT - HH;         // dessous de l'appui (au bord), début de l'évasement :
+                                                       // sommet de l'appui (bombé + 4,5 mm, arrondi compris) en y = a
     const arcY = x => S * (1 - (2 * x / B) ** 2);      // bombé de l'appui
     const P = 20, kk = 2 * Math.PI / P, wall = 1.3;    // période du gyroïde, demi-épaisseur de paroi
     /* Silhouette pleine (distance approchée) */
@@ -124,4 +126,14 @@ EVARYSTH.viewer3d.define("support-casque-gyroide", () => {
   };
   gyroStand.smooth = true;  // treillis organique : pas d'arêtes à souligner
   return gyroStand;
-}, { solides: 1 });
+}, {
+  solides: 1,
+  /* Résultat centré (BufferGeometry) : repère de construction = repère final, plan x = 0 = milieu de l'appui */
+  cotes: ({ a, b }) => [
+    { nom: "hauteur totale", axe: "x", en: [0, 0, 0], mesure: "etendue", selon: "y", attendu: a },
+    /* Bords de l'appui à 11 mm sous le sommet ; arrondi de 1,5 mm échantillonné sur la grille de 1,6 mm : tolérance élargie */
+    { nom: "appui sous l'arceau (arceau + 2 × 4 mm)", axe: "y", en: [0, a / 2 - 11, 0], mesure: "etendue", selon: "x", attendu: b + 8, tol: 0.15 }],
+  /* Parois du treillis : 2 × 1,3 mm par construction ; les coupes rasantes du treillis laissent des éclats
+     jusqu'à 4 mm² (mesurés), d'où le seuil de 5 mm² */
+  paroi: { min: 1.2, seuil: 5 }
+});

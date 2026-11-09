@@ -1,13 +1,13 @@
 /* Modèle 3D « support-aerosol-skadis » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
-/* a = diamètre de la bombe, b = hauteur du support */
+/* a = diamètre de la bombe (gobelet : Ø a + 1,5 mm + jeu), b = hauteur du support */
 EVARYSTH.viewer3d.define("support-aerosol-skadis", ({ kit, rad }) => {
   /* Support d'aérosol SKADIS. Repère : y vers le haut (0 = dessous), dos contre le panneau en z = 0,
      gobelet vers +z. Reconstruit d'après le STL « bottle holder 54 » : dos plein, gobelet à paroi de 3 mm,
      côtés en creux, encoche en U à l'avant, fond ajouré qui retient la bombe par son rebord.
      Accroche SKADIS : 2 crochets en haut et 2 ergots 40 mm plus bas (pas des trous du panneau). */
-  const aerosol = (T, { a, b }) => {
+  const aerosol = (T, { a, b, jeu = 0 }) => {
     const k = kit(T);
-    const ri = a / 2 + 0.75, t = 3, ro = ri + t, cz = 5 + ri, H = b, ft = 4, rn = 0.25 * a;
+    const ri = (a + 1.5 + jeu) / 2, t = 3, ro = ri + t, cz = 5 + ri, H = b, ft = 4, rn = 0.25 * a;
     const hs = 0.45 * H, hh = 0.65 * H, hf = ft + 6;  // creux des côtés, cornes avant, fond de l'encoche
     const ss = (e0, e1, x) => { const u = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return u * u * (3 - 2 * u); };
     /* Hauteur du bord selon l'angle θ (0 = avant, ±90° = jonction avec le dos) */
@@ -48,7 +48,7 @@ EVARYSTH.viewer3d.define("support-aerosol-skadis", ({ kit, rad }) => {
     wall.setAttribute("normal", new T.Float32BufferAttribute(nor, 3));
     /* Dos plein : rectangle jusqu'au centre du gobelet, creusé de la demi-paroi arrière */
     const back = [[ro, -cz], [ro, 0], [-ro, 0], [-ro, -cz],
-      ...Array.from({ length: 49 }, (_, i) => { const th = rad(-90 - 180 * i / 48); return [ri * Math.sin(th), -(cz + ri * Math.cos(th))]; })];
+      ...Array.from({ length: 97 }, (_, i) => { const th = rad(-90 - 180 * i / 96); return [ri * Math.sin(th), -(cz + ri * Math.cos(th))]; })];
     const yT = H - 14;
     return k.join(
       wall,
@@ -61,4 +61,10 @@ EVARYSTH.viewer3d.define("support-aerosol-skadis", ({ kit, rad }) => {
       ]));
   };
   return aerosol;
-}, { solides: 1 });
+}, {
+  solides: 1,
+  /* Repère de construction : y vers le haut (0 = dessous), dos en z = 0, axe du gobelet en z = 5 + rayon intérieur */
+  cotes: ({ a, b, jeu }) => [
+    { nom: "gobelet autour de la bombe", axe: "y", en: [0, 6, 5 + (a + 1.5 + jeu) / 2], mesure: "trou", attendu: a + 1.5 + jeu },
+    { nom: "hauteur du support", axe: "x", en: [0, 0, 2], mesure: "etendue", selon: "y", attendu: b }]
+});

@@ -11,4 +11,10 @@ EVARYSTH.viewer3d.define("voiture-voronoi", ({ sculpt }) => {
   model.smooth = base.smooth;
   model.prepare = base.prepare;
   return model;
-}, { solides: 1 });
+}, {
+  solides: 1,
+  cotes: ({ a }) => [{ nom: "longueur de la voiture", mesure: "boite", selon: "z", attendu: a }],
+  /* Nervures Voronoï : 0,8 mm au moins (deux passes de buse de 0,4 mm) ; 1,2 mm n'est pas tenu sous 140 mm de long.
+     Coupes rasantes d'une surface organique : éclats jusqu'à 2,7 mm², d'où le seuil de 3 mm² */
+  paroi: { min: 0.8, seuil: 3 }
+});

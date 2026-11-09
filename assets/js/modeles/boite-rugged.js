@@ -1,5 +1,5 @@
 /* Modèle 3D « boite-rugged » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
-/* a = longueur, b = largeur, c = hauteur intérieures (à partir des STL) */
+/* a = longueur, b = largeur, c = hauteur intérieures (à partir des STL), plus le jeu de la matière */
 EVARYSTH.viewer3d.define("boite-rugged", ({ fetchSTL }) => {
   /* Boîte Rugged : boîte + couvercle + 2 loquets, assemblés fermés à partir des STL d'impression.
      Repère d'assemblage : Z vers le haut, origine au centre du fond, cotes intérieures 150 × 100 × 50 mm.
@@ -25,14 +25,15 @@ EVARYSTH.viewer3d.define("boite-rugged", ({ fetchSTL }) => {
     /* v.open (0 → 1, facultatif) : affichage seulement. 0–30 % : les loquets basculent vers l'extérieur,
        30–100 % : le couvercle (avec ses loquets) pivote jusqu'à 105° sur sa charnière. */
     const model = (T, v) => {
-      const dx = (v.b - NOM.b) / 2, dy = (v.a - NOM.a) / 2, dz = v.c - NOM.c;
+      const j = v.jeu || 0, dx = (v.b + j - NOM.b) / 2, dy = (v.a + j - NOM.a) / 2, dz = v.c + j - NOM.c;
       const sx = (BAND.x + dx) / BAND.x, sy = (BAND.y + dy) / BAND.y, sz = (BAND.z1 - BAND.z0 + dz) / (BAND.z1 - BAND.z0);
       const out = new Float32Array(base.length);
       for (let i = 0; i < base.length; i += 3) {
         const x = base[i], y = base[i + 1], z = base[i + 2];
         out[i] = x > BAND.x ? x + dx : x < -BAND.x ? x - dx : x * sx;
         out[i + 1] = y > BAND.y ? y + dy : y < -BAND.y ? y - dy : y * sy;
-        out[i + 2] = z > BAND.z1 ? z + dz : z > BAND.z0 ? BAND.z0 + (z - BAND.z0) * sz : z;
+        /* Les loquets descendent à z = 21,6, dans la bande : ils sont seulement translatés (pièces rigides) */
+        out[i + 2] = z > BAND.z1 || i >= latchAt ? z + dz : z > BAND.z0 ? BAND.z0 + (z - BAND.z0) * sz : z;
       }
       /* Centre de la boîte fermée : la boîte reste immobile pendant l'ouverture */
       const cz = (out.reduce((m, val, i) => i % 3 === 2 && val > m ? val : m, 0)) / 2;
@@ -67,4 +68,12 @@ EVARYSTH.viewer3d.define("boite-rugged", ({ fetchSTL }) => {
     return model;
   })();
   return rugged;
-}, { solides: 4 });   // boîte, couvercle, 2 loquets (assemblage montré fermé)
+}, {
+  solides: 4,   // boîte, couvercle, 2 loquets (assemblage montré fermé)
+  /* Résultat hors kit (repère final, centré en hauteur) : x = largeur b, y = hauteur, z = longueur a.
+     Sous le couvercle fermé, l'intérieur mesure 0,2 mm de plus que la hauteur nominale (fichiers d'origine). */
+  cotes: ({ a, b, c, jeu }) => [
+    { nom: "longueur intérieure", axe: "y", en: [0, 0, 0], mesure: "largeur", selon: "z", attendu: a + jeu },
+    { nom: "largeur intérieure", axe: "y", en: [0, 0, 0], mesure: "largeur", selon: "x", attendu: b + jeu },
+    { nom: "hauteur intérieure (couvercle fermé)", axe: "x", en: [0, 0, 0], mesure: "largeur", selon: "y", attendu: c + jeu + 0.2 }]
+});
