@@ -1,6 +1,7 @@
 # Refonte du moteur géométrique (manifold-3d)
 
-> **État (9 novembre 2026)** : phase 0 terminée (ce document). Prochaine étape : phase 1, sur feu vert du propriétaire.
+> **État (9 novembre 2026)** : phases 0 et 1 terminées (catalogue ramené à 16 produits, mis en ligne). Prochaine étape : phase 2, sur feu vert du propriétaire.
+> Écarts phase 1 : `jardiniere-clip` → `tablette-rambarde` (index.html, tests Worker) ; « popular » ajouté à `crochet-balcon`, `passe-cable`, `vide-poche-cles` (4 mis en avant retirés + 1 conservé) ; icônes `clamp`, `clip`, `riser`, `reel`, `stand`, `handle` retirées de `SHAPES` ; fonctions du kit intactes ; `docs/traitement-commandes.md` (historique OpenSCAD) non modifié.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Modèle conseillé : Opus effort élevé pour les phases 2 à 4 ; Sonnet suffit pour la phase 1.
 

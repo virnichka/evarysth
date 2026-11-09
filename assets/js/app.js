@@ -5,28 +5,15 @@
 
   /* Illustrations line-art (aucune image externe) */
   const SHAPES = {
-    clamp: `<rect x="18" y="30" width="84" height="8" rx="2" class="ghost"/>
-      <path d="M30 22h28v24H44v8h44v24a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8V54"/>
-      <path d="M58 22v-4h-36v32h10"/><path d="M48 70h32"/>`,
     hook: `<rect x="14" y="26" width="92" height="10" rx="2" class="ghost"/>
       <path d="M40 46V22a6 6 0 0 1 6-6h28a6 6 0 0 1 6 6v24"/>
       <path d="M60 16v64a16 16 0 1 1-32 0v-4"/><circle cx="28" cy="72" r="3"/>`,
-    clip: `<line x1="60" y1="10" x2="60" y2="110" class="ghost"/>
-      <path d="M78 60a18 18 0 1 1-6-13.4"/><path d="M72 46.6 90 34h14"/>
-      <path d="M78 60h26"/><circle cx="60" cy="60" r="6" class="ghost"/>`,
     tray: `<path d="M16 46 60 26l44 20-44 20z"/><path d="M16 46v28l44 20 44-20V46"/>
       <path d="M60 66v28"/><path d="M38 56v28" class="ghost"/><path d="M82 56v28" class="ghost"/>`,
-    riser: `<ellipse cx="60" cy="34" rx="30" ry="10"/><path d="M30 34v46c0 5.5 13.4 10 30 10s30-4.5 30-10V34"/>
-      <ellipse cx="60" cy="34" rx="14" ry="4.6" class="ghost"/><path d="M30 56c0 5.5 13.4 10 30 10s30-4.5 30-10" class="ghost"/>`,
-    reel: `<rect x="14" y="20" width="10" height="84" rx="2" class="ghost"/>
-      <path d="M24 34c20-12 52-12 72 0"/><path d="M24 44c20-10 52-10 72 0"/><path d="M96 26v22"/>
-      <path d="M40 46v30M80 46v12"/><path d="M34 60c-10 16-10 30 6 36s40 4 46-10" class="ghost"/>`,
     bracket: `<rect x="20" y="16" width="10" height="88" rx="2" class="ghost"/>
       <path d="M34 30h66v10H46"/><path d="M34 30v58l12-8V40"/><path d="M46 76 88 40"/>`,
     ring: `<ellipse cx="60" cy="42" rx="40" ry="14"/><path d="M20 42v12c0 7.7 17.9 14 40 14s40-6.3 40-14V42"/>
       <ellipse cx="60" cy="42" rx="22" ry="7" class="ghost"/><path d="M38 66v28M82 66v28" class="ghost"/>`,
-    stand: `<rect x="56" y="14" width="10" height="62" rx="2" class="ghost"/>
-      <path d="M26 92V66a8 8 0 0 1 8-8h52a8 8 0 0 1 8 8v26z"/><path d="M54 58v20h14V58"/><path d="M18 96h84" class="ghost"/>`,
     case: `<path d="M20 34h80a4 4 0 0 1 4 4v12H16V38a4 4 0 0 1 4-4z"/><path d="M16 50h88v36a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6z"/>
       <rect x="32" y="42" width="10" height="18" rx="2"/><rect x="78" y="42" width="10" height="18" rx="2"/><path d="M16 74h88" class="ghost"/>`,
     cup: `<rect x="18" y="10" width="84" height="100" rx="3" class="ghost"/><path d="M34 22v8M86 22v8M34 70v8M86 70v8" class="ghost"/>
@@ -50,8 +37,6 @@
     headstand: `<path d="M26 104h68a4 4 0 0 0 4-4v-2H22v2a4 4 0 0 0 4 4z"/>
       <path d="M24 26Q60 10 96 26v6Q60 16 24 32z"/><path d="M26 32c16 12 26 20 26 32v34M94 32c-16 12-26 20-26 32v34"/>
       <path d="M44 38c4 4 8 4 12 0s8-4 12 0 8 4 12 0M54 56c2 3 4 3 6 0s4-3 6 0M54 72c2 3 4 3 6 0s4-3 6 0M54 86c2 3 4 3 6 0s4-3 6 0" class="ghost"/>`,
-    handle: `<path d="M16 76h22V50a8 8 0 0 1 8-8h28a8 8 0 0 1 8 8v26h22"/><path d="M38 76h44" class="ghost"/>
-      <circle cx="38" cy="86" r="3"/><circle cx="82" cy="86" r="3"/>`
   };
   EVARYSTH.shapeSVG = (shape, cls = "") =>
     `<svg class="shape ${cls}" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2.4"
