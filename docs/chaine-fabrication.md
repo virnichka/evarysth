@@ -313,7 +313,22 @@ essai échoue avec la liste de ce qui manque ; sans colonnes, rien n'est écrit.
 
 **Temps mesurés** (session, 4 vCPU, image locale) : `fabriquer.mjs` passe-cable a = 60 × 3 (1 plateau, 6 pièces) :
 20 s dont tranchage 19 s ; 1 exemplaire : tranchage 6,5 s ; `equerre-l` × 2 (PETG) : 1,4 s ; image : 1,84 Go, construite
-en 3 min 35 sans cache. Run d'essai sur GitHub : voir ci-dessous.
+en 3 min 35 sans cache.
+
+**Runs sur GitHub** (9 novembre 2026, `ubuntu-latest`, entrée `essai`, rien d'envoyé) :
+| Run | Article | Résultat | Image tirée | Génération + tranchage | Job | De bout en bout |
+|---|---|---|---|---|---|---|
+| [42638437376](https://github.com/virnichka/evarysth/actions/runs/42638437376) | `passe-cable` a = 60, Bleu nuit, × 3 (PLA, 6 pièces, 1 plateau) | 55,33 g, 1 h 47 (identiques au tranchage local) | ~20 s | 0,8 s + 17,7 s | 44 s | **58 s** |
+| [42638442693](https://github.com/virnichka/evarysth/actions/runs/42638442693) | `equerre-l` 100 × 100 × 20, × 2 (PETG) | prête | ~20 s | ~3 s | 32 s | **38 s** |
+Cible « fichiers dans R2 en < 10 min » : large marge (envoi R2 et rappel non mesurés, sans secrets). Run non essai sans
+secrets : échec net à l'étape « Configuration R2 et rappel » (« Fabrication non configurée : Manquant … »), rien généré.
+
+**Image publiée** : `image-fabrication.yml` construit et publie (≈ 3 min). Le 1er run a révélé un défaut hérité de la
+phase 1a : sans proxy, `snapshot.ubuntu.com` redirige vers HTTPS et l'image de base n'a pas de certificats ; corrigé en
+prêtant le bundle CA du runner en secret de construction (contenu inchangé). L'empreinte obtenue sur GitHub
+(`sha256:b1fe84f8…`) diffère de la construction locale (`sha256:dbb8b63d…`, exportateur `docker` contre registre) :
+celle de GitHub est épinglée dans `fabrication.yml` ; une reconstruction sur GitHub doit redonner la même (à confirmer
+au prochain changement de `fabrication/**`).
 
 ### Phase 3 — /admin : génération, validation, envoi des fichiers
 - Fiche commande : statut de génération (en cours / prête / échec + motif), masse, temps, plateaux, liens des fichiers,
