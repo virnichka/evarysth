@@ -56,7 +56,7 @@ concurrency:
 
 env:
   # Image de tranchage (fabrication/Dockerfile), publiée par image-fabrication.yml ; empreinte épinglée ici.
-  IMAGE: ghcr.io/virnichka/evarysth-fabrication@sha256:dbb8b63db5ad902c9bd2a63e28bc64e4a60f910b49ebfae0a7c595e5164b9c20
+  IMAGE: ghcr.io/virnichka/evarysth-fabrication@sha256:b1fe84f881fd1560a1e5168bd692fbc05cc767765be85d698338dcf9dd14513e
   BUCKET: evarysth-stl
   WORKER_URL: https://evarysth-checkout.virnichka.workers.dev
   CF: ${{ inputs.cf }}
