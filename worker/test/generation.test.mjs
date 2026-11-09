@@ -159,15 +159,15 @@ test("Fiche : fichiers prêts (masse, temps, plateaux, liens STL zip / 3MF / tra
   assert.doesNotMatch(html, /<h2>Fichiers d'impression/, "plus de section à part : un pli sous chaque article");
   const valider = /<form class="valider"[\s\S]*?<\/form>/.exec(html)[0];
   assert.doesNotMatch(valider.slice(1), /<form/, "pas de formulaire imbriqué dans « Valider et envoyer »");
-  assert.match(valider, /Article 1<\/span>[\s\S]*passe-cable · a=60[\s\S]*Fichiers d'impression<br><span class="muted">dossier CF-2026-0004-1 · SHA 448818330ea9[\s\S]*Fichiers prêts[\s\S]*18\.44 g · 42 min · 1 plateau · PLA \(atelier possible\)[\s\S]*Article 2<\/span>/);
-  assert.match(valider, /Article 2<\/span>[\s\S]*Fichiers d'impression<br>[\s\S]*Génération en échec[\s\S]*form="gen-EV-2026-0004-2-relancer">Relancer la génération/);
+  assert.match(valider, /Article 1<\/span>[\s\S]*passe-cable · a=60[^<]*<\/div>\n<div class="fich"><span class="badge t-ok">Fichiers prêts<\/span><span><a [^>]+>STL \(2 fichiers, zip\) ↗<\/a>[^]*?<\/span><span class="muted">18\.44 g · 42 min · 1 plateau<\/span><\/div>\n<label for="fab-[^]*?<details class="options"><summary><span class="nom">Autres options<\/span><\/summary><div class="detail"><label for="stl-EV-2026-0004-1">Lien STL <span class="muted">\(remplace les fichiers générés, facultatif\)[^]*?dossier CF-2026-0004-1 · SHA 448818330ea9 · PLA \(atelier possible\)[^]*?Article 2<\/span>/, "une ligne de fichiers ; lien STL et détails dans « Autres options »");
+  assert.match(valider, /Article 2<\/span>[\s\S]*Génération en échec<\/span><span><span class="a-faire">génération : erreur simulée<\/span>[\s\S]*form="gen-EV-2026-0004-2-relancer">Relancer la génération<\/button>\n<label for="fab-[^]*?<label for="stl-EV-2026-0004-2">Lien STL<\/label>[^]*?Autres options/, "échec : motif, relance et lien STL visibles");
   assert.match(html, /<form id="gen-EV-2026-0004-2-relancer" method="post" action="\/admin\/generation">[^]*?name="n" value="2"><input type="hidden" name="mode" value="relancer"><\/form>/);
-  assert.match(html, /STL \(2 fichiers, zip\) ↗[\s\S]*3MF non tranché ↗[\s\S]*Tranché P2S plateau-1 ↗[\s\S]*Fiche ↗/);
+  assert.match(html, /STL \(2 fichiers, zip\) ↗[\s\S]*3MF ↗[\s\S]*Tranché P2S plateau-1 ↗[\s\S]*Fiche ↗/);
   const lienStl = /href="(https:\/\/public\.dev\/fichier\/[^"]+)"[^>]*>STL \(2/.exec(html)[1];
   const { cle, expiration } = await verifierJetonFichier(env, jetonDe(lienStl));
   assert.equal(cle, DOSSIER + "stl.zip");
   assert.ok(Math.abs(expiration - Date.now() - 2 * 86400_000) < 60_000, "liens de /admin : 2 jours");
-  assert.match(html, /Génération en échec[\s\S]*Motif : génération : erreur simulée[\s\S]*Relancer la génération/);
+  assert.match(html, /Génération en échec[\s\S]*génération : erreur simulée[\s\S]*Relancer la génération/);
   assert.match(html, /form="gen-EV-2026-0004-1-actuel" type="checkbox" name="confirmer" value="oui" required[\s\S]*form="gen-EV-2026-0004-1-actuel">Régénérer au SHA actuel/);
   assert.equal((html.match(/value="relancer"/g) || []).length, 1, "pas de relance pour un article déjà prêt");
   assert.doesNotMatch(html, /<script/i);
@@ -224,7 +224,7 @@ test("Atelier : proposé seulement pour PLA/PETG, refusé pour un article en ASA
   const apres = await fiche();
   assert.match(apres, /Fiche à transmettre[\s\S]*Fichier tranché P2S \(plateau-1\.gcode\.3mf\) : https:\/\/public\.dev\/fichier\//);
   const envoi = /<h2>Envois fabricant[\s\S]*/.exec(apres)[0];
-  assert.match(envoi, /Article 1<\/span>[\s\S]*Fichiers d'impression<br>[\s\S]*Fichiers prêts[\s\S]*Tranché P2S plateau-1 ↗/, "fichiers sous l'article envoyé");
+  assert.match(envoi, /Article 1<\/span>[\s\S]*class="fich"><span class="badge t-ok">Fichiers prêts[\s\S]*Tranché P2S plateau-1 ↗/, "fichiers sous l'article envoyé");
   assert.doesNotMatch(envoi.split("Historique")[0], /Régénérer|Relancer/, "article envoyé : fichiers en lecture seule");
   const fab = await (await get("/admin?vue=fabricants")).text();
   assert.match(fab, /Atelier \(envoi manuel ; PLA, PETG seulement\)/);

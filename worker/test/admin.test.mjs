@@ -129,8 +129,9 @@ test("Page : commandes à valider, sans script, en-têtes de sécurité, adresse
   assert.doesNotMatch(html, /<h1>/, "filtre actif : pas de titre");
   assert.match(html, /<nav class="filtres" aria-label="Filtres"><a href="\/admin" aria-current="page">À traiter/);
   assert.match(html, /À traiter <span class="compte">1<\/span>[\s\S]*Toutes <span class="compte">1<\/span>/);
-  assert.match(html, /<a class="cmd bord t-att" href="\/admin\?q=EV-2026-0010"><span class="tete"><b>EV-2026-0010<\/b><span class="badge t-att">Payée/);
-  assert.match(html, /Camille Test · 75011 Paris · 8 nov\. 2026 · 2 articles[\s\S]*2 à valider/);
+  assert.match(html, /<a class="cmd bord t-att" href="\/admin\?q=EV-2026-0010"><span class="tete"><b>EV-2026-0010<\/b><span class="badge t-att">À valider/, "badge : ce qui attend le propriétaire");
+  assert.match(html, /Camille Test · 75011 Paris · 8 nov\. 2026 · 2 articles/);
+  assert.doesNotMatch(html, /2 à valider|sur 2 à valider/, "tous à valider : le badge suffit");
   assert.doesNotMatch(html, /rue des Lilas|client@example\.com/);
   assert.doesNotMatch(html, /<form method="post"/, "liste : aucune action, on ouvre la fiche");
   const fiche = await (await get("/admin?q=EV-2026-0010")).text();
@@ -551,7 +552,7 @@ test("Retirer au fabricant : confirmation obligatoire ; articles à valider, fab
   assert.equal(emails.length, avant + 1);
 
   const liste = await (await get("/admin")).text();
-  assert.match(liste, /à valider \(fabricant à changer\)/);
+  assert.match(liste, /<span class="a-faire">(\d sur \d à valider · )?fabricant à changer<\/span>/);
   for (const q of ["EV-2026-0010", "cf-2026-0010-a"]) {
     const html = await (await get(`/admin?q=${encodeURIComponent(q)}`)).text();
     assert.match(html, /<h1>EV-2026-0010<\/h1>/, q);

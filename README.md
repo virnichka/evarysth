@@ -67,7 +67,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    fabricant, les range dans R2 (`commandes/<n°>/<SHA>/`), puis rappelle le Worker (signature HMAC) qui remplit les
    colonnes `Génération` (`en_cours` → `prete` ou `echec`), `Masse g`, `Temps min`, `Plateaux` du Sheet. Échec de
    lancement : nouvel essai par la tâche planifiée. Rien n'est imprimé ni envoyé automatiquement : les fichiers sont
-   proposés dans /admin (pli « Fichiers d'impression » sous chaque article de la fiche, Fabrication · phase 3) et partent avec l'e-mail
+   proposés dans /admin (ligne « Fichiers » sous chaque article de la fiche, Fabrication · phase 3) et partent avec l'e-mail
    fabricant une fois l'article validé. Fichiers prêts → l'article passe de « Lien STL à indiquer » à « À valider ».
    Chaîne de fabrication (`worker/src/fabrication.js`, éteinte tant que `GH_ACTIONS_TOKEN` et `FABRICATION_HMAC` manquent :
    une ligne de Journal le note) : un run `.github/workflows/fabrication.yml` par article (n° `CF-AAAA-NNNN-<n° d'article>`,
@@ -80,10 +80,12 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    Toutes. Une commande s'ouvre en fiche (`?q=<n°>`) : en-tête (client, ville, statut, lien du paiement Stripe), articles
    à valider (fabricant + fichiers prêts ou lien STL saisi → « Valider et envoyer » → `envoyee_fabricant`, n° fournisseur
    `CF-AAAA-NNNN-X`, seul n° vu par le fabricant, lettre = fabricant, e-mail fabricant immédiat avec 3 liens signés
-   14 jours : STL (zip s'il y en a plusieurs), 3MF non tranché, fiche d'impression), pli « Fichiers d'impression » sous
-   chaque article, à valider ou envoyé (état de génération, motif d'échec, masse, temps, plateaux, liens dont le fichier tranché P2S ; « Relancer la
-   génération » au même SHA, « Régénérer au SHA actuel » avec case de confirmation et ligne d'Historique, tant que
-   l'article n'est pas envoyé ; « Valider et envoyer » refusé tant que les fichiers ne sont pas prêts, sauf lien STL
+   14 jours : STL (zip s'il y en a plusieurs), 3MF non tranché, fiche d'impression), une ligne « Fichiers » sous
+   chaque article, à valider ou envoyé (état, liens dont le fichier tranché P2S, masse · temps · plateaux ; en échec : motif
+   et « Relancer la génération » au même SHA) ; repliés dans « Autres options » : lien STL manuel (affiché d'office s'il
+   n'y a pas de fichiers prêts), dossier, SHA, matière, « Régénérer au SHA actuel » avec case de confirmation et ligne
+   d'Historique, tant que l'article n'est pas envoyé ; envoi fabricant : renvoi d'e-mail, réponse par un autre canal,
+   référence externe et retrait repliés dans « Actions » ; liste : badge « À valider » prioritaire ; « Valider et envoyer » refusé tant que les fichiers ne sont pas prêts, sauf lien STL
    saisi à la main), articles bloqués
    (« Débloquer »), un pli par envoi fabricant (articles, STL, suivi, « Renvoyer l'e-mail » au fabricant ou d'expédition
    au client, sans changer le statut ; « Retirer au fabricant » tant que rien n'est expédié : fabricant prévenu par e-mail,
