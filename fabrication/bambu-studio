@@ -1,0 +1,21 @@
+#!/bin/sh
+# Bambu Studio en ligne de commande (AppImage extraite dans /opt/bambu-studio). Aucun affichage requis pour trancher.
+#
+# Reproductibilité (mesurée en Fabrication · phase 1a) : Bambu Studio 02.08.02.61 ne donne le même G-code d'un
+# lancement à l'autre que sur UN cœur et SANS randomisation des adresses (ASLR). Sinon le temps estimé et quelques
+# trajectoires (ralentissements de surplomb, déplacements) varient légèrement. Ce lanceur impose les deux :
+#   - taskset : premier cœur autorisé ;
+#   - setarch -R : ASLR coupé pour ce seul processus. Docker l'interdit par défaut (seccomp) : lancer le conteneur
+#     avec --security-opt seccomp=unconfined, ou sur un hôte où kernel.randomize_va_space = 0.
+# BAMBU_NON_REPRODUCTIBLE=1 : tous les cœurs, ASLR inchangé (plus rapide, résultat non garanti identique).
+export LD_LIBRARY_PATH=/opt/bambu-studio/bin LC_ALL=C
+BIN=/opt/bambu-studio/bin/bambu-studio
+if [ "${BAMBU_NON_REPRODUCTIBLE:-0}" = 1 ]; then exec "$BIN" "$@"; fi
+coeur=$(sed -n 's/^Cpus_allowed_list:[[:space:]]*\([0-9]*\).*/\1/p' /proc/self/status)
+if [ "$(cat /proc/sys/kernel/randomize_va_space)" = 0 ]; then exec taskset -c "$coeur" "$BIN" "$@"; fi
+if ! setarch "$(uname -m)" -R true 2>/dev/null; then
+  echo "bambu-studio : ASLR non désactivable ici (lancer avec --security-opt seccomp=unconfined), tranchage non reproductible ;" \
+       "BAMBU_NON_REPRODUCTIBLE=1 pour passer outre." >&2
+  exit 70
+fi
+exec setarch "$(uname -m)" -R taskset -c "$coeur" "$BIN" "$@"

@@ -1,0 +1,44 @@
+{
+  "bundle_bbl": "02.08.00.05",
+  "profils": [
+    {
+      "fichier": "machine.json",
+      "nom": "Evarysth P2S 0.4 nozzle",
+      "source": "Bambu Lab P2S 0.4 nozzle",
+      "chaine": [
+        "Bambu Lab P2S 0.4 nozzle",
+        "fdm_bbl_3dp_001_common",
+        "fdm_machine_common",
+        "Bambu Lab P2S 0.4 nozzle template machine_start_gcode",
+        "Bambu Lab P2S 0.4 nozzle template machine_end_gcode",
+        "Bambu Lab P2S 0.4 nozzle template layer_change_gcode",
+        "Bambu Lab P2S 0.4 nozzle template time_lapse_gcode",
+        "Bambu Lab P2S 0.4 nozzle template wrapping_detection_gcode",
+        "Bambu Lab P2S 0.4 nozzle template change_filament_gcode"
+      ]
+    },
+    {
+      "fichier": "process-0.20mm.json",
+      "nom": "Evarysth 0.20mm Standard P2S",
+      "source": "0.20mm Standard @BBL P2S",
+      "chaine": [
+        "0.20mm Standard @BBL P2S",
+        "fdm_process_single_0.20",
+        "fdm_process_single_common",
+        "fdm_process_common"
+      ]
+    },
+    {
+      "fichier": "filament-pla.json",
+      "nom": "Evarysth Generic PLA P2S",
+      "source": "Generic PLA @BBL P2S",
+      "chaine": [
+        "Generic PLA @BBL P2S",
+        "Generic PLA @base",
+        "fdm_filament_pla",
+        "fdm_filament_common",
+        "fdm_filament_template_direct_dual_e3d"
+      ]
+    }
+  ]
+}

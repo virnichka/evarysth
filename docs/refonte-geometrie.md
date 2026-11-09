@@ -1,6 +1,6 @@
 # Refonte du moteur géométrique (manifold-3d)
 
-> **État (9 novembre 2026)** : **phase 4 terminée, chantier clos.** manifold-3d est le seul moteur du site et des outils (ancien kit three.js retiré) ; contrôles automatiques (tests Node + workflow « Contrôles de géométrie »), jeu par matière, fiche d'impression par produit. Suite : chantier « atelier » (hors périmètre ci-dessous).
+> **État (9 novembre 2026)** : **phase 4 terminée, chantier clos.** manifold-3d est le seul moteur du site et des outils (ancien kit three.js retiré) ; contrôles automatiques (tests Node + workflow « Contrôles de géométrie »), jeu par matière, fiche d'impression par produit. Suite : chantier « chaîne de fabrication » (hors périmètre ci-dessous) : `docs/chaine-fabrication.md`.
 > Écarts phase 1 : `jardiniere-clip` → `tablette-rambarde` (index.html, tests Worker) ; « popular » ajouté à `crochet-balcon`, `passe-cable`, `vide-poche-cles` (4 mis en avant retirés + 1 conservé) ; icônes `clamp`, `clip`, `riser`, `reel`, `stand`, `handle` retirées de `SHAPES` ; fonctions du kit intactes ; `docs/traitement-commandes.md` (historique OpenSCAD) non modifié.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Modèle conseillé : Opus effort élevé pour les phases 2 à 4 ; Sonnet suffit pour la phase 1.
