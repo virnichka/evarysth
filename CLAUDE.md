@@ -7,6 +7,8 @@ relatifs à la racine : `produits/<id>/`, `univers/<id>/`, `catalogue/` (jamais 
 ces pages ont un `<base href>` vers la racine.
 Viewer 3D : moteur + briques communes dans `assets/js/viewer3d.js` ; un fichier par modèle dans
 `assets/js/modeles/<modèle>.js` (chargé à la demande, `EVARYSTH.viewer3d.define`) : n'ouvre que celui utile. Icônes line-art : objet `SHAPES` dans `assets/js/app.js`.
+**Chantier en cours** : refonte du moteur géométrique (manifold-3d, navigateur + Node) — décisions, tri des modèles
+et phases dans `docs/refonte-geometrie.md` : le lire avant de toucher au viewer, au kit ou aux modèles.
 
 Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js`,
 tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Circuit des commandes (validation sur la page /admin) : README « Paiement et commandes ».
