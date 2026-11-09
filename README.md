@@ -93,7 +93,8 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    seulement dans Stripe). Badge « En attente fabricant » (affichage seul, le Sheet garde `en_fabrication`) tant qu'aucun
    envoi n'est accepté ; envoi non accepté signalé en jaune, en orange après 48 h sans réponse. Autres onglets : Tableau de bord (compteurs, alertes), Catalogue
    (STL présents dans R2), Fabricants (en cours / en retard), Système (voyants dont R2 lu pour de vrai, expiration du
-   jeton GitHub avec alerte à J-30, dernier run de fabrication ; « Lancer la tâche maintenant »), Liens. Tableau de bord :
+   jeton GitHub avec alerte à J-30, dernier run de fabrication ; chaque voyant a un « ? » qui explique à quoi il sert ;
+   « Lancer la tâche maintenant »), Liens. Tableau de bord :
    alerte par génération en échec d'un article pas encore envoyé. Icônes de /admin intégrées au Worker
    (`worker/src/icones.js`, à régénérer par `node tools/icones-admin.mjs` si `assets/icons/` change).
 4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours),
