@@ -27,8 +27,13 @@ EVARYSTH.viewer3d.define("support-aerosol-skadis", ({ kit, rad }) => {
       pos.push(...p, ...q, ...r); nor.push(...(np || nf), ...(nq || nf), ...(nr || nf));
     };
     const quad = (p, q, r, s, out, n1, n2) => { tri(p, q, r, n1, n2, n2, out); tri(p, r, s, n1, n2, n1, out); };
+    /* De -91° à 91° : la paroi entre de 1° (≥ 0,36 mm) dans le dos, et ses deux extrémités sont fermées */
     const N = 180, P = (r, th, y) => [r * Math.sin(th), y, cz + r * Math.cos(th)];
-    for (let i = 0; i < N; i++) {
+    for (const s of [-1, 1]) {
+      const A = rad(s * 91), hA = top(A), tg = [s * Math.cos(A), 0, -s * Math.sin(A)];   // normale sortante (tangente)
+      quad(P(ri, A, 0), P(ro, A, 0), P(ro, A, hA), P(ri, A, hA), tg);
+    }
+    for (let i = -1; i <= N; i++) {
       const A = rad(-90 + 180 * i / N), B = rad(-90 + 180 * (i + 1) / N), M = (A + B) / 2;
       const hA = top(A), hB = top(B);
       const rA = [Math.sin(A), 0, Math.cos(A)], rB = [Math.sin(B), 0, Math.cos(B)], rM = [Math.sin(M), 0, Math.cos(M)];
@@ -48,7 +53,7 @@ EVARYSTH.viewer3d.define("support-aerosol-skadis", ({ kit, rad }) => {
     return k.join(
       wall,
       k.ext(back, H).rotateX(-Math.PI / 2).translate(0, H / 2, 0),
-      k.cyl(ri, ft, ri - 9).translate(0, ft / 2, cz),
+      k.cyl(ri + 1, ft, ri - 9).translate(0, ft / 2, cz),   // fond ajouré, noyé de 1 mm dans la paroi
       ...[-20, 20].flatMap(x => [
         k.box(4.6, 8, 6, x, yT, -3),          // tige qui traverse le panneau (5 mm)
         k.box(4.6, 14, 3, x, yT + 3, -7.5),   // crochet qui remonte derrière le panneau
@@ -56,4 +61,4 @@ EVARYSTH.viewer3d.define("support-aerosol-skadis", ({ kit, rad }) => {
       ]));
   };
   return aerosol;
-});
+}, { solides: 1 });

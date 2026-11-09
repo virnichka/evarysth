@@ -22,8 +22,8 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max), photos. C'est le fichier à modifier pour ajouter ou changer un produit. |
 | `assets/js/app.js` | **Le chef d'orchestre.** Lit le type de page (`data-product-id`, `data-universe-id`, `data-page="catalogue"` sur le `<body>`, ou `#…` sur l'accueil), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
 | `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js seulement quand une fiche en a besoin, affiche et fait tourner la pièce. |
-| `assets/js/geo.js` | **Nouveau moteur géométrique** (refonte, `docs/refonte-geometrie.md`), commun au navigateur et à Node : même kit que `viewer3d.js` (`ext`, `box`, `cyl`, `join`…) sur **manifold-3d** (unions booléennes, maillage étanche). Actif sur le site seulement avec `?geo=manifold` (mémorisé, `?geo=off` le coupe). |
-| `assets/vendor/manifold-3d/` | manifold-3d **3.5.4** (`manifold.js` + `manifold.wasm`, licence Apache-2.0), copié depuis `tools/node_modules` ; chargé à la demande, seulement avec le drapeau. Changer de version : `tools/package.json`, recopier les 2 fichiers, `MANIFOLD_VERSION` dans `geo.js`. |
+| `assets/js/geo.js` | **Nouveau moteur géométrique** (refonte, `docs/refonte-geometrie.md`), commun au navigateur et à Node : même kit que `viewer3d.js` (`ext`, `box`, `cyl`, `join`…) sur **manifold-3d** (unions booléennes, maillage étanche). Moteur par défaut du site depuis la phase 3 (`?geo=ancien` : ancien kit three.js, mémorisé, pour comparer ; `?geo=manifold` revient au défaut). |
+| `assets/vendor/manifold-3d/` | manifold-3d **3.5.4** (`manifold.js` + `manifold.wasm`, licence Apache-2.0), copié depuis `tools/node_modules` ; chargé à la demande par le viewer (moteur par défaut ; `?geo=ancien` rend l'ancien kit three.js pour comparer, jusqu'à la phase 4). Changer de version : `tools/package.json`, recopier les 2 fichiers, `MANIFOLD_VERSION` dans `geo.js`. |
 | `assets/js/modeles/` | **Un fichier par pièce 3D** : le « plan » qui transforme des cotes en mm en pièce 3D. Seul le fichier de la fiche ouverte est chargé. |
 | `assets/js/cart.js` | Le panier latéral : ajout, quantités, code promo de démo `BIENVENUE10` (codes Stripe en mode test), total, envoi au paiement ; mémorisé dans le navigateur. |
 | `assets/js/ui.js` | Le confort : thème clair/sombre, recherche (touche `/`), favoris, notifications, fenêtres modales. |
@@ -105,11 +105,14 @@ commande réelle à petit prix puis remboursement.
 
 `cd tools && npm ci` une fois, puis depuis la racine :
 `node tools/generer-stl.mjs <produit> [a=… b=… c=…] [--taille=<libellé ou 1-3>]`. Le calcul est **celui de l'aperçu**
-(`?geo=manifold`) : mêmes fichiers `assets/js/modeles/*.js`, même `geo.js`, même manifold-3d. Sortie dans `sortie-stl/`
+(moteur par défaut du site) : mêmes fichiers `assets/js/modeles/*.js`, même `geo.js`, même manifold-3d. Sortie dans `sortie-stl/`
 (ignoré par git) : STL binaire en Z vers le haut + manifeste JSON (produit, modèle, cotes, SHA git, versions, étanche,
-volume, boîte englobante, nombre de solides). **Erreur** si une cote sort des bornes de `data.js` ou si le maillage n'est
-pas étanche (modèle hors kit non étanche : seulement avec `--forcer`, signalé dans le manifeste).
-`node tools/comparer-kits.mjs [produit…]` compare l'ancien kit three.js et le nouveau sur toutes les combinaisons min/défaut/max.
+volume, boîte englobante, nombre de solides obtenu et attendu). **Erreur** si une cote sort des bornes de `data.js`, si le
+maillage n'est pas étanche ou si le nombre de solides diffère de celui que déclare le modèle
+(`define(id, factory, { solides: n })`) ; `--forcer` écrit quand même le fichier, pour diagnostic.
+`node tools/comparer-kits.mjs [produit…] [--ref=origin/main]` compare l'ancien kit three.js (fichiers actuels, ou ceux du
+commit `--ref`) et le nouveau sur toutes les combinaisons min/défaut/max : boîte, volume, étanchéité, solides, temps de calcul.
+`node tools/verifier-trous.mjs [produit…]` contrôle par coupe (`Manifold.slice`) les diamètres fonctionnels (± 0,05 mm).
 
 ## Sécurité du site (CSP)
 
@@ -119,7 +122,7 @@ générées), `produit.html` et `commande/merci/index.html`. Elle n'autorise que
 
 | Directive | Sources | Pourquoi |
 |---|---|---|
-| `script-src` | `'self'` `'unsafe-inline'` `'wasm-unsafe-eval'` `cdn.jsdelivr.net` `cloud.umami.is` | scripts du site + scripts inline (thème, Umami, importmap), compilation du WASM manifold-3d (servi par le site, `?geo=manifold`), Three.js, statistiques |
+| `script-src` | `'self'` `'unsafe-inline'` `'wasm-unsafe-eval'` `cdn.jsdelivr.net` `cloud.umami.is` | scripts du site + scripts inline (thème, Umami, importmap), compilation du WASM manifold-3d (servi par le site, moteur géométrique du viewer), Three.js, statistiques |
 | `style-src` | `'self'` `'unsafe-inline'` `fonts.googleapis.com` | feuille du site, attributs `style`, Google Fonts |
 | `font-src` | `'self'` `fonts.gstatic.com` | fichiers de polices |
 | `img-src` | `'self'` `data:` `blob:` | photos, textures 3D |

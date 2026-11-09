@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-/* Evarysth — génère le STL d'un produit avec le même calcul que l'aperçu du site (?geo=manifold).
+/* Evarysth — génère le STL d'un produit avec le même calcul que l'aperçu du site (moteur par défaut).
    Usage : node tools/generer-stl.mjs <produit> [a=… b=… c=…] [--taille=<libellé|1-3>] [--sortie=<dossier>] [--forcer]
    Sortie (ignorée par git) : sortie-stl/<produit>-<cotes>.stl + .json (manifeste).
    Erreur franche si une cote sort des bornes de data.js, ou si le maillage n'est pas étanche
-   (modèles hors kit non étanches : seulement avec --forcer, signalé dans le manifeste).
+   ou si le nombre de solides diffère de celui que déclare le modèle (define(…, { solides })) ;
+   --forcer écrit quand même le fichier, pour diagnostic (signalé dans le manifeste).
    Dépendances : cd tools && npm ci. */
 import fs from "node:fs";
 import path from "node:path";
@@ -19,12 +20,14 @@ try {
   const p = produit(id);
   const valeurs = Object.fromEntries(args.filter(x => !x.startsWith("--") && x.includes("=")).map(x => x.split("=")));
   const v = cotes(p, { taille: opt("taille"), valeurs });
-  const { kit, calc } = await modele(p.model, "manifold");
-  const r = calc(v), b = kit.bilan(r);
+  const { kit, calc, build } = await modele(p.model, "manifold");
+  const r = calc(v), b = kit.bilan(r), attendu = build.solides;
   if (!b.etanche) {
     if (!b.horsKit) throw new Error(`${p.id} : le modèle du kit produit un maillage non étanche`);
-    if (!args.includes("--forcer")) throw new Error(`${p.id} : modèle hors kit, maillage non étanche (phase 3 de la refonte). --forcer pour l'écrire quand même.`);
-  }
+    if (!args.includes("--forcer")) throw new Error(`${p.id} : modèle hors kit, maillage non étanche. --forcer pour l'écrire quand même (diagnostic).`);
+  } else if (!Number.isInteger(attendu)) throw new Error(`${p.id} : le modèle ne déclare pas son nombre de solides (define(…, { solides }))`);
+  else if (b.solides !== attendu && !args.includes("--forcer"))
+    throw new Error(`${p.id} : ${b.solides} solide(s) au lieu de ${attendu} (pièces détachées ?). --forcer pour l'écrire quand même (diagnostic).`);
   /* Repère d'impression : Z vers le haut (l'aperçu est en Y vers le haut) ; rotation propre de +90° autour de X */
   let mf = b.mf, geo = null;
   if (mf) mf = mf.rotate([90, 0, 0]);
@@ -50,7 +53,7 @@ try {
     git: { sha, modifie: sale }, moteur: { manifold3d: MANIFOLD_VERSION, three: THREE.REVISION },
     etanche: b.etanche, horsKit: b.horsKit, volume_mm3: b.volume == null ? null : r2(b.volume),
     boite: { min: [...bb.min].map(r2), max: [...bb.max].map(r2), taille: [0, 1, 2].map(i => r2(bb.max[i] - bb.min[i])) },
-    solides: b.solides, triangles: stl.readUInt32LE(80), repere: "Z vers le haut (aperçu : Y vers le haut, tourné de +90° autour de X)",
+    solides: b.solides, solides_attendus: attendu ?? null, triangles: stl.readUInt32LE(80), repere: "Z vers le haut (aperçu : Y vers le haut, tourné de +90° autour de X)",
     stl: `${nom}.stl`, date: new Date().toISOString()
   };
   fs.writeFileSync(path.join(dir, `${nom}.stl`), stl);

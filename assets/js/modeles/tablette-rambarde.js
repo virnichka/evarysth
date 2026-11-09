@@ -4,4 +4,4 @@ EVARYSTH.viewer3d.define("tablette-rambarde", ({ m, uPts }) => {
   return m((k, { a, b }) => k.join(
     k.ext(uPts(a, 40, 6), 60),
     k.box(140, 8, b, 0, 50, 0)));
-});
+}, { solides: 1 });

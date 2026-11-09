@@ -9,8 +9,9 @@ Viewer 3D : moteur + briques communes dans `assets/js/viewer3d.js` ; un fichier 
 `assets/js/modeles/<modèle>.js` (chargé à la demande, `EVARYSTH.viewer3d.define`) : n'ouvre que celui utile. Icônes line-art : objet `SHAPES` dans `assets/js/app.js`.
 **Chantier en cours** : refonte du moteur géométrique (manifold-3d, navigateur + Node) — décisions, tri des modèles
 et phases dans `docs/refonte-geometrie.md` : le lire avant de toucher au viewer, au kit ou aux modèles.
-Nouveau kit (phase 2) : `assets/js/geo.js`, même API que l'ancien, actif sur le site seulement avec `?geo=manifold`
-(mémorisé, `?geo=off`) ; sous Node : `tools/lib/moteur.mjs` (dépendances : `cd tools && npm ci`).
+Moteur par défaut (phase 3) : kit `assets/js/geo.js` (manifold-3d) ; l'ancien kit three.js reste accessible avec
+`?geo=ancien` (mémorisé ; `?geo=manifold` revient au défaut et logue le bilan du modèle) jusqu'à sa suppression en phase 4 ;
+sous Node : `tools/lib/moteur.mjs` (dépendances : `cd tools && npm ci`).
 
 Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js`,
 tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Circuit des commandes (validation sur la page /admin) : README « Paiement et commandes ».
@@ -22,10 +23,15 @@ tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=tes
 - Si une info manque, choisis une valeur raisonnable et signale-la à la fin, sans t'arrêter pour demander.
 
 ## Ajouter un produit 3D à partir de fichiers STL
-**Kit** (`m`, `kit`) : `ext`, `box`, `cyl`, `join`, `tray`, `overHook`, `sideClamp` ; avec le nouveau moteur (`geo.js`),
-chaque brique est un solide manifold-3d et `join` une vraie union (plus de faces internes). Écris tout nouveau modèle
-avec ces briques, sans `BufferGeometry` brute ni concaténation de triangles. Disponibles aussi pour les congés et jeux
-exacts : `k.offset(profil, delta)`, `k.conge(profil, r)`, `k.jeu(profil, j)` (profils 2D, à passer à `k.ext`).
+**Kit** (`m`, `kit`) : `ext`, `box`, `cyl`, `rev` (profil [rayon, hauteur] tourné autour de Y), `join`, `tray`, `overHook`,
+`sideClamp` ; avec le moteur `geo.js`, chaque brique est un solide manifold-3d et `join` une vraie union (plus de faces
+internes). Écris tout nouveau modèle avec ces briques, sans `BufferGeometry` brute ni concaténation de triangles.
+Disponibles aussi pour les congés et jeux exacts : `k.offset(profil, delta)`, `k.conge(profil, r)`, `k.jeu(profil, j)`
+(profils 2D, à passer à `k.ext`) et `k.extArrondi(profil, épaisseur, r)` (extrusion aux arêtes arrondies).
+**Nombre de pièces** : chaque modèle le déclare, `define(id, factory, { solides: 1 })` (plus pour un assemblage voulu) ;
+`generer-stl` et `comparer-kits` refusent tout écart (pièce détachée, îlot).
+**Trous et cotes mesurées** : `circ`/`arc` sans `n` suivent la corde ≤ 0,5 mm (comme `cyl`) ; ne fixe `n` que pour un
+contour décoratif (ou un profil découpé par indices). Contrôle par coupe : `node tools/verifier-trous.mjs` (± 0,05 mm).
 Évite les pièces qui se touchent seulement par une face plane : fais-les se recouvrir (≥ 0,1 mm), l'union est bien plus rapide.
 Les objets peuvent être de toute forme (pièce mécanique, support, objet organique,
 assemblage de plusieurs pièces…) : adapte la méthode à l'objet, ne suppose rien.
@@ -69,8 +75,9 @@ pas un gabarit de forme.
    **Coloris : toujours 2 ou 3** dans `colors: [{ id, label, hex, roughness?, metalness? }]`,
    jamais un seul ni plus de 3 : le noir mat Evarysth + 1 ou 2 teintes qui conviennent à l'objet
    (ex. couleur des photos, teinte naturelle du sujet). Le 1er coloris est celui affiché par défaut.
-6. **Vérification** : `node tools/generer-stl.mjs <id>` aux cotes min et max (doit sortir étanche, sans erreur),
-   puis serveur local (`python3 -m http.server`, fiche ouverte avec et sans `?geo=manifold`) + Playwright
+6. **Vérification** : `node tools/generer-stl.mjs <id>` aux cotes min et max (doit sortir étanche, avec le nombre de
+   solides déclaré, sans erreur), `node tools/comparer-kits.mjs <id>` (temps de calcul : viser < 100 ms, 300 ms au plus),
+   puis serveur local (`python3 -m http.server`, fiche ouverte sans drapeau) + Playwright
    (Chromium déjà installé, lancer avec `--use-gl=angle --use-angle=swiftshader`).
    Au plus 2 captures par produit, en deviceScaleFactor 1 : valeurs par défaut et
    valeurs extrêmes. Console sans erreur. Une capture de plus seulement si la forme

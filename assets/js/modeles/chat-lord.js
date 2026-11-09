@@ -4,4 +4,4 @@ EVARYSTH.viewer3d.define("chat-lord", ({ sculpt }) => {
   /* Chat Lord : buste, hauteur nominale 172,9 mm */
   const chat = sculpt("assets/models/chat-lord/chat.stl", 172.9);
   return chat;
-});
+}, { solides: 1 });

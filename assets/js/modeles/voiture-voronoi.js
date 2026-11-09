@@ -11,4 +11,4 @@ EVARYSTH.viewer3d.define("voiture-voronoi", ({ sculpt }) => {
   model.smooth = base.smooth;
   model.prepare = base.prepare;
   return model;
-});
+}, { solides: 1 });
