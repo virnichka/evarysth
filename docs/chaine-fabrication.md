@@ -441,6 +441,11 @@ proposait pas `atelier` → menu complété (e-mail, manuel, atelier) et ligne �
   `Journal` : couleurs dès la ligne 2 (elles commençaient ligne 33) et pour les nouveaux statuts (fichiers, relances) ;
   `Fabricants` : notes d'en-tête, menu `Envoi` à 3 valeurs, `manuel` / `atelier` colorés ; `Mode d'emploi` : étapes avec
   les fichiers prêts, atelier PLA/PETG, fichiers en échec, colonnes de fabrication.
+- Ménage du Sheet (demande du propriétaire, 9 nov. 2026) : commandes de simulation supprimées (EV-2026-0001 à 0004,
+  leurs articles et tout le Journal), onglet brouillon « Feuille 1 » supprimé ; la numérotation repart à EV-2026-0001.
+  En-têtes renommés en noms parlants (`NOMS_AFFICHES`, `worker/src/google.js`, publié avant le renommage). Les dossiers
+  d'essai de R2 (`commandes/CF-2026-0004-1/cdf048d039b2/`, `commandes/CF-2000-0000-1/`) restent : sans effet, une
+  nouvelle commande a un autre SHA donc un autre dossier. Recette atelier à refaire avec une nouvelle commande test.
 
 ### Phase 4 — agent d'atelier
 - Programme Node sans dépendance lourde (`atelier/agent/`), service systemd ; interroge le Worker toutes les 30 s
