@@ -1,10 +1,10 @@
 # Chaîne de fabrication (commande payée → fichier prêt à imprimer)
 
-> **État (9 novembre 2026)** : **Fabrication · phase 2b faite** : R2 branché au Worker, STL standards remplis par
+> **État (9 novembre 2026)** : **Fabrication · phase 2 close** : R2 branché au Worker, STL standards remplis par
 > workflow, secrets du Worker posés, commande test de bout en bout réussie (Sheet à `prete`) ; voir § « Résultats
-> Fabrication · phase 2b ». **Reste** : rejouer un webhook Stripe (test) pour constater l'absence de second run. Fabrication · phase 1a terminée (tranchage
+> Fabrication · phase 2b ». Webhook Stripe rejoué le 9 nov. (200 OK) : aucun second run, aucune ligne en double. Fabrication · phase 1a terminée (tranchage
 > sans écran **oui** ; points machine B1 oui probable, B2 et B3 incertains).
-> Prochaine étape : rejeu du webhook, puis Fabrication · phase 3.
+> Prochaine étape : Fabrication · phase 3.
 > Fabrication · phase 1b à l'achat de la machine.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
@@ -368,8 +368,9 @@ run 42639135218 pour la seconde) ; il n'y avait plus de « à confirmer » à re
 
 **Acceptation de la phase 2** : fichiers dans R2 et Sheet à `prete` (délai : 1 essai raté puis rejoué par la tâche
 planifiée, soit ≈ 40 min en tout à cause du jeton ; avec un jeton valide, le run part dans la minute) ; mauvaise
-signature → 401 ; aucun artifact ; journal sans donnée client ; tests verts. **Reste à contrôler** : webhook Stripe rejoué
-→ aucun second run (à rejouer depuis le tableau de bord Stripe, mode test).
+signature → 401 ; aucun artifact ; journal sans donnée client ; tests verts. Webhook Stripe rejoué
+(9 nov. 2026, 19 h 3x UTC, événement `checkout.session.completed` d'EV-2026-0004, « Renvoyer » du tableau de bord, mode
+test) → 200 OK, **aucun second run** (toujours 7 « Fabrication »), aucune ligne EV/CF ni entrée de Journal en double. **Phase 2 close.**
 
 ### Phase 3 — /admin : génération, validation, envoi des fichiers
 - Fiche commande : statut de génération (en cours / prête / échec + motif), masse, temps, plateaux, liens des fichiers,
