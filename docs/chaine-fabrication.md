@@ -1,10 +1,12 @@
 # Chaîne de fabrication (commande payée → fichier prêt à imprimer)
 
-> **État (9 novembre 2026)** : **Fabrication · phase 2a terminée** (R2 + génération au paiement : tout le code, testé,
-> **éteint en production** ; voir § « Résultats Fabrication · phase 2a »). Fabrication · phase 1a terminée (tranchage
+> **État (9 novembre 2026)** : **Fabrication · phase 2b faite en grande partie** : R2 branché au Worker, STL standards
+> remplis par workflow, run réel dans R2 vérifié (voir § « Résultats Fabrication · phase 2b »). **Reste** : l'étape 6 du
+> guide (secrets du Worker `GH_ACTIONS_TOKEN` et `FABRICATION_HMAC`, par le propriétaire) puis la commande test de bout
+> en bout (critères d'acceptation de la phase 2 non encore tous contrôlés). Fabrication · phase 1a terminée (tranchage
 > sans écran **oui** ; points machine B1 oui probable, B2 et B3 incertains).
-> Prochaine étape : réglages du propriétaire (`docs/guide-reglages-fabrication.md`), puis **Fabrication · phase 2b**
-> (activation et vérification en ligne) ; Fabrication · phase 1b à l'achat de la machine.
+> Prochaine étape : étape 6 + commande test, puis clôture de la phase 2b ; ensuite Fabrication · phase 3.
+> Fabrication · phase 1b à l'achat de la machine.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
 
@@ -307,8 +309,7 @@ essai échoue avec la liste de ce qui manque ; sans colonnes, rien n'est écrit.
 - **PETG** : avec plusieurs exemplaires identiques sur un plateau, l'ordre d'impression entre objets varie parfois d'un
   tranchage à l'autre (temps ± 11 s sur 52 min, masse identique) ; PLA identique au bit près. Sans effet (idempotence
   par n° + SHA).
-- **Non fait (hors des étapes demandées)** : remplissage de `<produit>/<taille>.stl` par le même workflow sur push de
-  `main` (prévu au § Phase 2) ; à faire en Fabrication · phase 2b ou 3.
+- **Non fait en 2a** : remplissage de `<produit>/<taille>.stl` sur push de `main` ; fait en 2b (`stl-standards.yml`).
 - Un SHA de paiement antérieur à cette phase n'a pas `tools/fabriquer.mjs` : le run échoue avec ce motif.
 
 **Temps mesurés** (session, 4 vCPU, image locale) : `fabriquer.mjs` passe-cable a = 60 × 3 (1 plateau, 6 pièces) :
@@ -329,6 +330,35 @@ prêtant le bundle CA du runner en secret de construction (contenu inchangé). L
 (`sha256:b1fe84f8…`) diffère de la construction locale (`sha256:dbb8b63d…`, exportateur `docker` contre registre) :
 celle de GitHub est épinglée dans `fabrication.yml` ; une reconstruction sur GitHub redonne la même (vérifié : 2e construction,
 run 42639135218, même empreinte).
+
+#### Résultats Fabrication · phase 2b (9 novembre 2026)
+**Réglages du propriétaire vus depuis GitHub** (aucun secret lu) : R2 actif, bucket `evarysth-stl` (Standard, WEUR, accès
+public désactivé, **aucune règle de conservation** pour l'instant : les 24 mois restent une proposition), secrets
+`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `FABRICATION_HMAC` et variable `R2_ACCOUNT_ID` présents et acceptés.
+
+**Run réel dans R2** (`fabrication.yml`, sans `essai`, article fictif `CF-2000-0000-1`, `passe-cable` a = 60, SHA de `main`
+`4488183`) : [run 42653573878](https://github.com/virnichka/evarysth/actions/runs/42653573878), 42 s de bout en bout
+(génération 0,6 s, tranchage 6 s, 18,44 g, 42 min, 1 plateau). Envoyé : `commandes/CF-2000-0000-1/448818330ea9/`
+(6 fichiers : manifeste, fiche, 2 STL, 3MF, `.gcode.3mf`). Rappel au Worker : **503 « Fabrication non configurée »** =
+attendu, l'étape 6 n'est pas faite (le run est donc rouge à cette seule étape). Preuve de l'égalité de `FABRICATION_HMAC`
+des deux côtés : pas encore (404 attendu une fois l'étape 6 faite, 401 = valeurs différentes).
+
+**Activé** : binding R2 `STL` décommenté dans `worker/wrangler.toml` (déployé par `worker.yml` à la fusion).
+
+**STL standards** : `tools/stl-standards.mjs` + `.github/workflows/stl-standards.yml` (push sur `main` touchant le
+catalogue, un modèle, le moteur, `tools/` ou le workflow ; ou à la main). Pour chaque taille standard de `data.js` :
+`generer-stl --impression` (mêmes contrôles), **1 pièce → `<produit>/<taille>.stl`, plusieurs → `.zip`** des pièces,
+taille écrite comme le Worker la lit (`segmentTaille`). 48 fichiers (16 produits × 3 tailles, 72 Mo) en 27 s en local.
+Aucune suppression en masse (le bucket contient aussi `commandes/`) ; un `.stl` devenu `.zip` (ou l'inverse) retire
+l'ancienne clé. Un écart de contrôle sur une taille n'empêche pas l'envoi des autres, le run échoue à la fin. Test :
+`tools/test/standards.test.mjs` (clés uniques et lisibles par le Worker).
+
+**Image** : l'empreinte reproductible est confirmée (deux constructions sur GitHub, même empreinte `sha256:b1fe84f8…`,
+run 42639135218 pour la seconde) ; il n'y avait plus de « à confirmer » à retirer dans la doc.
+
+**Reste à faire pour clore la phase 2** (propriétaire, guide étape 6, puis commande test) : acceptation = fichiers dans R2
+en < 10 min et Sheet à « prete » ; webhook rejoué → aucun second run ; journal sans donnée client ; aucun artifact ;
+mauvaise signature sur `/fabrication/retour` → 401 ; tests `worker` et `tools` verts (119 et 237 : verts à la fusion).
 
 ### Phase 3 — /admin : génération, validation, envoi des fichiers
 - Fiche commande : statut de génération (en cours / prête / échec + motif), masse, temps, plateaux, liens des fichiers,
