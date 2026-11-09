@@ -22,12 +22,14 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max), photos. C'est le fichier à modifier pour ajouter ou changer un produit. |
 | `assets/js/app.js` | **Le chef d'orchestre.** Lit le type de page (`data-product-id`, `data-universe-id`, `data-page="catalogue"` sur le `<body>`, ou `#…` sur l'accueil), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
 | `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js seulement quand une fiche en a besoin, affiche et fait tourner la pièce. |
+| `assets/js/geo.js` | **Nouveau moteur géométrique** (refonte, `docs/refonte-geometrie.md`), commun au navigateur et à Node : même kit que `viewer3d.js` (`ext`, `box`, `cyl`, `join`…) sur **manifold-3d** (unions booléennes, maillage étanche). Actif sur le site seulement avec `?geo=manifold` (mémorisé, `?geo=off` le coupe). |
+| `assets/vendor/manifold-3d/` | manifold-3d **3.5.4** (`manifold.js` + `manifold.wasm`, licence Apache-2.0), copié depuis `tools/node_modules` ; chargé à la demande, seulement avec le drapeau. Changer de version : `tools/package.json`, recopier les 2 fichiers, `MANIFOLD_VERSION` dans `geo.js`. |
 | `assets/js/modeles/` | **Un fichier par pièce 3D** : le « plan » qui transforme des cotes en mm en pièce 3D. Seul le fichier de la fiche ouverte est chargé. |
 | `assets/js/cart.js` | Le panier latéral : ajout, quantités, code promo de démo `BIENVENUE10` (codes Stripe en mode test), total, envoi au paiement ; mémorisé dans le navigateur. |
 | `assets/js/ui.js` | Le confort : thème clair/sombre, recherche (touche `/`), favoris, notifications, fenêtres modales. |
 | `assets/models/<produit>/` | Fichiers STL d'origine des produits qui partent d'un modèle existant. |
 | `assets/photos/<produit>/` | Photos commerciales (`1.webp` = vignette du catalogue). |
-| `tools/` | Outils d'atelier : analyse des STL (`analyse-stl.py`, `bgcode-decode.py`), `generer-pages.mjs` (pages produit, univers, catalogue, légales, 404, sitemap ; textes légaux dans `pages-legales/`), `captures-og.cjs` (images de partage et vignettes 3D), `icones-admin.mjs` (icônes de /admin). |
+| `tools/` | Outils d'atelier : analyse des STL (`analyse-stl.py`, `bgcode-decode.py`), `generer-pages.mjs` (pages produit, univers, catalogue, légales, 404, sitemap ; textes légaux dans `pages-legales/`), `captures-og.cjs` (images de partage et vignettes 3D), `icones-admin.mjs` (icônes de /admin). Fabrication : `generer-stl.mjs` (STL + manifeste, voir ci-dessous), `comparer-kits.mjs` (contrôle ancien/nouveau kit). Dépendances Node épinglées dans `tools/package.json` (three 0.170.0, manifold-3d 3.5.4 : `cd tools && npm ci`) ; la publication du site n'en a pas besoin. |
 | `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages (le dossier `worker/` n'est pas publié). |
 | `worker/` | **Le service de paiement** (Cloudflare Worker + Stripe Checkout, **mode test**) : reçoit le panier, recalcule les prix depuis `data.js`, crée la session Stripe, reçoit le webhook. Voir « Paiement » ci-dessous. |
 | `commande/merci/` | Page de retour après paiement (récapitulatif de la commande). |
@@ -99,6 +101,16 @@ Stripe (Informations publiques), reçus clients cochés ; clé `sk_live_` + webh
 live ; `CHECKOUT_MODE = "live"` dans `wrangler.toml` et retrait de `?checkout=test` dans `cart.js` ;
 commande réelle à petit prix puis remboursement.
 
+## Générer un STL (fabrication)
+
+`cd tools && npm ci` une fois, puis depuis la racine :
+`node tools/generer-stl.mjs <produit> [a=… b=… c=…] [--taille=<libellé ou 1-3>]`. Le calcul est **celui de l'aperçu**
+(`?geo=manifold`) : mêmes fichiers `assets/js/modeles/*.js`, même `geo.js`, même manifold-3d. Sortie dans `sortie-stl/`
+(ignoré par git) : STL binaire en Z vers le haut + manifeste JSON (produit, modèle, cotes, SHA git, versions, étanche,
+volume, boîte englobante, nombre de solides). **Erreur** si une cote sort des bornes de `data.js` ou si le maillage n'est
+pas étanche (modèle hors kit non étanche : seulement avec `--forcer`, signalé dans le manifeste).
+`node tools/comparer-kits.mjs [produit…]` compare l'ancien kit three.js et le nouveau sur toutes les combinaisons min/défaut/max.
+
 ## Sécurité du site (CSP)
 
 GitHub Pages ne permet pas d'en-têtes HTTP : la Content-Security-Policy est posée en
@@ -107,7 +119,7 @@ générées), `produit.html` et `commande/merci/index.html`. Elle n'autorise que
 
 | Directive | Sources | Pourquoi |
 |---|---|---|
-| `script-src` | `'self'` `'unsafe-inline'` `cdn.jsdelivr.net` `cloud.umami.is` | scripts du site + scripts inline (thème, Umami, importmap), Three.js, statistiques |
+| `script-src` | `'self'` `'unsafe-inline'` `'wasm-unsafe-eval'` `cdn.jsdelivr.net` `cloud.umami.is` | scripts du site + scripts inline (thème, Umami, importmap), compilation du WASM manifold-3d (servi par le site, `?geo=manifold`), Three.js, statistiques |
 | `style-src` | `'self'` `'unsafe-inline'` `fonts.googleapis.com` | feuille du site, attributs `style`, Google Fonts |
 | `font-src` | `'self'` `fonts.gstatic.com` | fichiers de polices |
 | `img-src` | `'self'` `data:` `blob:` | photos, textures 3D |

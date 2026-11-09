@@ -17,3 +17,6 @@ coverage
 .dev.vars
 .dev.vars.*
 .wrangler/
+
+# Sorties des outils Node (STL générés, rapports)
+sortie-stl/
