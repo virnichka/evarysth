@@ -108,7 +108,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    d'acceptation sous 48 h, renvoi des e-mails en échec, Journal. Statut client (`Commandes EV`) = formule du Sheet.
 
 **Fichiers** (`worker/src/`) : `index.js` (routes), `commande.js` (panier → Stripe), `sheet.js` / `google.js` (Sheet,
-lecture/écriture par nom de colonne, jamais par position), `planifie.js` (tâche), `admin.js` + `acces.js` (page
+lecture/écriture par nom de colonne, jamais par position ; en-têtes affichés → noms du code : `NOMS_AFFICHES`), `planifie.js` (tâche), `admin.js` + `acces.js` (page
 d'administration, jeton Access revérifié), `fournisseur.js` + `jeton.js` (liens fabricant), `fichier.js` (STL R2),
 `email.js` (contenus Brevo), `fabrication.js` (déclenchement de la génération, rappel HMAC, liens des fichiers générés,
 relance depuis /admin, état GitHub), `zip.js` (archive des STL d'un article, faite à la demande). Tests : `cd worker && node --test`.
