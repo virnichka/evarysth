@@ -41,14 +41,14 @@ crons = ["*/10 * * * *"]
 [observability]
 enabled = true
 
-# STL standards (bloc E), servis par GET /fichier/<jeton>. Sans ce binding : /fichier/ répond 503 et les e-mails
-# fabricant des articles standard attendent un lien STL saisi à la main. Ne décommenter qu'APRÈS `npx wrangler r2 bucket create evarysth-stl`
-# (un binding vers un bucket inexistant fait échouer le déploiement). Clés : <produit>/<taille>.stl (ex. boite-rugged/m.stl) ;
-# fichiers des commandes (écrits par .github/workflows/fabrication.yml) : commandes/<n° d'article>/<SHA court>/…
-# Activation : Fabrication · phase 2b, après les réglages de docs/guide-reglages-fabrication.md.
-# [[r2_buckets]]
-# binding = "STL"
-# bucket_name = "evarysth-stl"
+# STL standards (bloc E), servis par GET /fichier/<jeton>. Bucket evarysth-stl (créé, accès public désactivé).
+# Clés : <produit>/<taille>.stl (ex. boite-rugged/m.stl ; .zip si plusieurs pièces), remplies par
+# .github/workflows/stl-standards.yml à chaque push sur main ; fichiers des commandes (écrits par
+# .github/workflows/fabrication.yml) : commandes/<n° d'article>/<SHA court>/…
+# Activé en Fabrication · phase 2b. Sans ce binding : /fichier/ répond 503.
+[[r2_buckets]]
+binding = "STL"
+bucket_name = "evarysth-stl"
 
 # ─── Worker d'administration (« télécommande ») ────────────────────────────────────────────────────────────────
 # Déployé par `npx wrangler deploy --env admin` (et par le workflow). Simple relais vers le Worker public (liaison

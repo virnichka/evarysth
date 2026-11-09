@@ -1,0 +1,99 @@
+name: STL des tailles standard (R2)
+
+# Remplit le bucket R2 evarysth-stl : <produit>/<taille>.stl (ou .zip si plusieurs pièces), pour chaque taille standard
+# de data.js, avec les mêmes contrôles de géométrie que le reste (tools/stl-standards.mjs → generer-stl --impression).
+# Le Worker les sert par GET /fichier/<jeton> (liens des e-mails fabricant). Aucun artifact, aucune donnée client.
+# Pas un contrôle obligatoire : un échec ici ne bloque aucune fusion.
+on:
+  push:
+    branches: [main]
+    paths:
+      - assets/js/data.js
+      - assets/js/geo.js
+      - assets/js/viewer3d.js
+      - assets/js/modeles/**
+      - assets/models/**
+      - tools/**
+      - worker/src/fichier.js
+      - .github/workflows/stl-standards.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stl-standards
+  cancel-in-progress: false
+
+env:
+  BUCKET: evarysth-stl
+
+jobs:
+  standards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Configuration R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+        run: |
+          manque=""
+          [ -n "$R2_ACCESS_KEY_ID" ] || manque="$manque secret R2_ACCESS_KEY_ID,"
+          [ -n "$R2_SECRET_ACCESS_KEY" ] || manque="$manque secret R2_SECRET_ACCESS_KEY,"
+          [ -n "$R2_ACCOUNT_ID" ] || manque="$manque variable R2_ACCOUNT_ID,"
+          if [ -n "$manque" ]; then
+            echo "::error title=R2 non configuré::Manquant :${manque%,}. Réglages : docs/guide-reglages-fabrication.md. Rien n'a été généré ni envoyé."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+
+      - name: Dépendances (manifold-3d, three)
+        run: (cd tools && npm ci --no-audit --no-fund)
+
+      - name: Génération des tailles standard
+        id: gen
+        # Un écart n'empêche pas d'envoyer les autres tailles : le job échoue à la fin (étape « Bilan »).
+        run: node tools/stl-standards.mjs --sortie="$PWD/sortie" || echo "ecart=1" >> "$GITHUB_OUTPUT"
+
+      - name: Envoi dans R2 (clés <produit>/<taille>.stl|.zip)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+        run: |
+          ep="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+          # Jamais de suppression en masse : le bucket contient aussi commandes/.
+          aws s3 cp sortie/ "s3://$BUCKET/" --endpoint-url "$ep" --recursive --exclude "index.json" --only-show-errors
+          # Une taille passée de .stl à .zip (ou l'inverse) ne doit pas laisser l'ancien fichier servi en premier
+          node -e 'for (const c of require("./sortie/index.json").cles) console.log(c)' | while read -r cle; do
+            base="${cle%.*}"
+            case "$cle" in *.zip) autre="$base.stl";; *) autre="$base.zip";; esac
+            aws s3api delete-object --endpoint-url "$ep" --bucket "$BUCKET" --key "$autre" > /dev/null
+          done
+          echo "Envoyé : $(node -e 'console.log(require("./sortie/index.json").cles.length)') fichiers"
+
+      - name: Résumé
+        if: ${{ always() }}
+        run: |
+          {
+            echo "### STL des tailles standard"
+            [ -f sortie/index.json ] && node -e 'const i=require("./sortie/index.json");console.log(`${i.cles.length} fichiers, ${i.ecarts.length} écart(s)`);for(const e of i.ecarts)console.log(`- ${e.produit} · ${e.taille} : ${e.motif}`)'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Bilan
+        if: ${{ steps.gen.outputs.ecart }}
+        run: |
+          echo "::error title=Tailles en écart::Certaines tailles standard ne passent pas les contrôles (liste dans le résumé du run). Les autres ont été envoyées."
+          exit 1

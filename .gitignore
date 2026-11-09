@@ -20,5 +20,6 @@ coverage
 
 # Sorties des outils Node (STL générés, rapports)
 sortie-stl/
+sortie-stl-standards/
 sortie-fabrication/
 bilan.json

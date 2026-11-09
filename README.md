@@ -96,7 +96,8 @@ En mode test, une clé Stripe live est refusée.
 **Points d'attention**
 - Ne jamais supprimer une ligne de commande dans le Sheet : statut `annulee` / `remboursee`. Ne pas écrire dans les colonnes
   grises (formules, « Dernier statut notifié »).
-- R2 (STL standards) pas encore activé : binding `STL` commenté dans `wrangler.toml` ; clés `<produit>/<taille>.stl`.
+- R2 (STL standards) : binding `STL` actif dans `wrangler.toml` (bucket `evarysth-stl`) ; clés `<produit>/<taille>.stl|.zip`,
+  remplies par `.github/workflows/stl-standards.yml` à chaque push sur `main` touchant le catalogue ou les modèles.
 - Brevo : domaine `evarysth.fr` authentifié (DNS OVH), expéditeur `commandes@evarysth.fr`, réponses vers le client ou
   `contact@evarysth.fr`. La clé API expire après 90 jours sans appel.
 - Paiement différé (SEPA) : cocher aussi `checkout.session.async_payment_succeeded` sur le webhook Stripe.
