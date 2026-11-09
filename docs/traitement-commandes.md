@@ -113,7 +113,7 @@ elle journalise seulement chaque changement de `Statut` (auteur `worker`).
 | T | Plateaux | Worker (rappel du workflow) | nombre de plateaux |
 | U | Motif génération | Worker | raison d'un `echec`, vide sinon |
 
-Colonnes Q à V (`docs/chaine-fabrication.md`, Fabrication · phase 2) : lues et écrites **par leur nom** (ordre libre) ;
+Colonnes P à U (`docs/chaine-fabrication.md`, Fabrication · phase 2) : lues et écrites **par leur nom** (ordre libre) ;
 absentes → ignorées sans erreur.
 
 Règles d'écriture pour le Worker :
