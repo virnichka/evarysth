@@ -109,3 +109,5 @@ Une fois le travail vérifié : push de la branche, PR vers `main`, fusion en sq
 contrôle que le workflow « Publier le site » réussit et que le site en ligne sert la nouvelle
 version. Avant d'ouvrir la PR, se mettre à jour sur `main` (d'autres sessions publient en
 parallèle) et éviter les doublons de produit. Si le déploiement échoue, corriger et republier.
+Le contrôle `geometrie` (workflow « Contrôles de géométrie ») est obligatoire pour fusionner sur `main` : il doit être
+vert sur la PR. Ne jamais remettre de filtre `paths` sur son déclencheur `pull_request` (une PR resterait bloquée).
