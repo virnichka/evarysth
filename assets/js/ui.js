@@ -64,6 +64,10 @@
         <nav class="menu__nav" aria-label="Catalogue et univers">
           ${lien("catalogue/", "Catalogue", "Toutes les pièces")}
           ${EVARYSTH.universes.map(u => lien(`univers/${u.id}/`, u.name, u.pitch, u.id)).join("")}
+          <div class="menu__outils">
+            <button type="button" data-search-open data-menu-close>Rechercher</button>
+            <a href="#favoris">Mes favoris</a>
+          </div>
         </nav>
         <div class="menu__foot"><button type="button" class="btn" data-theme-toggle><span class="ico-moon">Passer en thème sombre</span><span class="ico-sun">Passer en thème clair</span></button></div>
       </aside>`);

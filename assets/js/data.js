@@ -349,7 +349,7 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "asa", orientation: POSE.debout, supports: true, parPlateau: 6,
       remarques: "Debout sur son piédouche ; supports sous les épaules." },
-    custom: { params: [
+    custom: { sansMesure: true, params: [
       param("a", "Hauteur du buste", 80, 220, 150, 5)
     ] },
     photos: [
@@ -373,7 +373,7 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "pa12", orientation: POSE.debout, supports: true, parPlateau: 2,
       remarques: "Debout sur ses pattes ; supports sous les bras et la queue." },
-    custom: { params: [
+    custom: { sansMesure: true, params: [
       param("a", "Hauteur de la figurine", 60, 200, 120, 5)
     ] },
     photos: [
@@ -396,7 +396,7 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "asa", orientation: POSE.debout, supports: true, parPlateau: 3,
       remarques: "Sur ses roues ; supports sous la caisse." },
-    custom: { params: [
+    custom: { sansMesure: true, params: [
       param("a", "Longueur de la voiture", 100, 240, 140, 5)
     ] },
     photos: [
