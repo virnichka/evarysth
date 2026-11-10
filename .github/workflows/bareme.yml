@@ -1,0 +1,159 @@
+name: Barème des prix sur-mesure
+run-name: "Barème ${{ inputs.branche }}${{ inputs.produits && format(' ({0})', inputs.produits) || '' }}"
+
+# Fabrication · phase 5 (docs/chaine-fabrication.md, § « Prix sur-mesure ») : tranche la grille de cotes de chaque produit
+# dans l'image de fabrication et committe assets/js/bareme.js sur la branche (jamais main : passer par une PR).
+# À lancer quand le job `geometrie` signale « Barème périmé » (modèle, geo.js, fiche d'impression, profils ou image changés).
+#   plan (produits au barème absent ou périmé, ou liste donnée) → trancher (matrice, un job par produit, fichier partiel)
+#   → assembler (bareme.js, commit, puis relance de « Contrôles de géométrie » sur la branche : un push fait avec
+#   GITHUB_TOKEN ne déclenche pas les workflows de PR).
+# Aucune donnée client : entrées = branche et ids de produits ; artefacts = barèmes partiels (cm³, secondes).
+on:
+  workflow_dispatch:
+    inputs:
+      branche:
+        description: "Branche de travail à mettre à jour (pas main)"
+        required: true
+        type: string
+      produits:
+        description: "Ids séparés par des espaces (vide : produits au barème absent ou périmé)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bareme-${{ inputs.branche }}
+  cancel-in-progress: false
+
+env:
+  # Même image que fabrication.yml (fabrication/Dockerfile, publiée par image-fabrication.yml), empreinte épinglée.
+  IMAGE: ghcr.io/virnichka/evarysth-fabrication@sha256:b1fe84f881fd1560a1e5168bd692fbc05cc767765be85d698338dcf9dd14513e
+  BRANCHE: ${{ inputs.branche }}
+  PRODUITS: ${{ inputs.produits }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      liste: ${{ steps.plan.outputs.liste }}
+    steps:
+      - name: Entrées
+        run: |
+          [[ "$BRANCHE" =~ ^[A-Za-z0-9._/-]{1,200}$ ]] || { echo "::error::branche refusée"; exit 1; }
+          [ "$BRANCHE" != main ] || { echo "::error::main est protégée : lancer sur une branche de travail, puis PR."; exit 1; }
+          [[ "$PRODUITS" =~ ^[a-z0-9\ -]{0,600}$ ]] || { echo "::error::produits refusés (ids séparés par des espaces)"; exit 1; }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.branche }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Produits à trancher
+        id: plan
+        run: |
+          if [ -n "$PRODUITS" ]; then
+            liste=$(node -e 'console.log(JSON.stringify(process.argv.slice(1)))' $PRODUITS)
+          else
+            liste=$(node tools/generer-bareme.mjs --perimes)
+          fi
+          echo "liste=$liste" >> "$GITHUB_OUTPUT"
+          echo "À trancher : $liste"
+
+  trancher:
+    needs: plan
+    if: needs.plan.outputs.liste != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        produit: ${{ fromJSON(needs.plan.outputs.liste) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.branche }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+      - name: Dépendances (manifold-3d, three) et image de tranchage
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          (cd tools && npm ci --no-audit --no-fund)
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin > /dev/null
+          docker pull -q "$IMAGE"
+      - name: Tranchage de la grille
+        env:
+          PRODUIT: ${{ matrix.produit }}
+        run: |
+          mkdir -p partiel
+          node tools/generer-bareme.mjs "$PRODUIT" --docker="$IMAGE" --partiel="partiel/$PRODUIT.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bareme-${{ matrix.produit }}
+          path: partiel/${{ matrix.produit }}.json
+          retention-days: 3
+
+  assembler:
+    needs: [plan, trancher]
+    if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.liste != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.branche }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: bareme-*
+          path: partiel
+          merge-multiple: true
+      - name: bareme.js, commit et push
+        id: commit
+        run: |
+          ls partiel/*.json > /dev/null 2>&1 || { echo "::error::aucun produit tranché"; exit 1; }
+          node tools/generer-bareme.mjs --assembler partiel/*.json
+          if git diff --quiet -- assets/js/bareme.js; then echo "bareme.js inchangé."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/js/bareme.js
+          git commit -q -m "Barème des prix sur-mesure : $(ls partiel | sed 's/\.json$//' | tr '\n' ' ')(run $GITHUB_RUN_ID)"
+          git pull -q --rebase origin "$BRANCHE"
+          git push -q origin "HEAD:$BRANCHE"
+          echo "pousse=1" >> "$GITHUB_OUTPUT"
+      - name: Relance de « Contrôles de géométrie » sur la branche
+        if: steps.commit.outputs.pousse
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run geometrie.yml --ref "$BRANCHE" --repo "$GITHUB_REPOSITORY"
+      - name: Résumé
+        if: ${{ always() }}
+        run: |
+          {
+            echo "### Barème · $BRANCHE"
+            echo "Tranchés : $(ls partiel 2>/dev/null | sed 's/\.json$//' | tr '\n' ' ')"
+            [ "${{ needs.trancher.result }}" = success ] || echo "**Au moins un produit a échoué** (voir les jobs « trancher ») : son barème reste périmé."
+            GITHUB_ACTIONS= node tools/generer-bareme.mjs --verifier --tableau || true
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Bilan
+        if: needs.trancher.result != 'success'
+        run: |
+          echo "::error title=Barème incomplet::Au moins un produit n'a pas été tranché ; les autres ont été committés."
+          exit 1

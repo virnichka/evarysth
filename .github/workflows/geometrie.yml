@@ -2,12 +2,14 @@ name: Contrôles de géométrie
 
 # Tests des 16 modèles 3D (tools/test/) : étanchéité, nombre de solides, cotes fonctionnelles, paroi minimale,
 # fiche d'impression, références figées. Une modification qui casse l'un d'eux est bloquée avant la mise en ligne.
+# Barème des prix sur-mesure (assets/js/bareme.js) : empreinte de ses entrées vérifiée sans trancher ; périmé → rouge
+# (relancer le workflow « Barème des prix sur-mesure », bareme.yml, sur la branche) ; prix standard sous le coût → avertissement.
 # Sur PR : toujours lancé (contrôle obligatoire sur main) ; sans changement de géométrie, le job finit vert tout de suite.
 on:
   pull_request:
   push:
     branches: [main]
-    paths: ["assets/js/**", "assets/models/**", "tools/**", ".github/workflows/geometrie.yml"]
+    paths: ["assets/js/**", "assets/models/**", "tools/**", "fabrication/**", ".github/workflows/geometrie.yml"]
   workflow_dispatch:
 
 permissions:
@@ -31,7 +33,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           if [ "${{ github.event_name }}" != "pull_request" ]; then echo "lancer=oui" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "$BASE" HEAD | grep -qE '^(assets/js/|assets/models/|tools/|\.github/workflows/geometrie\.yml$)'; then
+          if git diff --name-only "$BASE" HEAD | grep -qE '^(assets/js/|assets/models/|tools/|fabrication/|\.github/workflows/geometrie\.yml$)'; then
             echo "lancer=oui" >> "$GITHUB_OUTPUT"
           else
             echo "lancer=non" >> "$GITHUB_OUTPUT"; echo "Aucun fichier de géométrie modifié : contrôles sautés."
@@ -50,3 +52,6 @@ jobs:
         if: steps.tri.outputs.lancer == 'oui'
         working-directory: tools
         run: node --test
+      - name: Barème des prix sur-mesure à jour (empreintes, sans trancher)
+        if: steps.tri.outputs.lancer == 'oui'
+        run: node tools/generer-bareme.mjs --verifier

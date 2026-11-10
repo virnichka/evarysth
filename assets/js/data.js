@@ -18,17 +18,18 @@ EVARYSTH.universes = [
    (pièce qui entre dans un trou du client : cote − jeu ; pièce qui entoure un objet du client : cote + jeu).
    Il ne change ni la cote saisie par le client ni le prix. */
 EVARYSTH.matieres = {
-  pa12: { label: "Nylon PA12", court: "PA12", jeu: 0.3, perk: ["Très résistant", "Nylon industriel"],
+  pa12: { label: "Nylon PA12", court: "PA12", jeu: 0.3, densite: 1.01, eurKg: 60, perk: ["Très résistant", "Nylon industriel"],
     desc: "Nylon PA12, imprimé en 3D industrielle : léger, très résistant aux chocs, à l'humidité et aux UV." },
-  petg: { label: "PETG", court: "PETG", jeu: 0.3, perk: ["Robuste", "Peu cassant"],
+  petg: { label: "PETG", court: "PETG", jeu: 0.3, densite: 1.27, eurKg: 25, perk: ["Robuste", "Peu cassant"],
     desc: "PETG, le plastique des bouteilles en version technique : solide, un peu souple plutôt que cassant, et peu sensible à l'humidité." },
-  asa: { label: "ASA", court: "ASA", jeu: 0.3, perk: ["Tient dehors", "Résiste aux UV"],
+  asa: { label: "ASA", court: "ASA", jeu: 0.3, densite: 1.07, eurKg: 30, perk: ["Tient dehors", "Résiste aux UV"],
     desc: "ASA, un plastique pensé pour l'extérieur : il encaisse le soleil, la pluie et le gel sans jaunir ni devenir cassant." },
-  pla: { label: "PLA", court: "PLA", jeu: 0.2, perk: ["Rigide", "Fini net"],
+  pla: { label: "PLA", court: "PLA", jeu: 0.2, densite: 1.24, eurKg: 25, perk: ["Rigide", "Fini net"],
     desc: "PLA, un plastique d'origine végétale : rigide, au rendu net et précis. Il craint la forte chaleur (au-delà de 50 °C environ) : évitez la plage arrière d'une voiture en plein été." },
-  pacf: { label: "Nylon carbone (PA-CF)", court: "PA-CF", jeu: 0.25, perk: ["Très rigide", "Nylon + carbone"],
+  pacf: { label: "Nylon carbone (PA-CF)", court: "PA-CF", jeu: 0.25, densite: 1.12, eurKg: 70, perk: ["Très rigide", "Nylon + carbone"],
     desc: "Nylon chargé de fibres de carbone : très rigide et stable, avec un toucher mat légèrement minéral. Il supporte bien la chaleur et les chocs." }
 };
+/* densite (g/cm³) et eurKg (€/kg de filament) : prix sur-mesure calculé (docs/chaine-fabrication.md, § « Prix sur-mesure ») */
 EVARYSTH.matiere = p => EVARYSTH.matieres[p && p.matiere] || EVARYSTH.matieres.pa12;
 /* Jeu d'ajustement (mm) de la matière imprimée : celle de la fiche d'impression, sinon celle du produit */
 EVARYSTH.jeu = p => (EVARYSTH.matieres[p && p.impression && p.impression.matiere] || EVARYSTH.matiere(p)).jeu;
@@ -408,6 +409,55 @@ EVARYSTH.priceFor = (p, mode, values) => {
     if (prm.pricePerUnit) total += Math.max(0, values[prm.key] - prm.def) * prm.pricePerUnit;
   });
   return Math.round(total * 100) / 100;
+};
+
+/* Prix sur-mesure calculé (Fabrication · phase 5a) : PAS ENCORE BRANCHÉ sur priceFor (phase 5b, après feu vert).
+   Tarifs de départ validés par le propriétaire le 9 nov. 2026, modifiables ici sans retrancher.
+   cout = masse_kg × eurKg(matière) + temps_h × machineEurH + forfait ;
+   formule = arrondi à l'euro supérieur de (cout × coefficient + stripeFixe) / (1 − stripePct) ;
+   prix = min(max(formule, plancher), plafond) ; plancher = prix de la taille standard la plus proche ;
+   plafond = custom.plafond (exception) sinon plafondFois × prix de la plus grande taille standard ; au-delà : « prix plafonné ». */
+EVARYSTH.tarif = { machineEurH: 1.5, forfait: 3, coefficient: 2.5, stripePct: 0.015, stripeFixe: 0.25, plafondFois: 2 };
+
+/* Masse et temps estimés d'une configuration : interpolation multilinéaire dans le barème tranché (assets/js/bareme.js,
+   généré par tools/generer-bareme.mjs). null si le barème n'est pas chargé ou ne connaît pas le produit. */
+EVARYSTH.estimation = (p, values) => {
+  const b = EVARYSTH.bareme && EVARYSTH.bareme.produits[p.id];
+  if (!b) return null;
+  const cles = Object.keys(b.axes), pos = cles.map(k => {
+    const ax = b.axes[k], v = Math.min(ax[ax.length - 1], Math.max(ax[0], Number(values[k])));
+    let i = 0;
+    while (i < ax.length - 2 && v > ax[i + 1]) i++;
+    return { i, t: ax.length > 1 ? (v - ax[i]) / (ax[i + 1] - ax[i]) : 0, n: ax.length };
+  });
+  let cm3 = 0, s = 0;
+  for (let c = 0; c < 1 << cles.length; c++) {
+    let w = 1, idx = 0;
+    pos.forEach((q, d) => {
+      const haut = (c >> d) & 1;
+      w *= haut ? q.t : 1 - q.t;
+      idx = idx * q.n + Math.min(q.i + haut, q.n - 1);
+    });
+    if (w) { cm3 += w * b.points[idx][0]; s += w * b.points[idx][1]; }
+  }
+  const m = EVARYSTH.matieres[b.matiere];
+  return { cm3, masse_g: cm3 * m.densite, temps_min: s / 60 };
+};
+
+EVARYSTH.prixCalcule = (p, values) => {
+  const e = EVARYSTH.estimation(p, values);
+  if (!e) return null;
+  const t = EVARYSTH.tarif, m = EVARYSTH.matieres[EVARYSTH.bareme.produits[p.id].matiere];
+  const cout = e.masse_g / 1000 * m.eurKg + e.temps_min / 60 * t.machineEurH + t.forfait;
+  const formule = Math.ceil((cout * t.coefficient + t.stripeFixe) / (1 - t.stripePct) - 1e-9);
+  const tailles = (p.variants && p.variants.options) || [];
+  const prixTaille = o => o.price != null ? o.price : p.price;
+  const dist = o => p.custom.params.reduce((d, q) => d + ((values[q.key] - o.values[q.key]) / (q.max - q.min)) ** 2, 0);
+  const proche = tailles.slice().sort((x, y) => dist(x) - dist(y))[0];
+  const plancher = proche ? prixTaille(proche) : 0;
+  const plafond = p.custom.plafond != null ? p.custom.plafond : t.plafondFois * Math.max(p.price, ...tailles.map(prixTaille));
+  return { ...e, cout: Math.round(cout * 100) / 100, formule, plancher, plafond,
+    prix: Math.min(Math.max(formule, plancher), plafond), plafonne: formule > plafond };
 };
 
 EVARYSTH.fmt = n => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
