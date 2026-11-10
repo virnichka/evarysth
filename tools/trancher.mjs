@@ -10,6 +10,7 @@
      - pièces gardées à leur position (aucun réarrangement : --arrange 0 --orient 0), contrôlées dans le .gcode.3mf ;
      - --docker=<image> : lance Bambu Studio dans l'image (fabrication/Dockerfile) ; sans cette option, la commande
        « bambu-studio » du PATH (dans l'image) ou $BAMBU_STUDIO ;
+     - --profil-filament=pla|petg : impose ce profil (estimation de masse et de temps pour le barème des prix) ;
      - --deux-fois : tranche deux fois et compare masse, temps et G-code (hors lignes d'horodatage).
    Profils : fabrication/profils/p2s (machine P2S 0,4, process 0,20 mm, PLA et PETG génériques), autonomes.
    Voir docs/chaine-fabrication.md (Fabrication · phases 1a et 2a). */
@@ -134,7 +135,10 @@ try {
   const fm = path.resolve(fichier), dirM = path.dirname(fm);
   const m = JSON.parse(fs.readFileSync(fm, "utf8"));
   if (!m.impression) throw new Error(`${fichier} : pas un manifeste « --impression » de generer-stl`);
-  P.filament = PROFILS_FILAMENT[m.matiere];
+  /* --profil-filament=pla|petg : barème seulement (tools/generer-bareme.mjs), estimation d'une matière hors atelier */
+  const estimer = opt("profil-filament");
+  if (estimer && !PROFILS_FILAMENT[estimer]) throw new Error(`--profil-filament=${estimer} : ${Object.keys(PROFILS_FILAMENT).join(" ou ")} attendu`);
+  P.filament = PROFILS_FILAMENT[estimer || m.matiere];
   if (!P.filament) {
     console.error(`Matière ${m.matiere} : pas de profil à l'atelier (PLA, PETG) ; fichiers pour fabricant externe seulement.`);
     process.exit(3);

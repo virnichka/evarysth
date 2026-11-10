@@ -12,6 +12,9 @@ dépendances : `cd tools && npm ci`) ; refonte close (historique et décisions :
 **Contrôles** : `cd tools && node --test` (< 1 min, workflow « Contrôles de géométrie » sur chaque PR) ; détail par produit :
 `node tools/verifier-geometrie.mjs [id…] [--detail]`. Changement de forme voulu : `--mettre-a-jour` (référence figée
 `tools/references-geometrie.json`, à committer). Jeu par matière : `jeu` des matières de `data.js`, reçu par le modèle.
+**Barème des prix** (`assets/js/bareme.js`, généré, jamais à la main) : périmé dès qu'une forme, une fiche d'impression,
+des bornes de cotes ou un profil change (`geometrie` rouge) → workflow « Barème des prix sur-mesure » (`bareme.yml`) sur la
+branche, ou `node tools/generer-bareme.mjs <id>` si Bambu Studio est installé ; tarifs : `EVARYSTH.tarif` de `data.js`.
 
 Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js`,
 tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Circuit des commandes (validation sur la page /admin) : README « Paiement et commandes ».

@@ -7,9 +7,12 @@
 > **Fabrication · phase 3 publiée (9 novembre 2026)** : fichiers générés visibles et relançables dans /admin, e-mail
 > fabricant avec 3 liens, fabricant « atelier » selon la matière, voyants GitHub et R2 ; voir § « Résultats Fabrication ·
 > phase 3 ». Vérifié par le propriétaire sur téléphone (EV-2026-0004) ; « Atelier Evarysth » passé à `Envoi` = `atelier`
-> (menu du Sheet complété) : reste à revoir l'atelier proposé pour un article PLA. Prochaine étape : Fabrication · phase 4
-> (agent d'atelier).
-> Fabrication · phase 1b à l'achat de la machine.
+> (menu du Sheet complété) : reste à revoir l'atelier proposé pour un article PLA.
+> **Fabrication · phase 5a (9 novembre 2026)** : barème tranché des 16 produits (`assets/js/bareme.js`), tarifs dans
+> `data.js`, workflow `bareme.yml`, empreinte contrôlée par `geometrie` ; **aucun prix du site changé** ; voir § « Résultats
+> Fabrication · phase 5a ». Prochaine étape : **Fabrication · phase 5b** (prix branchés sur le site et le Worker), après
+> feu vert du propriétaire. La phase 5 passe avant la phase 4 (décision du 9 nov.).
+> Fabrication · phase 1b à l'achat de la machine ; phase 4 (agent d'atelier) ensuite.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
 
@@ -47,7 +50,8 @@
   (tranchage d'une grille de cotes) et interpolé. **Un seul fichier** (`assets/js/bareme.js`), lu par le site (prix en
   direct au curseur) et par le Worker (prix payé), comme `data.js`. Formule et valeurs : § « Prix sur-mesure ».
 - **Ordre des phases** : faisabilité d'abord ; si le tranchage sans écran ou le MQTT en mode cloud échoue, on revoit
-  l'architecture (OrcaSlicer, mode LAN) avant d'écrire le reste. Puis R2 + déclenchement, /admin, agent, prix.
+  l'architecture (OrcaSlicer, mode LAN) avant d'écrire le reste. Puis R2 + déclenchement, /admin, prix, agent.
+  **Phase 5 avant phase 4** (propriétaire, 9 nov. 2026) : la phase 4 attend l'achat de la machine et la phase 1b.
 
 ## Architecture cible
 ```
@@ -91,11 +95,14 @@ contrôles, statut.
 - `cout = masse_kg × €/kg(matière) + temps_h × €/h machine + forfait`
 - `prix = arrondi à l'euro supérieur de ((cout × coefficient + 0,25) / (1 − 0,015))` (frais Stripe ≈ 1,5 % + 0,25 €)
 - **Plancher** : prix de la taille standard la plus proche (distance des cotes normalisée par les bornes).
-- **Plafond** par produit (`custom.plafond` dans `data.js`) : prix affiché = min(formule, plafond) ; au-delà, l'article
-  est marqué « prix plafonné » dans /admin (alerte). *Interprétation choisie, à confirmer.*
-- Valeurs de départ (acceptées) : PLA 25 €/kg, PETG 25, ASA 30, PA12 60, PA-CF 70 ; machine 1,5 €/h ; forfait 3 € ;
-  coefficient 2,5. Rangées dans `data.js` (`EVARYSTH.tarif`, `densite` et `eurKg` par matière) : changer un tarif ne
-  demande pas de retrancher.
+- **Plafond** (décidé le 9 nov. 2026) : par défaut **2 × prix de la plus grande taille standard** du produit ;
+  `custom.plafond` dans `data.js` seulement pour une exception. Formule au-delà : prix affiché = plafond et alerte
+  « prix plafonné » dans /admin ; **pas de blocage** de la commande.
+- Tarifs de départ **validés par le propriétaire (9 nov. 2026)**, modifiables plus tard : PLA 25 €/kg, PETG 25, ASA 30,
+  PA12 60, PA-CF 70 ; machine 1,5 €/h ; forfait 3 € ; coefficient 2,5. Rangés dans `data.js` (`EVARYSTH.tarif`,
+  `densite` et `eurKg` par matière) : changer un tarif ne demande pas de retrancher. Densités (g/cm³) choisies en 5a :
+  PLA 1,24 et PETG 1,27 (profils de l'atelier), ASA 1,07, PA12 1,01, PA-CF 1,12 (fiches courantes ; les profils
+  génériques Bambu disent 1,04 pour ASA et PA).
 - Barème (`assets/js/bareme.js`, généré, jamais édité à la main) : par produit, grille de cotes (au moins min / défaut /
   max par paramètre) → masse (g) et temps (min) tranchés ; interpolation multilinéaire ; empreinte des entrées (modèle,
   `geo.js`, profils, image) pour détecter un barème périmé. Matières hors atelier : profil générique de la même famille,
@@ -466,6 +473,8 @@ proposait pas `atelier` → menu complété (e-mail, manuel, atelier) et ligne �
   réseau local avec la P2S.
 
 ### Phase 5 — prix sur-mesure calculé
+Découpée le 9 nov. 2026 : **5a** = barème seul (générateur, `bareme.js`, `bareme.yml`, empreinte dans `geometrie`, tarifs
+dans `data.js` sans les brancher sur `priceFor`) ; **5b** = branchement des prix sur le site et le Worker, après feu vert.
 - `tools/generer-bareme.mjs` (dans l'image) : grille par produit, tranchage, `assets/js/bareme.js` ; workflow
   `bareme.yml` (`workflow_dispatch` avec branche, matrice par produit, commit sur la branche) ; le job `geometrie` vérifie
   que l'empreinte du barème correspond aux entrées (rapide, sans trancher).
@@ -477,12 +486,13 @@ proposait pas `atelier` → menu complété (e-mail, manuel, atelier) et ligne �
 - Acceptation : prix du curseur = prix payé (test Worker sur 100 cotes tirées au hasard) ; écart interpolé / tranché
   < 10 % en masse et en temps sur des points hors grille ; plancher et plafond testés ; avertissement CI des prix
   standards sous le coût ; barème périmé → `geometrie` rouge.
-- **Toi** : confirmer les valeurs du tarif et les plafonds par produit.
+- **Toi** : ~~confirmer les valeurs du tarif et les plafonds par produit~~ (fait le 9 nov. 2026) ; feu vert de la 5b.
+
+<!-- RESULTATS-5A -->
 
 ## Points ouverts (propriétaire)
 - Catalogue ASA / PA-CF / PA12 : garder (fabricant externe) ou passer des fiches en PETG (promesse « tient dehors »).
 - Marge sur fabricant externe : son tarif n'est pas le coût machine ; sujet à part, hors de ce chantier.
-- Plafond : prix plafonné + alerte (interprétation retenue) ou blocage de la commande au-delà ?
 - Rétention R2 des fichiers de commande (24 mois proposé).
 - Jeux ASA, PA-CF, PA12 et orientations / supports des fiches : à confirmer au premier tranchage (hérité du chantier
   précédent).
