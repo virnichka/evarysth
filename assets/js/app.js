@@ -314,8 +314,7 @@
               <button class="icon-btn" data-share aria-label="Partager"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg></button>
             </div>
           </div>
-          <p class="lead">${p.tagline}</p>
-          <div class="pdp__price"><span id="price"></span><small id="price-note"></small></div>
+          <div class="pdp__price"><span id="price"></span></div>
           ${BOUTIQUE_OUVERTE ? "" : `<p class="soon-note">${SOON_NOTE}</p>`}
           <div class="desc"><p class="desc__text" id="desc-text">${p.desc}</p>
             <button type="button" class="link desc__more" id="desc-more" aria-expanded="false" aria-controls="desc-text" hidden>Lire la suite</button></div>
@@ -359,7 +358,7 @@ ${colors.length ? `
             <div class="qty qty--lg">
               <button data-q="-1" aria-label="Moins">−</button><span id="qty">1</span><button data-q="1" aria-label="Plus">+</button>
             </div>
-            <button class="btn btn--primary btn--grow" id="add">Ajouter au panier — <span id="add-price"></span></button>
+            <button class="btn btn--primary btn--grow" id="add">Ajouter au panier<span class="add__prix"> — <span id="add-price"></span></span></button>
           </div>
           <p class="legal-note" id="legal-note" hidden>Fabriqué à vos cotes : ni repris ni échangé, sauf défaut. Les cotes saisies font foi. <a href="cgv/#retractation">CGV</a></p>
 
@@ -400,7 +399,6 @@ ${colors.length ? `
       const v = values();
       const unit = EVARYSTH.priceFor(p, state.mode, v);
       $("#price").textContent = fmt(unit);
-      $("#price-note").textContent = state.mode === "custom" ? "Sur-mesure, fabriqué pour vous" : "Taille standard";
       $("#add-price").textContent = fmt(unit * state.qty);
       $("#buybar-price").textContent = fmt(unit * state.qty);
       prixScene(unit, v);
@@ -582,7 +580,10 @@ ${colors.length ? `
       const vu = { add: false, prixPasse: false };
       const majBarre = () => { const on = vu.prixPasse && !vu.add; bar.classList.toggle("is-on", on); document.body.classList.toggle("has-buybar", on); };
       new IntersectionObserver(([en]) => { vu.add = en.isIntersecting; majBarre(); }).observe($("#add"));
-      new IntersectionObserver(([en]) => { vu.prixPasse = !en.isIntersecting && en.boundingClientRect.bottom < 0; majBarre(); }).observe(root.querySelector(".pdp__price"));
+      new IntersectionObserver(([en]) => {
+        vu.prixPasse = !en.isIntersecting && en.boundingClientRect.bottom < 0; majBarre();
+        root.querySelector(".pdp").classList.toggle("prix-vu", en.isIntersecting); // prix du titre à l'écran : le bouton ne le répète pas
+      }).observe(root.querySelector(".pdp__price"));
     }
     root.addEventListener("focusin", e => { if (e.target.matches("input[type=number]")) bar.classList.add("is-typing"); });
     root.addEventListener("focusout", e => { if (e.target.matches("input[type=number]")) bar.classList.remove("is-typing"); });

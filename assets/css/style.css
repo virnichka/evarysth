@@ -344,7 +344,7 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .stage.is-repli > .shape, .stage.is-repli .stage__mat { display: none; }
 /* Prix sur-mesure en direct (bas droite de la vue ; l'étiquette matière remonte au-dessus) */
 .stage__prix { position: absolute; bottom: 18px; right: 18px; z-index: 1; pointer-events: none; display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 16px; background: var(--text); color: var(--bg); box-shadow: var(--shadow-float); }
-.stage__prix[hidden] { display: none; }
+.stage__prix, .stage__prix[hidden] { display: none; } /* pastille de prix sur la vue : retirée, le prix est dit sous le titre (le calcul reste dans app.js) */
 .stage__prix b { font: 600 22px/1 var(--mono); font-variant-numeric: tabular-nums; }
 .stage__prix small { position: absolute; right: 8px; bottom: calc(100% + 6px); padding: 3px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 600; opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .2s; }
 .stage__prix small.is-on { opacity: 1; transform: none; }
@@ -415,8 +415,8 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
   .pdp--3d .stage.is-3d .dim { font-size: 15px; padding: 6px 10px; border-radius: 12px; gap: 6px; }
   .pdp--3d .stage.is-3d .dim i { width: 18px; height: 18px; font-size: 10px; }
   .pdp--3d .stage__mat { bottom: 12px; right: 12px; }
-  /* Prix et matière ne se répètent pas sur la vue : prix sous le titre et dans la barre d'achat, matière dans les atouts */
-  .pdp .stage__prix, .pdp .stage__mat { display: none; }
+  /* La matière ne se répète pas sur la vue (elle est dans les atouts) */
+  .pdp .stage__mat { display: none; }
   .pdp--3d .stage__open { top: auto; bottom: 12px; right: auto; left: 12px; padding: 6px 12px; }
   .pdp--3d .pane { scroll-margin-top: calc(var(--header-h, 64px) + min(30vh, 300px) + 12px); }
   body.header-cache .pdp--3d .pane { scroll-margin-top: calc(min(30vh, 300px) + 12px); }
@@ -588,6 +588,9 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .cart-legal a, .legal-note a { color: inherit; text-decoration: underline; }
 .legal-note { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; line-height: 1.45; }
 .legal-note[hidden] { display: none; }
+/* Le prix n'est dit qu'une fois par écran : tant que celui du titre est visible (.prix-vu, posée par app.js), le bouton ne le répète pas ;
+   ensuite le bouton et la barre d'achat portent le total (quantité comprise) */
+.pdp.prix-vu .add__prix { display: none; }
 /* Pages légales (cgv/, mentions-legales/, confidentialite/) */
 .legal { max-width: 760px; margin: 0 auto; padding: 32px 20px 72px; line-height: 1.6; }
 .legal h1 { margin: 0 0 6px; }
