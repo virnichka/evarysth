@@ -11,7 +11,8 @@
 > **Fabrication · phase 5 close (10 novembre 2026)** : 5a = barème tranché des 16 produits (`assets/js/bareme.js`),
 > tarifs dans `data.js`, workflow `bareme.yml`, empreinte contrôlée par `geometrie` ; 5b = **prix sur-mesure calculés**
 > sur le site et dans le Worker (même code), alerte « prix plafonné » dans /admin ; voir § « Résultats Fabrication ·
-> phases 5a et 5b ». La phase 5 est passée avant la phase 4 (décision du 9 nov.).
+> phases 5a et 5b ». La phase 5 est passée avant la phase 4 (décision du 9 nov.). **Prix rendus cohérents le 10 nov.**
+> (un prix par taille standard, supplément sur-mesure 4 €, sans plafond, 4 produits PA-CF → PETG) : § « Prix sur-mesure ».
 > Fabrication · phase 1b à l'achat de la machine ; phase 4 (agent d'atelier) ensuite.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
@@ -549,6 +550,23 @@ dans `data.js` sans les brancher sur `priceFor`) ; **5b** = branchement des prix
 - **Écarts de prix sur-mesure** (min / défaut / max, avant → après) : petites pièces un peu moins chères (crochet de
   balcon 16 → 12 €, support casque 20 → 16 €, tablette 37 → 29 €) ; pièces longues à imprimer plus chères, au plafond
   (gyroïde 35 → 58 €, organiseur 38 → 56 €, distributeur 22 → 36 €).
+
+#### Résultats · prix cohérents (10 novembre 2026, après la phase 5b)
+Le propriétaire a relevé une incohérence (boîte sur-mesure 140 × 105 × 75 mm à 58 € alors que S, M et L étaient à 32 €) ;
+revue externe « tailles standard », puis choix délégués. Règle complète : § « Prix sur-mesure ».
+- 4 produits PA-CF → PETG (jeu 0,25 → 0,3 mm, références de géométrie et barème mis à jour : 128 points retranchés).
+- Coût complété (échec, emballage) ; un prix par taille standard (`sizes(…, prix)`), `price` = plus petite taille ;
+  sur-mesure = max(formule, taille la plus proche) + 4 € ; plafond et alerte « prix plafonné » retirés.
+- Panier : case « Sur-mesure : j'ai vérifié mes cotes… » obligatoire, revérifiée par le Worker ; CGV : tolérance
+  ± 0,5 mm, prix par taille, case à cocher. Données structurées des fiches : `AggregateOffer` (taille S → L).
+- Fiche : prix affiché sur chaque bouton de taille ; « prix max » retiré de la pastille.
+- Nouveaux prix standard S / M / L (avant : prix unique) : crochet balcon 13/13/13 (12) ; tablette 34/34/34 (29) ;
+  support casque 16/16/16 (16) ; passe-câble 13/14/15 (9) ; crochet appui-tête 20/20/21 (14) ; équerre 12/13/15 (9) ;
+  boîte 34/39/69 (32) ; support gyroïde 89/109/124 (29) ; organiseur 64/124/189 (28) ; vide-poche 19/19/25 (19) ;
+  distributeur 25/34/39 (18) ; cintre 15/15/16 (9) ; support aérosol 18/18/21 (12) ; chat 29/39/64 (29) ;
+  tortue 23/39/69 (19) ; voiture 24/29/54 (24). Exemple : boîte sur-mesure 140 × 105 × 75 mm = 48 € (M 39 €, L 69 €).
+- Restent chers par nature (temps d'impression de 13 à 30 h) : support gyroïde et organiseur ; à revoir avec les
+  appels d'offres fabricants ou en réduisant les tailles.
 
 ## Points ouverts (propriétaire)
 - Catalogue ASA / PA-CF / PA12 : garder (fabricant externe) ou passer des fiches en PETG (promesse « tient dehors »).

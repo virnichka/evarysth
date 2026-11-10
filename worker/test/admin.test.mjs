@@ -267,7 +267,7 @@ test("Catalogue : STL présent / manquant par taille standard (une liste R2), sa
   const html = await (await vue("catalogue", { ...env, STL })).text();
   assert.match(html, /Crochet de balcon[\s\S]*?>S <[\s\S]*?STL manquant[\s\S]*?>M <[\s\S]*?STL présent/);
   assert.match(html, /produits\/crochet-balcon\//);
-  assert.match(html, /<details><summary><span class="nom">Crochet de balcon<\/span><span class="badge manque">STL 1\/3<\/span><span class="resume">12 €<\/span><\/summary>/, "une ligne repliée");
+  assert.match(html, /<details><summary><span class="nom">Crochet de balcon<\/span><span class="badge manque">STL 1\/3<\/span><span class="resume">dès 13 €<\/span><\/summary>/, "une ligne repliée");
   assert.doesNotMatch(html, /<details open/);
   assert.match(await (await vue("catalogue")).text(), /Binding R2 « STL » absent/);
 });

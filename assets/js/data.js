@@ -56,10 +56,10 @@ EVARYSTH.products = [
   /* ---------- 01 · Balcon & Extérieur ---------- */
   {
     id: "crochet-balcon", universe: "balcon", matiere: "asa", shape: "hook", model: "crochet-balcon", popular: true,
-    name: "Crochet de balcon", price: 12,
+    name: "Crochet de balcon", price: 13,
     tagline: "Pour suspendre lanterne, plante ou serviette.",
     desc: "Glissez-le sur la main courante, suspendez. Résiste aux UV et à la pluie.",
-    variants: sizes("Épaisseur de main courante", [["S", "≤ 35 mm", { a: 30 }], ["M", "≤ 55 mm", { a: 50 }], ["L", "≤ 75 mm", { a: 70 }]]),
+    variants: sizes("Épaisseur de main courante", [["S", "≤ 35 mm", { a: 30 }, 13], ["M", "≤ 55 mm", { a: 50 }, 13], ["L", "≤ 75 mm", { a: 70 }, 13]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "terracotta", label: "Terracotta", hex: "#c0643f", roughness: 0.7 },
@@ -71,10 +71,10 @@ EVARYSTH.products = [
   },
   {
     id: "tablette-rambarde", universe: "balcon", matiere: "asa", shape: "bracket", model: "tablette-rambarde", popular: true,
-    name: "Tablette café de balcon", price: 29,
+    name: "Tablette café de balcon", price: 34,
     tagline: "Une petite table pour le café, posée sur la rambarde.",
     desc: "Une tablette qui se cale sur le garde-corps : la place d'une tasse, d'un verre et d'un téléphone, sans rien percer.",
-    variants: sizes("Épaisseur de rambarde", [["Fine", "20–40 mm", { a: 30, b: 220 }], ["Moyenne", "40–60 mm", { a: 50, b: 220 }], ["Large", "60–80 mm", { a: 70, b: 220 }]]),
+    variants: sizes("Épaisseur de rambarde", [["Fine", "20–40 mm", { a: 30, b: 220 }, 34], ["Moyenne", "40–60 mm", { a: 50, b: 220 }, 34], ["Large", "60–80 mm", { a: 70, b: 220 }, 34]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "blanc", label: "Blanc", hex: "#ecebe6", roughness: 0.6 },
@@ -91,7 +91,7 @@ EVARYSTH.products = [
     name: "Support casque invisible", price: 16,
     tagline: "Le casque se range sous le bureau, hors de vue.",
     desc: "Une pince discrète qui se serre sur le plateau. Le casque pend en dessous, le bureau reste dégagé.",
-    variants: sizes("Épaisseur du plateau", [["18 mm", "standard", { a: 18 }], ["25 mm", "massif", { a: 25 }], ["40 mm", "épais", { a: 40 }]]),
+    variants: sizes("Épaisseur du plateau", [["18 mm", "standard", { a: 18 }, 16], ["25 mm", "massif", { a: 25 }, 16], ["40 mm", "épais", { a: 40 }, 16]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
@@ -103,10 +103,10 @@ EVARYSTH.products = [
   },
   {
     id: "passe-cable", universe: "bureau", matiere: "pla", shape: "ring", model: "passe-cable", popular: true,
-    name: "Passe-câble de bureau", price: 9,
+    name: "Passe-câble de bureau", price: 13,
     tagline: "Un trou propre pour faire passer les câbles.",
     desc: "S'emboîte dans le trou du plateau et cache ses bords. Le couvercle s'ouvre juste assez pour les câbles.",
-    variants: sizes("Diamètre du trou", [["Ø 50", "petit", { a: 50 }], ["Ø 60", "standard", { a: 60 }], ["Ø 80", "grand", { a: 80 }]]),
+    variants: sizes("Diamètre du trou", [["Ø 50", "petit", { a: 50 }, 13], ["Ø 60", "standard", { a: 60 }, 14], ["Ø 80", "grand", { a: 80 }, 15]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
@@ -118,10 +118,10 @@ EVARYSTH.products = [
   },
   {
     id: "crochet-appui-tete", universe: "bureau", matiere: "asa", shape: "hook", model: "crochet-appui-tete",
-    name: "Crochet d'appui-tête multifonction", price: 14,
+    name: "Crochet d'appui-tête multifonction", price: 20,
     tagline: "La tablette, le sac et la gourde rangés derrière le siège avant.",
     desc: "Une plaque fine qui pend contre le dos du siège avant, tenue par un œillet enfilé sur une tige de l'appui-tête : on sort l'appui-tête, on passe l'œillet, on le remet. Deux petits crochets reçoivent la tranche d'une tablette, deux grands crochets en bas portent un sac, un cabas ou une gourde à mousqueton. Réglez le diamètre de la tige, l'épaisseur de votre tablette et la distance entre la tige et le dos du siège.",
-    variants: sizes("Épaisseur de la tablette", [["Fine", "tablette nue, 9 mm", { a: 14, b: 9, c: 35 }], ["Standard", "avec coque, 15 mm", { a: 14, b: 15, c: 35 }], ["Large", "coque épaisse, 20 mm", { a: 14, b: 20, c: 35 }]]),
+    variants: sizes("Épaisseur de la tablette", [["Fine", "tablette nue, 9 mm", { a: 14, b: 9, c: 35 }, 20], ["Standard", "avec coque, 15 mm", { a: 14, b: 15, c: 35 }, 20], ["Large", "coque épaisse, 20 mm", { a: 14, b: 20, c: 35 }, 21]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "gris", label: "Gris béton", hex: "#8a8c8e", roughness: 0.7 },
@@ -154,10 +154,10 @@ EVARYSTH.products = [
   /* ---------- 03 · Meubles & Rangement ---------- */
   {
     id: "equerre-l", universe: "meubles", matiere: "petg", shape: "bracket", model: "equerre",
-    name: "Équerre en L sur-mesure", price: 9,
+    name: "Équerre en L sur-mesure", price: 12,
     tagline: "Renforce un angle ou soutient une étagère, à vos cotes.",
     desc: "Une équerre pleine, avec un congé dans l'angle pour plus de rigidité. Réglez la longueur de chaque branche et la largeur, et faites tourner la pièce en 3D avant de commander.",
-    variants: sizes("Taille", [["Petite", "60 × 60 mm", { a: 60, b: 60, c: 15 }], ["Moyenne", "100 × 100 mm", { a: 100, b: 100, c: 20 }], ["Grande", "150 × 150 mm", { a: 150, b: 150, c: 30 }]]),
+    variants: sizes("Taille", [["Petite", "60 × 60 mm", { a: 60, b: 60, c: 15 }, 12], ["Moyenne", "100 × 100 mm", { a: 100, b: 100, c: 20 }, 13], ["Grande", "150 × 150 mm", { a: 150, b: 150, c: 30 }, 15]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "orange", label: "Orange", hex: "#e2742b", roughness: 0.6 },
@@ -173,10 +173,10 @@ EVARYSTH.products = [
   },
   {
     id: "boite-rugged", universe: "meubles", matiere: "petg", shape: "case", model: "boite-rugged", popular: true,
-    name: "Boîte robuste à loquets", price: 32,
+    name: "Boîte robuste à loquets", price: 34,
     tagline: "Une boîte qui encaisse les chocs, aux dimensions de ce que vous rangez.",
     desc: "Couvercle à charnière intégrée, deux loquets qui se clipsent et un rebord qui emboîte le couvercle. Réglez la longueur, la largeur et la hauteur intérieures : charnière, loquets et parois gardent leurs vraies cotes, seule la boîte s'agrandit.",
-    variants: sizes("Format intérieur", [["S", "120 × 80 × 40 mm", { a: 120, b: 80, c: 40 }], ["M", "150 × 100 × 50 mm", { a: 150, b: 100, c: 50 }], ["L", "220 × 150 × 80 mm", { a: 220, b: 150, c: 80 }]]),
+    variants: sizes("Format intérieur", [["S", "120 × 80 × 40 mm", { a: 120, b: 80, c: 40 }, 34], ["M", "150 × 100 × 50 mm", { a: 150, b: 100, c: 50 }, 39], ["L", "220 × 150 × 80 mm", { a: 220, b: 150, c: 80 }, 69]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
@@ -199,10 +199,10 @@ EVARYSTH.products = [
   },
   {
     id: "support-casque-gyroide", universe: "meubles", matiere: "petg", shape: "headstand", model: "support-casque-gyroide",
-    name: "Support casque Gyroïde", price: 29,
+    name: "Support casque Gyroïde", price: 89,
     tagline: "Un vrai présentoir pour votre casque, léger comme une dentelle.",
     desc: "Socle plein, colonne et tête en treillis gyroïde, appui bombé qui épouse l'arceau sans le marquer. Réglez la hauteur pour que les coussinets ne touchent pas le bureau, et la largeur de votre arceau, que l'appui déborde de 4 mm de chaque côté : le treillis garde la même maille, il gagne simplement des cellules.",
-    variants: sizes("Taille du casque", [["Compact", "supra-auriculaire", { a: 220, b: 100 }], ["Standard", "circum-auriculaire", { a: 250, b: 120 }], ["Grand", "casque de studio", { a: 255, b: 140 }]]),
+    variants: sizes("Taille du casque", [["Compact", "supra-auriculaire", { a: 220, b: 100 }, 89], ["Standard", "circum-auriculaire", { a: 250, b: 120 }, 109], ["Grand", "casque de studio", { a: 255, b: 140 }, 124]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "gris", label: "Gris béton", hex: "#8a8c8e", roughness: 0.7 },
@@ -224,10 +224,10 @@ EVARYSTH.products = [
   },
   {
     id: "organiseur-tiroir", universe: "meubles", matiere: "petg", shape: "tray", model: "organiseur-tiroir", popular: true,
-    name: "Organiseur de tiroir", price: 28,
+    name: "Organiseur de tiroir", price: 64,
     tagline: "Un casier qui épouse exactement votre tiroir.",
     desc: "Fini les centimètres perdus : l'organiseur est fabriqué à la cote intérieure de votre tiroir. Au-delà de 25 cm, il arrive en modules qui se posent côte à côte.",
-    variants: sizes("Format", [["Petit", "200 × 300", { a: 200, b: 300 }], ["Moyen", "300 × 400", { a: 300, b: 400 }], ["Grand", "400 × 500", { a: 400, b: 500 }]]),
+    variants: sizes("Format", [["Petit", "200 × 300", { a: 200, b: 300 }, 64], ["Moyen", "300 × 400", { a: 300, b: 400 }, 124], ["Grand", "400 × 500", { a: 400, b: 500 }, 189]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "moutarde", label: "Jaune moutarde", hex: "#d4a72c", roughness: 0.62 },
@@ -242,7 +242,7 @@ EVARYSTH.products = [
     name: "Vide-poche porte-clés", price: 19,
     tagline: "Les clés accrochées, la monnaie dans le bac, dès l'entrée.",
     desc: "Un dosseret qui s'enroule en haut en une tablette à crochets, posé sur un bac qui lui sert de pied : les trousseaux pendent au-dessus du bac, les pièces, écouteurs et cartes tombent dedans. Rien à fixer au mur, il se pose sur le meuble d'entrée. Réglez la largeur (un crochet tous les 20 mm), la profondeur du bac et la hauteur pour les longs trousseaux.",
-    variants: sizes("Largeur", [["Compact", "60 mm, 3 crochets", { a: 60, b: 60, c: 110 }], ["Standard", "75 mm, 4 crochets", { a: 75, b: 75, c: 120 }], ["Large", "120 mm, 6 crochets", { a: 120, b: 80, c: 130 }]]),
+    variants: sizes("Largeur", [["Compact", "60 mm, 3 crochets", { a: 60, b: 60, c: 110 }, 19], ["Standard", "75 mm, 4 crochets", { a: 75, b: 75, c: 120 }, 19], ["Large", "120 mm, 6 crochets", { a: 120, b: 80, c: 130 }, 25]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "cacao", label: "Brun cacao", hex: "#5b463d", roughness: 0.62 },
@@ -265,10 +265,10 @@ EVARYSTH.products = [
   },
   {
     id: "distributeur-cotons", universe: "meubles", matiere: "petg", shape: "dispenser", model: "distributeur-cotons",
-    name: "Distributeur cotons & cotons-tiges", price: 18,
+    name: "Distributeur cotons & cotons-tiges", price: 25,
     tagline: "Les disques à portée de main, les cotons-tiges juste à côté.",
     desc: "Un tube où s'empilent les disques de coton, avec une fente frontale arrondie pour attraper le dernier du bas, et un pot accolé pour les cotons-tiges. Réglez le diamètre de vos disques : le tube garde 2,5 mm de jeu pour qu'ils glissent sans flotter. Choisissez ensuite la hauteur de la pile et celle du pot.",
-    variants: sizes("Taille de la pile", [["Compact", "environ 50 disques", { a: 58, b: 110, c: 45 }], ["Standard", "environ 80 disques", { a: 58, b: 150, c: 50 }], ["Grand", "environ 110 disques", { a: 60, b: 190, c: 55 }]]),
+    variants: sizes("Taille de la pile", [["Compact", "environ 50 disques", { a: 58, b: 110, c: 45 }, 25], ["Standard", "environ 80 disques", { a: 58, b: 150, c: 50 }, 34], ["Grand", "environ 110 disques", { a: 60, b: 190, c: 55 }, 39]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "olive", label: "Vert olive", hex: "#6f7a45", roughness: 0.68 },
@@ -291,10 +291,10 @@ EVARYSTH.products = [
   },
   {
     id: "cintre-sac", universe: "meubles", matiere: "petg", shape: "hook", model: "cintre-sac",
-    name: "Cintre à sac pour tringle", price: 9,
+    name: "Cintre à sac pour tringle", price: 15,
     tagline: "Le sac à dos rangé dans la penderie, comme une veste.",
     desc: "Un crochet épais qui se pose sur la tringle de votre penderie, et une large barre courbe pour accrocher la poignée ou les bretelles d'un sac à dos, d'un cabas ou d'un sac de sport. Le crochet est ajusté au diamètre de votre tringle.",
-    variants: sizes("Diamètre de la tringle", [["Ø 19", "fine", { a: 19 }], ["Ø 25", "standard", { a: 25 }], ["Ø 32", "épaisse", { a: 32 }]]),
+    variants: sizes("Diamètre de la tringle", [["Ø 19", "fine", { a: 19 }, 15], ["Ø 25", "standard", { a: 25 }, 15], ["Ø 32", "épaisse", { a: 32 }, 16]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
@@ -312,10 +312,10 @@ EVARYSTH.products = [
   },
   {
     id: "support-aerosol-skadis", universe: "meubles", matiere: "asa", shape: "cup", model: "support-aerosol-skadis",
-    name: "Support de bombe pour SKADIS", price: 12,
+    name: "Support de bombe pour SKADIS", price: 18,
     tagline: "La bombe aérosol rangée debout sur le panneau perforé, toujours à portée de main.",
     desc: "Un gobelet qui s'accroche au panneau IKEA SKADIS sans outil : deux crochets passent dans les trous du haut, deux ergots calent la pièce plus bas. Côtés en creux et encoche à l'avant pour saisir la bombe d'une main, fond ajouré qui la retient par son rebord. Réglez le diamètre de votre bombe et la hauteur du support.",
-    variants: sizes("Diamètre de la bombe", [["Ø 45", "petit format", { a: 45, b: 60 }], ["Ø 54", "standard", { a: 54, b: 60 }], ["Ø 65", "bombe de peinture", { a: 65, b: 70 }]]),
+    variants: sizes("Diamètre de la bombe", [["Ø 45", "petit format", { a: 45, b: 60 }, 18], ["Ø 54", "standard", { a: 54, b: 60 }, 18], ["Ø 65", "bombe de peinture", { a: 65, b: 70 }, 21]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "gris", label: "Gris béton", hex: "#8a8c8e", roughness: 0.7 },
@@ -341,7 +341,7 @@ EVARYSTH.products = [
     name: "Chat Lord", price: 29,
     tagline: "Un buste de chat couronné de lauriers, drapé à l'antique.",
     desc: "Un buste sculpté façon empereur romain, imprimé d'un seul bloc sur son piédouche. Choisissez sa hauteur, du petit compagnon de bureau à la pièce qui trône sur une étagère : les proportions restent identiques.",
-    variants: sizes("Hauteur", [["S", "100 mm", { a: 100 }], ["M", "150 mm", { a: 150 }], ["L", "200 mm", { a: 200 }]]),
+    variants: sizes("Hauteur", [["S", "100 mm", { a: 100 }, 29], ["M", "150 mm", { a: 150 }, 39], ["L", "200 mm", { a: 200 }, 64]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "marbre", label: "Blanc marbre", hex: "#e6e2d8", roughness: 0.5 },
@@ -362,10 +362,10 @@ EVARYSTH.products = [
   },
   {
     id: "carapuce", universe: "deco", matiere: "pa12", shape: "turtle", model: "carapuce",
-    name: "Carapuce", price: 19,
+    name: "Carapuce", price: 23,
     tagline: "La petite tortue la plus effrontée de l'étagère.",
     desc: "Une figurine de Carapuce, carapace sur le dos et queue en spirale, qui adresse un geste bien senti à qui passe devant. Imprimée d'un seul bloc, debout sur ses pattes, elle se règle en hauteur : du clin d'œil posé sur l'écran à la pièce qui ne passe pas inaperçue.",
-    variants: sizes("Hauteur", [["S", "80 mm", { a: 80 }], ["M", "120 mm", { a: 120 }], ["L", "160 mm", { a: 160 }]]),
+    variants: sizes("Hauteur", [["S", "80 mm", { a: 80 }, 23], ["M", "120 mm", { a: 120 }, 39], ["L", "160 mm", { a: 160 }, 69]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "bleu", label: "Bleu lagon", hex: "#5fa8d3", roughness: 0.6 },
@@ -388,7 +388,7 @@ EVARYSTH.products = [
     name: "Voiture Voronoï", price: 24,
     tagline: "Une sportive à aileron, toute en dentelle de plastique.",
     desc: "Une voiture de sport ajourée de part en part : carrosserie en motif Voronoï, jantes à rayons, aileron arrière sur ses deux mâts. Imprimée d'un seul bloc, elle laisse passer la lumière et se pose sur un bureau ou une étagère. Choisissez sa longueur, de la miniature à la pièce qui attire l'œil.",
-    variants: sizes("Longueur", [["S", "100 mm", { a: 100 }], ["M", "140 mm", { a: 140 }], ["L", "200 mm", { a: 200 }]]),
+    variants: sizes("Longueur", [["S", "100 mm", { a: 100 }, 24], ["M", "140 mm", { a: 140 }, 29], ["L", "200 mm", { a: 200 }, 54]]),
     colors: [
       { id: "blanc", label: "Blanc", hex: "#ecebe6", roughness: 0.6 },
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },

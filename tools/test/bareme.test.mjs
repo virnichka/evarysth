@@ -57,7 +57,7 @@ test("tarifs : chaque matière a densité, €/kg et taux d'échec ; formule, pl
     assert.equal(E.prixCalcule(p, { a: 28 }).plancher, 40, "plancher : taille la plus proche (L)");
     E.bareme.produits.essai.points = [[1, 60], [2, 60]];
     const bas = E.prixCalcule(p, { a: 10 });
-    assert.ok(bas.formule < 10 && bas.prix === 14, "formule sous le plancher : prix de la taille la plus proche + supplément");
+    assert.ok(bas.formule <= bas.plancher && bas.prix === 14, "formule sous le plancher : prix de la taille la plus proche + supplément");
   } finally { E.bareme = sauve; }
 });
 
