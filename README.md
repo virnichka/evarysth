@@ -235,6 +235,7 @@ Il n'y a **pas de base de données** : tout le contenu est écrit directement da
 | Quoi | Où |
 |---|---|
 | Produits (nom, description, prix, tailles, curseurs sur-mesure), univers et leurs textes | `assets/js/data.js` |
+| Tarifs du prix sur-mesure (€/kg par matière, €/h machine, forfait, coefficient, plafond) | `assets/js/data.js` (`EVARYSTH.tarif`, matières) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/chaine-fabrication.md`) |
 | Textes fixes de la page : accueil, étapes, FAQ, pied de page | `index.html` |
 | Textes de la fiche produit (boutons, libellés, livraison…) | `assets/js/app.js` |
 | Photos | `assets/photos/<produit>/` |
@@ -271,4 +272,4 @@ Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publi
 
 **Recherche / modales** (créées par `ui.js`) : `#q` (champ de recherche), `#q-list` (résultats), `#modal`.
 
-**Dans le JavaScript** : tout est rangé sous l'objet global `EVARYSTH` — `EVARYSTH.products` (catalogue), `EVARYSTH.viewer3d` (3D), `EVARYSTH.priceFor` (prix).
+**Dans le JavaScript** : tout est rangé sous l'objet global `EVARYSTH` — `EVARYSTH.products` (catalogue), `EVARYSTH.viewer3d` (3D), `EVARYSTH.priceFor` (prix : fixé pour les tailles standard, calculé depuis le barème tranché pour le sur-mesure).

@@ -43,15 +43,15 @@ const poster = (chemin, corps, origine = SITE) => worker.fetch(new Request(`http
 
 const tablette = { id: "tablette-rambarde", mode: "custom", values: { a: 45, b: 250 }, color: "noir", qty: 2 };
 
-test("prix recalculés depuis le catalogue (standard et sur-mesure avec supplément au mm)", () => {
+test("prix recalculés depuis le catalogue (standard et sur-mesure calculé par le barème)", () => {
   const [std, sm] = lirePanier({ items: [
     { id: "tablette-rambarde", mode: "standard", variant: 1, color: "blanc", qty: 1 },
     tablette
   ] });
   assert.equal(std.unitCents, 2900);
   assert.deepEqual(std.values, { a: 50, b: 220 });
-  /* 29 + 8 de sur-mesure + (250 − 220) × 0,05 = 38,50 € */
-  assert.equal(sm.unitCents, 3850);
+  /* Barème : 106,6 cm³ d'ASA (114 g) et 3 h 34 → coût 11,77 € → (11,77 × 2,5 + 0,25) / 0,985 → 31 € (plancher 29, plafond 58) */
+  assert.equal(sm.unitCents, 3100);
 });
 
 test("panier refusé : cotes hors bornes, hors pas, inconnues, produit/coloris/quantité invalides", () => {
@@ -74,7 +74,7 @@ test("panier refusé : cotes hors bornes, hors pas, inconnues, produit/coloris/q
 test("session Stripe : lignes, cotes en métadonnées, livraison, promo, retours", () => {
   const lignes = lirePanier({ items: [tablette] });
   const p = decode(encoder(parametresSession(lignes, { base: SITE + "/", retour: SITE + "/produits/tablette-rambarde/", ref: "EV-1", catalogue: "abc", environnement: "test" })));
-  assert.equal(p["line_items[0][price_data][unit_amount]"], "3850");
+  assert.equal(p["line_items[0][price_data][unit_amount]"], "3100");
   assert.equal(p["line_items[0][quantity]"], "2");
   assert.equal(p["line_items[0][price_data][product_data][metadata][cotes_mm]"], '{"a":45,"b":250}');
   assert.match(p["line_items[0][price_data][product_data][description]"], /A · .* : 45 mm · B · Largeur de la tablette : 250 mm · Matière : ASA · Coloris : Noir mat/);
@@ -95,7 +95,7 @@ test("POST /checkout : renvoie l'URL Stripe, ignore tout prix envoyé par le nav
   assert.equal(j.url, "https://checkout.stripe.com/c/pay/cs_test_abc");
   assert.match(j.ref, /^EV-\d{6}-[A-Z2-9]{4}$/);
   const p = decode(appels.at(-1).corps);
-  assert.equal(p["line_items[0][price_data][unit_amount]"], "3850");
+  assert.equal(p["line_items[0][price_data][unit_amount]"], "3100");
   assert.equal(p.cancel_url, SITE + "/?panier=annule", "retour vers un autre site refusé");
   assert.match(p["metadata[catalogue]"], /^[0-9a-f]{12}$/);
 });

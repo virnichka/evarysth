@@ -36,8 +36,7 @@ EVARYSTH.jeu = p => (EVARYSTH.matieres[p && p.impression && p.impression.matiere
 
 /* Petites fabriques pour garder le catalogue lisible */
 const sizes = (label, opts) => ({ label, options: opts.map(([l, hint, values]) => ({ label: l, hint, values })) });
-const param = (key, label, min, max, def, step = 1, pricePerUnit) =>
-  ({ key, label, min, max, step, def, ...(pricePerUnit ? { pricePerUnit } : {}) });
+const param = (key, label, min, max, def, step = 1) => ({ key, label, min, max, step, def });
 
 /* Fiche d'impression (champ impression, contrôlée par tools/lib/impression.mjs et les tests de tools/test/) :
    orientation = rotation propre (lignes, déterminant +1) du repère du modèle (Y vers le haut, comme l'aperçu)
@@ -66,7 +65,7 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "asa", orientation: POSE.aPlat, supports: false, parPlateau: 4,
       remarques: "Couché sur le flanc : le crochet garde ses fibres dans le sens de l'effort." },
-    custom: { surcharge: 4, params: [param("a", "Épaisseur de main courante", 15, 100, 42)] }
+    custom: { params: [param("a", "Épaisseur de main courante", 15, 100, 42)] }
   },
   {
     id: "tablette-rambarde", universe: "balcon", matiere: "asa", shape: "bracket", model: "tablette-rambarde", popular: true,
@@ -81,7 +80,7 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "asa", orientation: POSE.retourne, supports: false, parPlateau: 1,
       remarques: "Tablette contre le plateau, ouverture du U vers le haut." },
-    custom: { surcharge: 8, params: [param("a", "Épaisseur de la rambarde", 15, 100, 45), param("b", "Largeur de la tablette", 160, 250, 220, 10, 0.05)] }
+    custom: { params: [param("a", "Épaisseur de la rambarde", 15, 100, 45), param("b", "Largeur de la tablette", 160, 250, 220, 10)] }
   },
 
   /* ---------- 02 · Bureau & Tech ---------- */
@@ -98,7 +97,7 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "asa", orientation: POSE.aPlat, supports: false, parPlateau: 4,
       remarques: "Couché sur le flanc, profil à plat." },
-    custom: { surcharge: 4, params: [param("a", "Épaisseur du plateau", 12, 60, 28)] }
+    custom: { params: [param("a", "Épaisseur du plateau", 12, 60, 28)] }
   },
   {
     id: "passe-cable", universe: "bureau", matiere: "pla", shape: "ring", model: "passe-cable", popular: true,
@@ -113,7 +112,7 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "pla", orientation: POSE.retourne, supports: false, parPlateau: 5,
       remarques: "Deux pièces : la bague, collerette contre le plateau (l'épaulement intérieur de 1,5 mm passe sans support), et le couvercle, imprimé à part, à plat." },
-    custom: { surcharge: 3, params: [param("a", "Diamètre du trou", 30, 100, 60)] }
+    custom: { params: [param("a", "Diamètre du trou", 30, 100, 60)] }
   },
   {
     id: "crochet-appui-tete", universe: "bureau", matiere: "asa", shape: "hook", model: "crochet-appui-tete",
@@ -128,7 +127,7 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "asa", orientation: POSE.retourne, supports: true, parPlateau: 6,
       remarques: "Tête en bas, languette à œillet contre le plateau (comme le modèle d'origine) ; supports sous les crochets." },
-    custom: { surcharge: 3, params: [
+    custom: { params: [
       param("a", "Diamètre de la tige d'appui-tête", 10, 20, 14),
       param("b", "Épaisseur de la tablette", 6, 22, 15),
       param("c", "Distance tige – dos du siège", 25, 55, 35)
@@ -154,10 +153,10 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "petg", orientation: POSE.aPlat, supports: false, parPlateau: 4,
       remarques: "Couchée sur une face : le profil en L est à plat." },
-    custom: { surcharge: 3, params: [
-      param("a", "Longueur de la 1re branche", 50, 200, 100, 1, 0.02),
-      param("b", "Longueur de la 2e branche", 50, 200, 100, 1, 0.02),
-      param("c", "Largeur de la pièce", 10, 40, 20, 1, 0.05)
+    custom: { params: [
+      param("a", "Longueur de la 1re branche", 50, 200, 100, 1),
+      param("b", "Longueur de la 2e branche", 50, 200, 100, 1),
+      param("c", "Largeur de la pièce", 10, 40, 20, 1)
     ] }
   },
   {
@@ -175,10 +174,10 @@ EVARYSTH.products = [
       remarques: "Quatre pièces dans l'orientation des fichiers d'origine : boîte ouverture en haut, couvercle retourné, loquets debout sur leur tranche.", pieces: [
       { nom: "boîte" }, { nom: "couvercle", orientation: POSE.retourne },
       { nom: "loquet", orientation: [[-1, 0, 0], [0, 1, 0], [0, 0, -1]] }, { nom: "loquet", orientation: [[-1, 0, 0], [0, 1, 0], [0, 0, -1]] }] },
-    custom: { surcharge: 6, params: [
-      param("a", "Longueur intérieure", 110, 245, 150, 5, 0.06),
-      param("b", "Largeur intérieure", 60, 230, 100, 5, 0.08),
-      param("c", "Hauteur intérieure", 35, 150, 50, 5, 0.1)
+    custom: { params: [
+      param("a", "Longueur intérieure", 110, 245, 150, 5),
+      param("b", "Largeur intérieure", 60, 230, 100, 5),
+      param("c", "Hauteur intérieure", 35, 150, 50, 5)
     ] },
     photos: [
       { src: "assets/photos/boite-rugged/1.webp", alt: "Boîte robuste ouverte, couvercle garni de mousse, outils et multimètre rangés à l'intérieur" },
@@ -199,9 +198,9 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "pacf", orientation: POSE.debout, supports: false, parPlateau: 2,
       remarques: "Debout sur son socle : le treillis gyroïde se soutient seul." },
-    custom: { surcharge: 6, params: [
-      param("a", "Hauteur totale du support", 200, 255, 250, 5, 0.05),
-      param("b", "Largeur de l'arceau du casque", 80, 160, 120, 5, 0.06)
+    custom: { params: [
+      param("a", "Hauteur totale du support", 200, 255, 250, 5),
+      param("b", "Largeur de l'arceau du casque", 80, 160, 120, 5)
     ] },
     photos: [
       { src: "assets/photos/support-casque-gyroide/1.webp", alt: "Support casque Gyroïde posé sur un bureau en bois, un casque circum-auriculaire suspendu à son appui" },
@@ -224,7 +223,7 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "pacf", orientation: POSE.debout, supports: false, plateaux: 3,
       remarques: "Chaque module debout sur son fond." },
-    custom: { surcharge: 10, params: [param("a", "Largeur intérieure du tiroir", 120, 560, 320, 5, 0.03), param("b", "Profondeur intérieure du tiroir", 150, 560, 420, 5, 0.02)] }
+    custom: { params: [param("a", "Largeur intérieure du tiroir", 120, 560, 320, 5), param("b", "Profondeur intérieure du tiroir", 150, 560, 420, 5)] }
   },
   {
     id: "vide-poche-cles", universe: "meubles", matiere: "pla", shape: "hook", model: "vide-poche-cles", popular: true,
@@ -239,10 +238,10 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "pla", orientation: POSE.surLeCote, supports: false, parPlateau: 6,
       remarques: "Sur le côté : dosseret, tablette et crochets ont leur profil à plat." },
-    custom: { surcharge: 5, params: [
-      param("a", "Largeur", 60, 180, 75, 5, 0.06),
-      param("b", "Profondeur du bac", 55, 120, 75, 5, 0.04),
-      param("c", "Hauteur totale", 100, 180, 120, 5, 0.03)
+    custom: { params: [
+      param("a", "Largeur", 60, 180, 75, 5),
+      param("b", "Profondeur du bac", 55, 120, 75, 5),
+      param("c", "Hauteur totale", 100, 180, 120, 5)
     ] },
     photos: [
       { src: "assets/photos/vide-poche-cles/1.webp", alt: "Le vide-poche sur un meuble d'entrée, clés et télécommande de voiture aux crochets, pièces et écouteurs dans le bac" },
@@ -265,10 +264,10 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "pacf", orientation: POSE.debout, supports: false, parPlateau: 4,
       remarques: "Debout sur son fond, fente et pot ouverts vers le haut." },
-    custom: { surcharge: 4, params: [
-      param("a", "Diamètre de vos disques de coton", 45, 75, 58, 1, 0.1),
-      param("b", "Hauteur du distributeur", 100, 200, 150, 5, 0.05),
-      param("c", "Hauteur du pot à cotons-tiges", 35, 70, 50, 5, 0.05)
+    custom: { params: [
+      param("a", "Diamètre de vos disques de coton", 45, 75, 58, 1),
+      param("b", "Hauteur du distributeur", 100, 200, 150, 5),
+      param("c", "Hauteur du pot à cotons-tiges", 35, 70, 50, 5)
     ] },
     photos: [
       { src: "assets/photos/distributeur-cotons/1.webp", alt: "Distributeur posé au bord d'un lavabo, pile de disques visible par la fente et cotons-tiges dans le pot" },
@@ -291,7 +290,7 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "petg", orientation: POSE.aPlat, supports: false, parPlateau: 15,
       remarques: "Couché, voile contre le plateau." },
-    custom: { surcharge: 3, params: [param("a", "Diamètre de la tringle", 15, 40, 25)] },
+    custom: { params: [param("a", "Diamètre de la tringle", 15, 40, 25)] },
     /* Photos commerciales (facultatif) : 1re = vignette du catalogue. note = taille photographiée */
     photos: [
       { src: "assets/photos/cintre-sac/1.webp", alt: "Deux sacs à dos suspendus à la tringle d'une penderie par les cintres" },
@@ -312,9 +311,9 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "asa", orientation: POSE.debout, supports: true, parPlateau: 9,
       remarques: "Debout sur son fond ajouré ; supports sous les crochets et les ergots SKADIS." },
-    custom: { surcharge: 3, params: [
+    custom: { params: [
       param("a", "Diamètre de la bombe", 40, 80, 54),
-      param("b", "Hauteur du support", 60, 110, 60, 5, 0.05)
+      param("b", "Hauteur du support", 60, 110, 60, 5)
     ] },
     photos: [
       { src: "assets/photos/support-aerosol-skadis/1.webp", alt: "Bombe aérosol rangée dans le support, accroché à un panneau perforé d'atelier", pos: "50% 60%" },
@@ -338,8 +337,8 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "asa", orientation: POSE.debout, supports: true, parPlateau: 6,
       remarques: "Debout sur son piédouche ; supports sous les épaules." },
-    custom: { surcharge: 5, params: [
-      param("a", "Hauteur du buste", 80, 220, 150, 5, 0.2)
+    custom: { params: [
+      param("a", "Hauteur du buste", 80, 220, 150, 5)
     ] },
     photos: [
       { src: "assets/photos/chat-lord/1.webp", alt: "Buste de chat couronné de lauriers posé sur un bureau en bois, près d'une fenêtre", pos: "40% 50%" },
@@ -362,8 +361,8 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "pa12", orientation: POSE.debout, supports: true, parPlateau: 2,
       remarques: "Debout sur ses pattes ; supports sous les bras et la queue." },
-    custom: { surcharge: 5, params: [
-      param("a", "Hauteur de la figurine", 60, 200, 120, 5, 0.15)
+    custom: { params: [
+      param("a", "Hauteur de la figurine", 60, 200, 120, 5)
     ] },
     photos: [
       { src: "assets/photos/carapuce/1.webp", alt: "Carapuce de face, doigt levé, carapace sur le dos et queue en spirale" },
@@ -385,8 +384,8 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "asa", orientation: POSE.debout, supports: true, parPlateau: 3,
       remarques: "Sur ses roues ; supports sous la caisse." },
-    custom: { surcharge: 5, params: [
-      param("a", "Longueur de la voiture", 100, 240, 140, 5, 0.15)
+    custom: { params: [
+      param("a", "Longueur de la voiture", 100, 240, 140, 5)
     ] },
     photos: [
       { src: "assets/photos/voiture-voronoi/1.webp", alt: "La voiture ajourée vue de trois quarts avant, aileron arrière sur ses mâts" },
@@ -401,17 +400,16 @@ EVARYSTH.products = [
 EVARYSTH.getProduct = id => EVARYSTH.products.find(p => p.id === id);
 EVARYSTH.getUniverse = id => EVARYSTH.universes.find(u => u.id === id);
 
-/* Prix d'une configuration */
+/* Prix d'une configuration : standard = prix fixé à la main ; sur-mesure = prix calculé (EVARYSTH.prixCalcule, barème
+   assets/js/bareme.js chargé après ce fichier). Même code sur le site (curseur) et dans le Worker (prix payé). */
 EVARYSTH.priceFor = (p, mode, values) => {
   if (mode !== "custom") return p.price;
-  let total = p.price + p.custom.surcharge;
-  p.custom.params.forEach(prm => {
-    if (prm.pricePerUnit) total += Math.max(0, values[prm.key] - prm.def) * prm.pricePerUnit;
-  });
-  return Math.round(total * 100) / 100;
+  const r = EVARYSTH.prixCalcule(p, values);
+  if (!r) throw new Error(`Prix sur-mesure indisponible pour ${p.id} (barème absent)`);
+  return r.prix;
 };
 
-/* Prix sur-mesure calculé (Fabrication · phase 5a) : PAS ENCORE BRANCHÉ sur priceFor (phase 5b, après feu vert).
+/* Prix sur-mesure calculé (Fabrication · phase 5, docs/chaine-fabrication.md § « Prix sur-mesure »), lu par priceFor.
    Tarifs de départ validés par le propriétaire le 9 nov. 2026, modifiables ici sans retrancher.
    cout = masse_kg × eurKg(matière) + temps_h × machineEurH + forfait ;
    formule = arrondi à l'euro supérieur de (cout × coefficient + stripeFixe) / (1 − stripePct) ;

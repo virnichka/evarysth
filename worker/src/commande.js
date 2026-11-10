@@ -54,7 +54,8 @@ function lireLigne(it, n) {
     coloris = colors.find(c => c.id === it.color);
     if (!coloris) throw new ErreurPanier(`Ligne ${n} : coloris inconnu.`);
   }
-  const prix = EVARYSTH.priceFor(p, it.mode, values);
+  let prix;
+  try { prix = EVARYSTH.priceFor(p, it.mode, values); } catch { throw new ErreurPanier(`Ligne ${n} : prix sur-mesure indisponible pour le moment.`); }
   return { p, mode: it.mode, taille, values, coloris, qty, unitCents: Math.round(prix * 100) };
 }
 
