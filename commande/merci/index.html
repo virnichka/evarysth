@@ -33,7 +33,8 @@
     (function () {
       const CHECKOUT_URL = "https://evarysth-checkout.virnichka.workers.dev";
       const id = new URLSearchParams(location.search).get("session_id") || "";
-      const fmt = n => Number(n).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+      /* Même format que EVARYSTH.fmt (assets/js/data.js) : pas de décimales pour un prix entier */
+      const fmt = x => { const n = Number(x), e = Math.abs(n - Math.round(n)) < 0.005; return (e ? Math.round(n) : n).toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: e ? 0 : 2, maximumFractionDigits: e ? 0 : 2 }); };
       const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
       const texte = document.getElementById("merci-texte"), liste = document.getElementById("merci-lignes");
       if (!id) { texte.textContent = "Aucune commande à afficher."; return; }

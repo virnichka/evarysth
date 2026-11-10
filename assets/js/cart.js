@@ -93,11 +93,11 @@
             <textarea id="gift-message" rows="2" maxlength="${GIFT_MAX}" placeholder="Joyeux anniversaire !"></textarea>
             <small class="muted mono" id="gift-count">0 / ${GIFT_MAX}</small>
           </div>
-          <div class="row"><span>Sous-total</span><span id="cart-sub">0 €</span></div>
-          <div class="row" id="cart-disc-row" hidden><span>Remise <span class="mono" id="cart-disc-code"></span></span><span id="cart-disc">0 €</span></div>
+          <div class="row"><span>Sous-total</span><span id="cart-sub">${EVARYSTH.fmt(0)}</span></div>
+          <div class="row" id="cart-disc-row" hidden><span>Remise <span class="mono" id="cart-disc-code"></span></span><span id="cart-disc">${EVARYSTH.fmt(0)}</span></div>
           <div class="row" id="cart-gift-row" hidden><span>Emballage cadeau</span><span>${EVARYSTH.fmt(GIFT)}</span></div>
           <div class="row muted"><span>Livraison</span><span id="cart-shipcost">—</span></div>
-          <div class="row total"><span>Total</span><span id="cart-total">0 €</span></div>
+          <div class="row total"><span>Total</span><span id="cart-total">${EVARYSTH.fmt(0)}</span></div>
           <p class="cart-legal" id="cart-legal">En commandant, vous acceptez nos <a href="cgv/" data-cart-close>conditions générales de vente</a>.<span id="cart-custom-note" hidden> <b>Sur-mesure :</b> ces pièces sont fabriquées à vos cotes ; elles ne sont ni reprises ni échangées (hors défaut). Vérifiez vos mesures.</span></p>
           <p class="promo__msg is-err" id="checkout-msg" role="alert" hidden></p>
           <button class="btn btn--primary btn--block" id="cart-checkout">Commander</button>
@@ -114,6 +114,7 @@
       if (r) remove(r.dataset.remove);
     });
     document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+    $("#cart-list").addEventListener("error", e => { if (e.target.tagName === "IMG") e.target.remove(); }, true);
     $("#promo-form").addEventListener("submit", e => {
       e.preventDefault();
       const code = $("#promo-input").value.trim().toUpperCase();
@@ -176,6 +177,16 @@
   }
   function remove(key) { items = items.filter(i => i.key !== key); save(items); render(); }
 
+  /* Vignette d'une ligne du panier : 1re photo du produit, sinon rendu 3D du catalogue ; l'icône reste dessous
+     et réapparaît si l'image manque (écouteur « error » sur #cart-list) */
+  function vignette(id) {
+    const p = EVARYSTH.getProduct(id);
+    if (!p) return "";
+    const ph = p.photos && p.photos[0];
+    const src = ph ? ph.src : p.model ? `assets/vignettes/${p.id}-1.webp` : "";
+    return src ? `<img class="${ph ? "" : "is-rendu"}" src="${esc(src)}" alt="" loading="lazy" decoding="async"${ph && ph.pos ? ` style="object-position:${esc(ph.pos)}"` : ""}>` : "";
+  }
+
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   function renderGiftCount() { $("#gift-count").textContent = `${gift.message.length} / ${GIFT_MAX}`; }
@@ -212,7 +223,7 @@
     $("#cart-checkout").disabled = !items.length;
     $("#cart-list").innerHTML = items.length ? items.map(i => `
       <li class="line">
-        <div class="line__thumb">${EVARYSTH.shapeSVG(i.shape)}</div>
+        <div class="line__thumb">${EVARYSTH.shapeSVG(i.shape)}${vignette(i.id)}</div>
         <div class="line__body">
           <div class="line__top"><a href="produits/${encodeURIComponent(i.id)}/" data-cart-close>${esc(i.name)}</a><span>${fmt(i.unitPrice * i.qty)}</span></div>
           <span class="tag ${i.mode === "custom" ? "tag--accent" : ""}">${i.mode === "custom" ? "Sur-mesure" : "Standard"}</span>
