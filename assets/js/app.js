@@ -320,7 +320,7 @@ ${colors.length ? `
 
           <div class="segmented" role="group" aria-label="Type de commande">
             <button type="button" data-mode="standard">Standard <small>3 tailles prêtes</small></button>
-            <button type="button" data-mode="custom">Sur-mesure <small>+${fmt(p.custom.surcharge)} · à vos cotes</small></button>
+            <button type="button" data-mode="custom">Sur-mesure <small>À vos cotes, prix calculé</small></button>
           </div>
 
           <div class="pane" id="pane-standard">

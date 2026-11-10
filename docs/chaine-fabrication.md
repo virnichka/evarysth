@@ -8,10 +8,10 @@
 > fabricant avec 3 liens, fabricant « atelier » selon la matière, voyants GitHub et R2 ; voir § « Résultats Fabrication ·
 > phase 3 ». Vérifié par le propriétaire sur téléphone (EV-2026-0004) ; « Atelier Evarysth » passé à `Envoi` = `atelier`
 > (menu du Sheet complété) : reste à revoir l'atelier proposé pour un article PLA.
-> **Fabrication · phase 5a (9 novembre 2026)** : barème tranché des 16 produits (`assets/js/bareme.js`), tarifs dans
-> `data.js`, workflow `bareme.yml`, empreinte contrôlée par `geometrie` ; **aucun prix du site changé** ; voir § « Résultats
-> Fabrication · phase 5a ». Prochaine étape : **Fabrication · phase 5b** (prix branchés sur le site et le Worker), après
-> feu vert du propriétaire. La phase 5 passe avant la phase 4 (décision du 9 nov.).
+> **Fabrication · phase 5 close (10 novembre 2026)** : 5a = barème tranché des 16 produits (`assets/js/bareme.js`),
+> tarifs dans `data.js`, workflow `bareme.yml`, empreinte contrôlée par `geometrie` ; 5b = **prix sur-mesure calculés**
+> sur le site et dans le Worker (même code), alerte « prix plafonné » dans /admin ; voir § « Résultats Fabrication ·
+> phases 5a et 5b ». La phase 5 est passée avant la phase 4 (décision du 9 nov.).
 > Fabrication · phase 1b à l'achat de la machine ; phase 4 (agent d'atelier) ensuite.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
@@ -486,7 +486,8 @@ dans `data.js` sans les brancher sur `priceFor`) ; **5b** = branchement des prix
 - Acceptation : prix du curseur = prix payé (test Worker sur 100 cotes tirées au hasard) ; écart interpolé / tranché
   < 10 % en masse et en temps sur des points hors grille ; plancher et plafond testés ; avertissement CI des prix
   standards sous le coût ; barème périmé → `geometrie` rouge.
-- **Toi** : ~~confirmer les valeurs du tarif et les plafonds par produit~~ (fait le 9 nov. 2026) ; feu vert de la 5b.
+- **Toi** : ~~confirmer les valeurs du tarif et les plafonds par produit~~ (fait le 9 nov. 2026) ; ~~feu vert de la 5b~~
+  (10 nov. 2026, sans supplément fixe pour le sur-mesure : le plancher est le prix de la taille standard la plus proche).
 
 #### Résultats Fabrication · phase 5a (9-10 novembre 2026, aucun prix du site changé)
 - **Fichiers** : `tools/lib/bareme.mjs` (grille, empreinte, sans dépendance), `tools/generer-bareme.mjs` (tranchage,
@@ -517,6 +518,24 @@ dans `data.js` sans les brancher sur `priceFor`) ; **5b** = branchement des prix
   `carapuce` L. Tableau complet : `node tools/generer-bareme.mjs --verifier --tableau`.
 - **Mise à jour du barème** : `bareme.yml` ne se lance qu'une fois présent sur `main` (règle GitHub de
   `workflow_dispatch`) ; sinon `node tools/generer-bareme.mjs <id>` avec Bambu Studio installé.
+
+#### Résultats Fabrication · phase 5b (10 novembre 2026)
+- **Prix** : `EVARYSTH.priceFor` (standard = prix fixé, inchangé ; sur-mesure = `prixCalcule(...).prix`) ; `surcharge` et
+  `pricePerUnit` retirés de `data.js`. **Pas de supplément fixe** (décision du 10 nov.) : un petit sur-mesure peut coûter
+  le prix de la taille standard la plus proche. `index.html` (et les pages générées) chargent `bareme.js` après `data.js`.
+  Bouton « Sur-mesure » : « À vos cotes, prix calculé » (au lieu de « +N € »). Les « Dès N € » des pages restent justes.
+- **Worker** : `catalogue.js` importe `bareme.js` ; `versionCatalogue()` couvre produits, tarifs, matières et barème ;
+  barème absent pour un produit → panier refusé (« prix sur-mesure indisponible »), jamais de prix inventé ;
+  `worker.yml` redéploie aussi sur changement de `bareme.js`.
+- **/admin** : alerte « Prix plafonné » au tableau de bord pour chaque article sur-mesure encore à valider dont la
+  formule dépasse le plafond (recalculée depuis le texte d'article du Sheet avec le barème courant, sans nouvelle
+  colonne) ; onglet Catalogue : « Sur-mesure (prix calculé, de N € à 2N €) ».
+- **Tests** : `worker/test/prix.test.mjs` (100 configurations tirées au hasard : prix du site chargé comme dans le
+  navigateur = prix payé ; plancher, plafond, alerte, barème absent) ; tests existants mis à jour (tablette 45 × 250 mm :
+  38,50 € → 31 €). Vérifié dans Chromium : curseurs au max = prix attendu (tablette 31 €, organiseur 56 €, passe-câble 15 €).
+- **Écarts de prix sur-mesure** (min / défaut / max, avant → après) : petites pièces un peu moins chères (crochet de
+  balcon 16 → 12 €, support casque 20 → 16 €, tablette 37 → 29 €) ; pièces longues à imprimer plus chères, au plafond
+  (gyroïde 35 → 58 €, organiseur 38 → 56 €, distributeur 22 → 36 €).
 
 ## Points ouverts (propriétaire)
 - Catalogue ASA / PA-CF / PA12 : garder (fabricant externe) ou passer des fiches en PETG (promesse « tient dehors »).

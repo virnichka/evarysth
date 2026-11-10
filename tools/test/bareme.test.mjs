@@ -61,10 +61,11 @@ test("tarifs : chaque matière a densité et €/kg ; formule, plancher et plafo
   } finally { E.bareme = sauve; }
 });
 
-test("prix actuels inchangés : priceFor ne lit pas encore le barème (phase 5b)", () => {
+test("priceFor : standard = prix fixé, sur-mesure = prix calculé par le barème (phase 5b)", () => {
   const p = E.getProduct("passe-cable");
   assert.equal(E.priceFor(p, "standard"), p.price);
-  assert.equal(E.priceFor(p, "custom", { a: 100 }), Math.round((p.price + p.custom.surcharge) * 100) / 100);
+  for (const a of [30, 60, 100]) assert.equal(E.priceFor(p, "custom", { a }), E.prixCalcule(p, { a }).prix);
+  assert.equal(E.priceFor(p, "custom", { a: 100 }), 15);
 });
 
 test("empreinte : change avec la fiche d'impression, pas avec le prix ni les textes", () => {

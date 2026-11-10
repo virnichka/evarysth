@@ -15,6 +15,7 @@ dépendances : `cd tools && npm ci`) ; refonte close (historique et décisions :
 **Barème des prix** (`assets/js/bareme.js`, généré, jamais à la main) : périmé dès qu'une forme, une fiche d'impression,
 des bornes de cotes ou un profil change (`geometrie` rouge) → workflow « Barème des prix sur-mesure » (`bareme.yml`) sur la
 branche, ou `node tools/generer-bareme.mjs <id>` si Bambu Studio est installé ; tarifs : `EVARYSTH.tarif` de `data.js`.
+Il fixe le **prix sur-mesure** (site et Worker, `priceFor`) : nouveau produit = son barème avant la PR.
 
 Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js`,
 tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Circuit des commandes (validation sur la page /admin) : README « Paiement et commandes ».
