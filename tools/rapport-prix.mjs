@@ -8,16 +8,16 @@
      node tools/rapport-prix.mjs                   tableau Markdown
      node tools/rapport-prix.mjs --json            rapport complet (JSON)
      node tools/rapport-prix.mjs --verifier        compare à la référence tools/references-prix.json (code 1 si écart)
+                                                   et affiche les invariants non tenus (avertissements)
      node tools/rapport-prix.mjs --mettre-a-jour   réécrit la référence (changement de prix VOULU seulement)
 
    Référence figée : un refactoring du calcul doit la laisser identique (test bloquant tools/test/prix.test.mjs). */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { RACINE, FICHIER, charger, avecBareme } from "./lib/bareme.mjs";
+import { RACINE, SCRIPTS_PRIX, charger, avecBareme } from "./lib/bareme.mjs";
 
 export const REFERENCE = path.join(RACINE, "tools/references-prix.json");
-export const SCRIPTS = ["assets/js/data.js", FICHIER, "assets/js/prix.js"];
 export const PAS_MAX = 60;
 export const MARCHE = { euros: 4, part: 0.15 };
 const EXEMPLES = 3;
@@ -49,9 +49,9 @@ function produit(E, p) {
   const axes = prm.map(valeursAxe), dims = axes.map(a => a.length);
   const total = dims.reduce((a, b) => a * b, 1), prix = new Float64Array(total);
   const cotesDe = i => {
-    const c = {};
-    for (let d = cles.length - 1; d >= 0; d--) { c[cles[d]] = axes[d][i % dims[d]]; i = Math.floor(i / dims[d]); }
-    return c;
+    const v = [];
+    for (let d = cles.length - 1; d >= 0; d--) { v[d] = axes[d][i % dims[d]]; i = Math.floor(i / dims[d]); }
+    return Object.fromEntries(cles.map((k, d) => [k, v[d]]));
   };
   let min = { prix: Infinity };
   for (let i = 0; i < total; i++) {
@@ -84,7 +84,7 @@ function produit(E, p) {
   };
 }
 
-export function rapport(E = charger(SCRIPTS)) {
+export function rapport(E = charger(SCRIPTS_PRIX)) {
   return { pasMax: PAS_MAX, marche: MARCHE, produits: E.products.filter(avecBareme).map(p => produit(E, p)) };
 }
 
@@ -101,6 +101,23 @@ export function markdown(r) {
   return l.join("\n");
 }
 
+/* Invariants souhaités (avertissements seulement, jamais bloquants) : [{ id, regle, message }] */
+export function invariants(r, E = charger(SCRIPTS_PRIX)) {
+  const sp = E.tarif.supplement, eurs = ([a, b]) => `${a} → ${b} €`, out = [];
+  const cotes = c => Object.entries(c).map(([k, v]) => `${k} ${v}`).join(", ");
+  for (const p of r.produits) {
+    const b = p.balayage, w = (regle, message) => out.push({ id: p.id, regle, message });
+    if (b.baisses.nombre) w("baisse", `${b.baisses.nombre} cran(s) où le prix baisse quand une cote augmente (ex. ${b.baisses.exemples[0].axe} → ${b.baisses.exemples[0].a} depuis ${cotes(b.baisses.exemples[0].de)} : ${eurs(b.baisses.exemples[0].prix)})`);
+    if (b.marches.nombre) w("marche", `${b.marches.nombre} marche(s) ≥ ${r.marche.euros} € et ≥ ${r.marche.part * 100} % en un cran (ex. ${b.marches.exemples[0].axe} → ${b.marches.exemples[0].a} depuis ${cotes(b.marches.exemples[0].de)} : ${eurs(b.marches.exemples[0].prix)})`);
+    if (b.sousDes) w("des", `minimum réel ${b.minReel} € sous le « Dès ${p.des} € » (sur-mesure ${cotes(b.minSurMesure.cotes)})`);
+    for (const t of p.tailles) {
+      if (t.ecart < sp.min || t.ecart > sp.max) w("ecart", `${t.taille} : sur-mesure aux mêmes cotes ${t.surMesure} € pour ${t.prix} € (écart ${t.ecart} € hors ${sp.min}–${sp.max} €)`);
+      if (t.prix < t.cout) w("cout", `${t.taille} : prix ${t.prix} € sous le coût ${t.cout} €`);
+    }
+  }
+  return out;
+}
+
 const texte = r => JSON.stringify(r, null, 1) + "\n";
 export const lireReference = () => JSON.parse(fs.readFileSync(REFERENCE, "utf8"));
 
@@ -109,6 +126,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (args.includes("--mettre-a-jour")) { fs.writeFileSync(REFERENCE, texte(r)); console.log(`${path.relative(RACINE, REFERENCE)} écrit (${r.produits.length} produits)`); }
   else if (args.includes("--verifier")) {
     const ok = texte(r) === texte(lireReference());
+    for (const a of invariants(r)) console.log(process.env.CI ? `::warning title=Prix · ${a.regle}::${a.id} · ${a.message}` : `Avertissement : ${a.id} · ${a.message}`);
     console.log(ok ? "Rapport des prix identique à la référence." : "Rapport des prix DIFFÉRENT de la référence (tools/references-prix.json).");
     process.exit(ok ? 0 : 1);
   } else if (args.includes("--json")) process.stdout.write(texte(r));

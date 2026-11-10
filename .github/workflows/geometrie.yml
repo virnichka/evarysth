@@ -55,3 +55,6 @@ jobs:
       - name: Barème des prix sur-mesure à jour (empreintes, sans trancher)
         if: steps.tri.outputs.lancer == 'oui'
         run: node tools/generer-bareme.mjs --verifier
+      - name: Rapport des prix (identique à la référence ; invariants en avertissements)
+        if: steps.tri.outputs.lancer == 'oui'
+        run: node tools/rapport-prix.mjs --verifier

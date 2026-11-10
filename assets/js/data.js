@@ -29,8 +29,13 @@ EVARYSTH.matieres = {
   pacf: { label: "Nylon carbone (PA-CF)", court: "PA-CF", jeu: 0.25, densite: 1.12, eurKg: 70, echec: 0.15, perk: ["Très rigide", "Nylon + carbone"],
     desc: "Nylon chargé de fibres de carbone : très rigide et stable, avec un toucher mat légèrement minéral. Il supporte bien la chaleur et les chocs." }
 };
-/* densite (g/cm³) et eurKg (€/kg de filament) : prix sur-mesure calculé (docs/chaine-fabrication.md, § « Prix sur-mesure ») */
-EVARYSTH.matiere = p => EVARYSTH.matieres[p && p.matiere] || EVARYSTH.matieres.pa12;
+/* densite (g/cm³), eurKg (€/kg de filament), echec (pièces ratées) : prix sur-mesure (assets/js/prix.js, docs/prix.md) */
+/* Matière affichée du produit : erreur explicite si elle manque ou est inconnue (aucune matière par défaut) */
+EVARYSTH.matiere = p => {
+  const m = p && EVARYSTH.matieres[p.matiere];
+  if (!m) throw new Error(`Matière ${p && p.matiere ? `« ${p.matiere} » inconnue` : "absente"} pour ${p ? p.id : "un produit absent"}`);
+  return m;
+};
 /* Jeu d'ajustement (mm) de la matière imprimée : celle de la fiche d'impression, sinon celle du produit */
 EVARYSTH.jeu = p => (EVARYSTH.matieres[p && p.impression && p.impression.matiere] || EVARYSTH.matiere(p)).jeu;
 
@@ -411,76 +416,6 @@ EVARYSTH.products = [
 
 EVARYSTH.getProduct = id => EVARYSTH.products.find(p => p.id === id);
 EVARYSTH.getUniverse = id => EVARYSTH.universes.find(u => u.id === id);
-
-/* Taille standard dont les cotes sont exactement celles données (null sinon) */
-EVARYSTH.taillePour = (p, values) => ((p.variants && p.variants.options) || [])
-  .find(o => values && Object.keys(o.values).every(k => o.values[k] === values[k])) || null;
-
-/* Prix d'une configuration : standard = prix de la taille, fixé dans data.js ; sur-mesure = prix calculé
-   (EVARYSTH.prixCalcule, barème assets/js/bareme.js chargé après ce fichier). Même code sur le site et dans le Worker. */
-EVARYSTH.priceFor = (p, mode, values) => {
-  if (mode !== "custom") {
-    const o = EVARYSTH.taillePour(p, values);
-    return o && o.price != null ? o.price : p.price;
-  }
-  const r = EVARYSTH.prixCalcule(p, values);
-  if (!r) throw new Error(`Prix sur-mesure indisponible pour ${p.id} (barème absent)`);
-  return r.prix;
-};
-
-/* Prix calculé (Fabrication · phase 5, docs/chaine-fabrication.md § « Prix sur-mesure »). Tarifs modifiables ici sans
-   retrancher ; valeurs du 10 nov. 2026 (décisions dans le document) :
-   cout = (masse_kg × eurKg + temps_h × machineEurH) × (1 + echec de la matière) + forfait + emballage
-          (forfait : préparation, retrait des supports, contrôle ; echec : pièces ratées à refaire) ;
-   formule = arrondi à l'euro supérieur de (cout × coefficient + stripeFixe) / (1 − stripePct) ;
-   sur-mesure : base = max(formule, plancher), plancher = prix de la plus grande taille standard dont toutes les cotes
-   sont ≤ aux cotes demandées (0 si aucune : une pièce plus petite que S suit la formule) ; prix = base + supplément,
-   supplément = 10 % de la base arrondi à l'euro supérieur, entre 2 et 8 € (vérification des cotes, pièce ratée non
-   revendable, pas de retour possible). Audit des prix du 10 nov. 2026 (docs/chaine-fabrication.md). Pas de plafond : les bornes des cotes
-   limitent la taille. Standard : prix des tailles dans data.js, au moins la formule à leurs cotes (avertissement CI sinon). */
-EVARYSTH.tarif = { machineEurH: 1.5, forfait: 3, emballage: 0.5, coefficient: 2.5, stripePct: 0.015, stripeFixe: 0.25, supplement: { part: 0.1, min: 2, max: 8 } };
-
-/* Masse et temps estimés d'une configuration : interpolation multilinéaire dans le barème tranché (assets/js/bareme.js,
-   généré par tools/generer-bareme.mjs). null si le barème n'est pas chargé ou ne connaît pas le produit. */
-EVARYSTH.estimation = (p, values) => {
-  const b = EVARYSTH.bareme && EVARYSTH.bareme.produits[p.id];
-  if (!b) return null;
-  const cles = Object.keys(b.axes), pos = cles.map(k => {
-    const ax = b.axes[k], v = Math.min(ax[ax.length - 1], Math.max(ax[0], Number(values[k])));
-    let i = 0;
-    while (i < ax.length - 2 && v > ax[i + 1]) i++;
-    return { i, t: ax.length > 1 ? (v - ax[i]) / (ax[i + 1] - ax[i]) : 0, n: ax.length };
-  });
-  let cm3 = 0, s = 0;
-  for (let c = 0; c < 1 << cles.length; c++) {
-    let w = 1, idx = 0;
-    pos.forEach((q, d) => {
-      const haut = (c >> d) & 1;
-      w *= haut ? q.t : 1 - q.t;
-      idx = idx * q.n + Math.min(q.i + haut, q.n - 1);
-    });
-    if (w) { cm3 += w * b.points[idx][0]; s += w * b.points[idx][1]; }
-  }
-  const m = EVARYSTH.matieres[b.matiere];
-  return { cm3, masse_g: cm3 * m.densite, temps_min: s / 60 };
-};
-
-/* Coût, formule et prix d'une configuration (null si le barème ne connaît pas le produit) */
-EVARYSTH.prixCalcule = (p, values) => {
-  const e = EVARYSTH.estimation(p, values);
-  if (!e) return null;
-  const t = EVARYSTH.tarif, m = EVARYSTH.matieres[EVARYSTH.bareme.produits[p.id].matiere];
-  const cout = (e.masse_g / 1000 * m.eurKg + e.temps_min / 60 * t.machineEurH) * (1 + (m.echec || 0)) + t.forfait + t.emballage;
-  const formule = Math.ceil((cout * t.coefficient + t.stripeFixe) / (1 - t.stripePct) - 1e-9);
-  const tailles = (p.variants && p.variants.options) || [];
-  const dessous = tailles.filter(o => p.custom.params.every(q => o.values[q.key] <= values[q.key]))
-    .sort((x, y) => (x.price ?? p.price) - (y.price ?? p.price)).pop();
-  const plancher = dessous ? (dessous.price ?? p.price) : 0;
-  const base = Math.max(formule, plancher), sp = t.supplement;
-  const supplement = Math.min(sp.max, Math.max(sp.min, Math.ceil(base * sp.part - 1e-9)));
-  return { ...e, cout: Math.round(cout * 100) / 100, formule, plancher, taille: dessous ? dessous.label : null,
-    supplement, prix: base + supplement };
-};
 
 EVARYSTH.fmt = n => {
   const entier = Math.abs(n - Math.round(n)) < 0.005;

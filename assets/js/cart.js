@@ -1,15 +1,16 @@
 /* Evarysth — panier latéral (localStorage) */
 (function () {
   const KEY = "evarysth.cart.v1";
-  const SHIPPING = 4.9;
-  const GIFT = 3;                                   /* identique à CADEAU_CENTS dans worker/src/commande.js */
-  const GIFT_MAX = 200;
+  /* Livraison, emballage cadeau, codes de démonstration : EVARYSTH.frais (assets/js/prix.js), partagé avec le Worker */
+  const SHIPPING = EVARYSTH.frais.livraison;
+  const GIFT = EVARYSTH.frais.cadeau;
+  const GIFT_MAX = EVARYSTH.frais.messageCadeauMax;
   const $ = s => document.querySelector(s);
 
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
   const save = items => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch { /* stockage indisponible */ } };
   let items = load();
-  const PROMOS = { BIENVENUE10: 0.10 };           /* code de démonstration : -10 % */
+  const PROMOS = EVARYSTH.frais.promosDemo;
   let promo = (EVARYSTH.store && EVARYSTH.store.get("evarysth.promo", "")) || "";
   /* Emballage cadeau : { on, message } mémorisé dans le navigateur */
   const GIFT_KEY = "evarysth.cadeau";

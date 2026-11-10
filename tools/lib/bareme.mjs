@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 
 export const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const FICHIER = "assets/js/bareme.js";
+/* Le site tel qu'il calcule ses prix : catalogue, barème, puis calcul (même ordre que index.html et le Worker) */
+export const SCRIPTS_PRIX = ["assets/js/data.js", FICHIER, "assets/js/prix.js"];
 /* À incrémenter si la règle de grille ou le contenu d'un point change : tous les barèmes deviennent périmés. */
 export const VERSION_GRILLE = 1;
 /* Points par axe selon le nombre de paramètres (min, défaut, max, puis milieux des plus grands intervalles), et aucun

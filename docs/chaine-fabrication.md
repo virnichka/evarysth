@@ -9,10 +9,10 @@
 > phase 3 ». Vérifié par le propriétaire sur téléphone (EV-2026-0004) ; « Atelier Evarysth » passé à `Envoi` = `atelier`
 > (menu du Sheet complété) : reste à revoir l'atelier proposé pour un article PLA.
 > **Fabrication · phase 5 close (10 novembre 2026)** : 5a = barème tranché des 16 produits (`assets/js/bareme.js`),
-> tarifs dans `data.js`, workflow `bareme.yml`, empreinte contrôlée par `geometrie` ; 5b = **prix sur-mesure calculés**
-> sur le site et dans le Worker (même code), alerte « prix plafonné » dans /admin ; voir § « Résultats Fabrication ·
-> phases 5a et 5b ». La phase 5 est passée avant la phase 4 (décision du 9 nov.). **Prix rendus cohérents le 10 nov.**
-> (un prix par taille standard, supplément sur-mesure 4 €, sans plafond, 4 produits PA-CF → PETG) : § « Prix sur-mesure ».
+> workflow `bareme.yml`, empreinte contrôlée par `geometrie` ; 5b = **prix sur-mesure calculés** sur le site et dans le
+> Worker (même code, `assets/js/prix.js`) ; voir § « Résultats Fabrication · phases 5a et 5b ». La phase 5 est passée
+> avant la phase 4 (décision du 9 nov.). **Prix rendus cohérents le 10 nov.** (un prix par taille standard, supplément
+> sur-mesure de 10 % entre 2 et 8 €, sans plafond, 4 produits PA-CF → PETG) : règle en vigueur dans `docs/prix.md`.
 > Fabrication · phase 1b à l'achat de la machine ; phase 4 (agent d'atelier) ensuite.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
@@ -93,8 +93,11 @@ plateaux (pièces, positions, masse g, temps min, filament, **mapping AMS** : co
 contrôles, statut.
 
 ## Prix sur-mesure
-Règle en vigueur depuis le 10 nov. 2026 (revue externe « tailles standard », le propriétaire a délégué les choix) ;
-historique : plafond « 2 × standard » et prix standard unique du 9 au 10 nov., retirés.
+Règle en vigueur depuis le 10 nov. 2026 (revue externe « tailles standard », puis audit ; le propriétaire a délégué les
+choix), résumée telle qu'elle est codée dans `docs/prix.md` ; calcul dans `assets/js/prix.js`, rapport et référence
+figée : `node tools/rapport-prix.mjs`. Historique : plafond « 2 × standard », prix standard unique (9-10 nov.) et
+supplément fixe de 4 € (10 nov., avant l'audit), tous retirés : les mentions dans les résultats de phase ci-dessous sont
+datées.
 - `cout = (masse_kg × €/kg(matière) + temps_h × €/h machine) × (1 + échec(matière)) + forfait + emballage`
   (échec : pièces ratées à refaire, 5 % PLA/PETG, 15 % ASA/PA12/PA-CF ; forfait 3 € = préparation, retrait des supports,
   contrôle, soit environ 10 min de travail ; emballage 0,50 €). Pas de temps humain en plus : il doublerait le prix des
@@ -118,7 +121,8 @@ historique : plafond « 2 × standard » et prix standard unique du 9 au 10 nov.
   passent en **PETG**, imprimé à l'atelier à coût connu ; une option PA-CF payante pourra revenir plus tard. PA-CF, PA12 et
   ASA partent chez un fabricant externe : leur prix réel sera ajusté par appels d'offres (propriétaire).
 - Tarifs (validés le 9 nov. 2026, modifiables) : PLA 25 €/kg, PETG 25, ASA 30, PA12 60, PA-CF 70 ; machine 1,5 €/h ;
-  coefficient 2,5. Rangés dans `data.js` (`EVARYSTH.tarif` ; `densite`, `eurKg`, `echec` par matière). Densités (g/cm³) :
+  coefficient 2,5. `EVARYSTH.tarif` dans `assets/js/prix.js` ; `densite`, `eurKg`, `echec` par matière dans `data.js`
+  (matière de la fiche d'impression du produit, erreur explicite si elle manque). Densités (g/cm³) :
   PLA 1,24 et PETG 1,27 (profils de l'atelier), ASA 1,07, PA12 1,01, PA-CF 1,12.
 - Barème (`assets/js/bareme.js`, généré, jamais édité à la main) : par produit, grille de cotes (au moins min / défaut /
   max par paramètre) → volume de filament et temps tranchés ; interpolation multilinéaire ; empreinte des entrées (modèle,
@@ -495,16 +499,16 @@ dans `data.js` sans les brancher sur `priceFor`) ; **5b** = branchement des prix
 - `tools/generer-bareme.mjs` (dans l'image) : grille par produit, tranchage, `assets/js/bareme.js` ; workflow
   `bareme.yml` (`workflow_dispatch` avec branche, matrice par produit, commit sur la branche) ; le job `geometrie` vérifie
   que l'empreinte du barème correspond aux entrées (rapide, sans trancher).
-- `data.js` : `EVARYSTH.tarif`, `densite` et `eurKg` par matière, `custom.plafond` ; `priceFor` lit le barème (surcharge
+- `data.js` : `EVARYSTH.tarif`, `densite` et `eurKg` par matière, `custom.plafond` (retiré depuis ; calcul déplacé dans `prix.js`) ; `priceFor` lit le barème (surcharge
   et `pricePerUnit` retirés) ; `index.html` charge `bareme.js` ; Worker l'importe (`catalogue.js`) ; `worker.yml`
   redéploie sur changement de `bareme.js` ; pages régénérées.
 - Fichiers : `tools/generer-bareme.mjs`, `assets/js/{bareme,data}.js`, `index.html`, `worker/src/{catalogue,commande,admin}.js`,
   `.github/workflows/{bareme,worker,geometrie}.yml`, tests.
 - Acceptation : prix du curseur = prix payé (test Worker sur 100 cotes tirées au hasard) ; écart interpolé / tranché
-  < 10 % en masse et en temps sur des points hors grille ; plancher et plafond testés ; avertissement CI des prix
+  < 10 % en masse et en temps sur des points hors grille ; plancher et plafond (retiré depuis) testés ; avertissement CI des prix
   standards sous le coût ; barème périmé → `geometrie` rouge.
 - **Toi** : ~~confirmer les valeurs du tarif et les plafonds par produit~~ (fait le 9 nov. 2026) ; ~~feu vert de la 5b~~
-  (10 nov. 2026, sans supplément fixe pour le sur-mesure : le plancher est le prix de la taille standard la plus proche).
+  (10 nov. 2026). Plafonds et plancher « taille la plus proche » remplacés depuis : § « Prix sur-mesure ».
 
 #### Résultats Fabrication · phase 5a (9-10 novembre 2026, aucun prix du site changé)
 - **Fichiers** : `tools/lib/bareme.mjs` (grille, empreinte, sans dépendance), `tools/generer-bareme.mjs` (tranchage,
@@ -512,7 +516,7 @@ dans `data.js` sans les brancher sur `priceFor`) ; **5b** = branchement des prix
   (plan → matrice par produit dans l'image → commit sur la branche + relance de `geometrie` ; refuse `main`),
   étape « Barème à jour » dans `geometrie.yml` (déclencheur étendu à `fabrication/`), `tools/test/bareme.test.mjs`,
   `trancher.mjs --profil-filament=pla|petg`. `data.js` : `EVARYSTH.tarif`, `densite` / `eurKg` par matière,
-  `EVARYSTH.estimation` et `EVARYSTH.prixCalcule` (plancher, plafond, « plafonné ») **non branchés** sur `priceFor`.
+  `EVARYSTH.estimation` et `EVARYSTH.prixCalcule` (plancher, plafond et « plafonné », retirés depuis) **non branchés** sur `priceFor`.
 - **Grille** : min, défaut, max, puis milieux (5 points par axe pour 1 paramètre, 4 pour 2, 3 pour 3) et aucun pas
   > 100 mm ; 285 points tranchés pour 16 produits. Point stocké : cm³ de filament (masse = cm³ × densité de `data.js`)
   et temps estimé (s), tous plateaux d'un exemplaire. ASA, PA12, PA-CF : profil PETG (estimation).
@@ -528,7 +532,7 @@ dans `data.js` sans les brancher sur `priceFor`) ; **5b** = branchement des prix
   `vide-poche-cles`, `support-casque-gyroide`, `chat-lord`, `carapuce` : masse et temps gardés pour le barème
   (avertissement). **À corriger** : `vide-poche-cles` est en PLA, donc tranché à l'atelier ; `fabriquer.mjs` refuserait
   un article payé de ce produit (code 2). Les 3 autres ne sont pas tranchés en fabrication (matière hors atelier).
-- **Constats de prix** (barème actuel, formule non appliquée) : formule au-delà du plafond aux cotes max pour
+- **Constats de prix** (barème actuel, formule non appliquée) : formule au-delà du plafond de l'époque aux cotes max pour
   `boite-rugged`, `organiseur-tiroir`, `distributeur-cotons`, `support-casque-gyroide`, `chat-lord`, `carapuce`,
   `voiture-voronoi` (et dès les cotes par défaut pour l'organiseur et le gyroïde, dès les cotes min pour le gyroïde) ;
   prix standard sous le coût pour `organiseur-tiroir` (3 tailles), `support-casque-gyroide` (3), `boite-rugged` L,
@@ -538,28 +542,27 @@ dans `data.js` sans les brancher sur `priceFor`) ; **5b** = branchement des prix
 
 #### Résultats Fabrication · phase 5b (10 novembre 2026)
 - **Prix** : `EVARYSTH.priceFor` (standard = prix fixé, inchangé ; sur-mesure = `prixCalcule(...).prix`) ; `surcharge` et
-  `pricePerUnit` retirés de `data.js`. **Pas de supplément fixe** (décision du 10 nov.) : un petit sur-mesure peut coûter
-  le prix de la taille standard la plus proche. `index.html` (et les pages générées) chargent `bareme.js` après `data.js`.
+  `pricePerUnit` retirés de `data.js`. Supplément et plancher : remplacés le jour même (§ « Prix sur-mesure »). `index.html` (et les pages générées) chargent `bareme.js` après `data.js`.
   Bouton « Sur-mesure » : « À vos cotes, prix calculé » (au lieu de « +N € »). Les « Dès N € » des pages restent justes.
 - **Worker** : `catalogue.js` importe `bareme.js` ; `versionCatalogue()` couvre produits, tarifs, matières et barème ;
   barème absent pour un produit → panier refusé (« prix sur-mesure indisponible »), jamais de prix inventé ;
   `worker.yml` redéploie aussi sur changement de `bareme.js`.
-- **/admin** : alerte « Prix plafonné » au tableau de bord pour chaque article sur-mesure encore à valider dont la
-  formule dépasse le plafond (recalculée depuis le texte d'article du Sheet avec le barème courant, sans nouvelle
-  colonne) ; onglet Catalogue : « Sur-mesure (prix calculé, de N € à 2N €) ».
+- **/admin** : alerte « Prix plafonné » et mention « de N € à 2N € » de l'onglet Catalogue, retirées avec le plafond
+  (l'onglet affiche « prix calculé + 10 % »).
 - **Tests** : `worker/test/prix.test.mjs` (100 configurations tirées au hasard : prix du site chargé comme dans le
-  navigateur = prix payé ; plancher, plafond, alerte, barème absent) ; tests existants mis à jour (tablette 45 × 250 mm :
+  navigateur = prix payé ; plancher, supplément, barème absent) ; tests existants mis à jour (tablette 45 × 250 mm :
   38,50 € → 31 €). Vérifié dans Chromium : curseurs au max = prix attendu (tablette 31 €, organiseur 56 €, passe-câble 15 €).
 - **Écarts de prix sur-mesure** (min / défaut / max, avant → après) : petites pièces un peu moins chères (crochet de
-  balcon 16 → 12 €, support casque 20 → 16 €, tablette 37 → 29 €) ; pièces longues à imprimer plus chères, au plafond
-  (gyroïde 35 → 58 €, organiseur 38 → 56 €, distributeur 22 → 36 €).
+  balcon 16 → 12 €, support casque 20 → 16 €, tablette 37 → 29 €) ; pièces longues à imprimer plus chères (gyroïde
+  35 → 58 €, organiseur 38 → 56 €, distributeur 22 → 36 €, alors au plafond depuis retiré).
 
 #### Résultats · prix cohérents (10 novembre 2026, après la phase 5b)
 Le propriétaire a relevé une incohérence (boîte sur-mesure 140 × 105 × 75 mm à 58 € alors que S, M et L étaient à 32 €) ;
 revue externe « tailles standard », puis choix délégués. Règle complète : § « Prix sur-mesure ».
 - 4 produits PA-CF → PETG (jeu 0,25 → 0,3 mm, références de géométrie et barème mis à jour : 128 points retranchés).
 - Coût complété (échec, emballage) ; un prix par taille standard (`sizes(…, prix)`), `price` = plus petite taille ;
-  sur-mesure = max(formule, taille la plus proche) + 4 € ; plafond et alerte « prix plafonné » retirés.
+  sur-mesure = max(formule, taille la plus proche) + 4 € (corrigé par l'audit ci-dessous : plus grande taille ≤ aux
+  cotes, supplément de 10 % entre 2 et 8 €) ; plafond et alerte « prix plafonné » retirés.
 - Panier : case « Sur-mesure : j'ai vérifié mes cotes… » obligatoire, revérifiée par le Worker ; CGV : tolérance
   ± 0,5 mm, prix par taille, case à cocher. Données structurées des fiches : `AggregateOffer` (taille S → L).
 - Fiche : prix affiché sur chaque bouton de taille ; « prix max » retiré de la pastille.

@@ -1,9 +1,9 @@
 /* Evarysth — barème des prix sur-mesure (Fabrication · phase 5a) : à jour, cohérent, formule de prix */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { charger, FICHIER, avecBareme, axes, grille, empreinte, perimes } from "../lib/bareme.mjs";
+import { charger, SCRIPTS_PRIX, avecBareme, matiereImpression, axes, grille, empreinte, perimes } from "../lib/bareme.mjs";
 
-const E = charger(["assets/js/data.js", FICHIER]);
+const E = charger(SCRIPTS_PRIX);
 const avec = E.products.filter(avecBareme);
 
 test("barème à jour : chaque produit sur-mesure a son barème, empreinte conforme aux entrées", () => {
@@ -16,7 +16,7 @@ test("barème : axes et nombre de points conformes à la grille, valeurs plausib
     assert.equal(JSON.stringify(b.axes), JSON.stringify(axes(p)), p.id);
     assert.equal(b.points.length, grille(p).length, p.id);
     for (const [cm3, s] of b.points) assert.ok(cm3 > 0 && s > 0, `${p.id} : point nul`);
-    assert.ok(E.matieres[b.matiere], `${p.id} : matière ${b.matiere}`);
+    assert.equal(b.matiere, matiereImpression(p), `${p.id} : barème tranché dans la matière du produit`);
   }
 });
 
@@ -43,7 +43,7 @@ test("tarifs : chaque matière a densité, €/kg et taux d'échec ; formule, pl
   assert.deepEqual({ ...t.supplement }, { part: 0.1, min: 2, max: 8 });
   /* Produit fictif : 100 cm³ de PLA (124 g), 2 h → (3,10 + 3) × 1,05 + 3 + 0,5 = 9,905 € ;
      (9,905 × 2,5 + 0,25) / 0,985 = 25,39 → formule 26 € ; sur-mesure = max(26, plancher S 10) + 10 % (2,6 → 3) = 29 € */
-  const p = { id: "essai", price: 10, variants: { options: [{ label: "S", values: { a: 10 }, price: 10 }, { label: "L", values: { a: 30 }, price: 40 }] },
+  const p = { id: "essai", matiere: "pla", price: 10, variants: { options: [{ label: "S", values: { a: 10 }, price: 10 }, { label: "L", values: { a: 30 }, price: 40 }] },
     custom: { params: [{ key: "a", min: 10, max: 30 }] } };
   const sauve = E.bareme;
   try {
@@ -64,6 +64,10 @@ test("tarifs : chaque matière a densité, €/kg et taux d'échec ; formule, pl
     assert.ok(bas.formule <= bas.plancher && bas.prix === 12, "formule sous le plancher : taille S + supplément minimal 2 €");
     E.bareme.produits.essai.points = [[3000, 360000], [3000, 360000]];
     assert.equal(E.prixCalcule(p, { a: 10 }).supplement, 8, "supplément plafonné à 8 €");
+    E.bareme.produits.essai.matiere = "petg";
+    assert.equal(E.prixCalcule({ ...p, matiere: "pla" }, { a: 10 }).masse_g, 3000 * E.matieres.pla.densite, "matière du produit, pas du barème");
+    assert.throws(() => E.prixCalcule({ ...p, matiere: undefined }, { a: 10 }), /Matière absente pour essai/, "pas de matière par défaut");
+    assert.throws(() => E.priceFor({ ...p, matiere: "bois" }, "custom", { a: 10 }), /Matière « bois » inconnue/);
   } finally { E.bareme = sauve; }
 });
 

@@ -31,6 +31,7 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `assets/css/style.css` | Toute l'apparence : couleurs, polices, mise en page, thème clair/sombre, version mobile. |
 | `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max), photos, matières (avec leur jeu d'ajustement) et fiche d'impression de chaque produit. C'est le fichier à modifier pour ajouter ou changer un produit. |
 | `assets/js/app.js` | **Le chef d'orchestre.** Lit le type de page (`data-product-id`, `data-universe-id`, `data-page="catalogue"` sur le `<body>`, ou `#…` sur l'accueil), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
+| `assets/js/prix.js` | **Le calcul des prix** (règle : `docs/prix.md`), chargé après `data.js` et `bareme.js` sur le site et dans le Worker : tarifs, prix sur-mesure, prix d'une taille, frais de livraison et d'emballage cadeau, code de démonstration. Contrôle : `node tools/rapport-prix.mjs --verifier`. |
 | `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js et le moteur géométrique seulement quand une fiche en a besoin, affiche et fait tourner la pièce. Si la 3D ne peut pas s'afficher (WebGL absent, WASM bloqué), la fiche montre la 1re photo ou la vignette 3D avec un message court. |
 | `assets/js/geo.js` | **Moteur géométrique** (`docs/refonte-geometrie.md`), commun au navigateur et à Node : kit `ext`, `box`, `cyl`, `rev`, `join`, `tray`… sur **manifold-3d** (unions booléennes, maillage étanche). Seul moteur du site depuis la phase 4 (l'ancien kit three.js est retiré). |
 | `assets/vendor/manifold-3d/` | manifold-3d **3.5.4** (`manifold.js` + `manifold.wasm`, licence Apache-2.0), copié depuis `tools/node_modules` ; chargé à la demande par le viewer. Changer de version : `tools/package.json`, recopier les 2 fichiers, `MANIFOLD_VERSION` dans `geo.js`. |
@@ -42,7 +43,7 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `tools/` | Outils d'atelier : analyse des STL (`analyse-stl.py`, `bgcode-decode.py`), `generer-pages.mjs` (pages produit, univers, catalogue, légales, 404, sitemap ; textes légaux dans `pages-legales/`), `captures-og.cjs` (images de partage et vignettes 3D), `icones-admin.mjs` (icônes de /admin). Fabrication et contrôles (voir « Générer un STL ») : `generer-stl.mjs`, `verifier-geometrie.mjs`, `references-geometrie.json` (référence figée), `lib/` (moteur Node, contrôles, fiche d'impression), `test/` (tests Node). Dépendances Node épinglées dans `tools/package.json` (three 0.170.0, manifold-3d 3.5.4 : `cd tools && npm ci`) ; la publication du site n'en a pas besoin. |
 | `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages (le dossier `worker/` n'est pas publié). |
 | `.github/workflows/geometrie.yml` | **Contrôles de géométrie** (job `geometrie`, contrôle obligatoire sur `main`) : lancé sur **chaque PR** (vert en quelques secondes si rien ne touche `assets/js/` (dont `data.js`), `assets/models/`, `tools/` ou ce workflow) et sur chaque push sur `main` qui touche ces dossiers : `cd tools && npm ci && node --test`. Ne pas remettre de filtre `paths` sur `pull_request` : une PR sans résultat resterait bloquée. |
-| `worker/` | **Le service de paiement** (Cloudflare Worker + Stripe Checkout, **mode test**) : reçoit le panier, recalcule les prix depuis `data.js`, crée la session Stripe, reçoit le webhook. Voir « Paiement » ci-dessous. |
+| `worker/` | **Le service de paiement** (Cloudflare Worker + Stripe Checkout, **mode test**) : reçoit le panier, recalcule les prix depuis `data.js` et `prix.js`, crée la session Stripe, reçoit le webhook. Voir « Paiement » ci-dessous. |
 | `commande/merci/` | Page de retour après paiement (récapitulatif de la commande). |
 | `.github/workflows/worker.yml` | Teste puis déploie le Worker à chaque changement de `worker/` ou de `data.js`. |
 | `.github/workflows/fabrication.yml` | **Génération des fichiers d'une commande** (lancée par le Worker au paiement, ou à la main avec la case « Essai ») : STL, fichier tranché, 3MF, fiche fabricant → R2. |
@@ -57,7 +58,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 
 **Circuit d'une commande**
 1. Panier → Worker `evarysth-checkout` (`worker/`) → page Stripe → `commande/merci/`. Le navigateur n'envoie que produit,
-   taille ou cotes, coloris, quantité, cadeau ; **le Worker recalcule les prix depuis `data.js`** et vérifie les cotes.
+   taille ou cotes, coloris, quantité, cadeau ; **le Worker recalcule les prix depuis `data.js` et `prix.js`** et vérifie les cotes.
 2. Webhook Stripe payé → Sheet back-office : une ligne `Commandes EV` (n° client `EV-AAAA-NNNN`) et une ligne par article
    dans `Commandes CF` ; e-mail client « Commande reçue » et fiche « Nouvelle commande » au propriétaire (Brevo).
    Article en `a_valider` (STL standard présent dans R2) ou `lien_stl_a_indiquer`. **Rien ne part sans validation.**
@@ -235,7 +236,8 @@ Il n'y a **pas de base de données** : tout le contenu est écrit directement da
 | Quoi | Où |
 |---|---|
 | Produits (nom, description, prix, tailles, curseurs sur-mesure), univers et leurs textes | `assets/js/data.js` |
-| Tarifs du prix sur-mesure (€/kg par matière, €/h machine, forfait, emballage, taux d’échec, coefficient, supplément sur-mesure) ; prix de chaque taille standard | `assets/js/data.js` (`EVARYSTH.tarif`, matières) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/chaine-fabrication.md`) |
+| Tarifs du prix sur-mesure (€/kg par matière, €/h machine, forfait, emballage, taux d’échec, coefficient, supplément sur-mesure) ; prix de chaque taille standard | `assets/js/prix.js` (`EVARYSTH.tarif`) et `assets/js/data.js` (matières, prix des tailles) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/chaine-fabrication.md`) |
+| Livraison, emballage cadeau, code promo de démonstration | `assets/js/prix.js` (`EVARYSTH.frais`, lu par le panier et le Worker) |
 | Textes fixes de la page : accueil, étapes, FAQ, pied de page | `index.html` |
 | Textes de la fiche produit (boutons, libellés, livraison…) | `assets/js/app.js` |
 | Photos | `assets/photos/<produit>/` |

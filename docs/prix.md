@@ -1,0 +1,14 @@
+# Prix — règle en vigueur (telle que codée dans `assets/js/prix.js`)
+- **Où** : `assets/js/prix.js`, chargé après `data.js` (produits, matières, prix des tailles) et `bareme.js` (généré), sur le site, les pages générées et le Worker : prix affiché = prix payé. Historique et décisions : `docs/chaine-fabrication.md` § « Prix sur-mesure ».
+- **Taille standard** : le prix de la taille (`price` de l'option dans `data.js`), fixé à la main ; « Dès » = `price` du produit = la plus petite taille.
+- **Matière** : celle de la fiche d'impression du produit (sinon `matiere`) ; inconnue ou absente → erreur, aucun prix.
+- **Estimation** : masse (cm³ du barème × densité de la matière) et temps, par interpolation multilinéaire du barème tranché ; cotes hors grille ramenées aux bornes.
+- **Coût** = (masse_kg × €/kg + temps_h × 1,5 €/h) × (1 + taux d'échec) + 3 € de forfait + 0,50 € d'emballage.
+- **Formule** = euro supérieur de (coût × 2,5 + 0,25) / (1 − 0,015).
+- **Plancher** = prix de la plus grande taille standard dont toutes les cotes sont ≤ aux cotes demandées ; 0 si aucune.
+- **Sur-mesure** = max(formule, plancher) + supplément ; supplément = 10 % de cette base, à l'euro supérieur, entre 2 et 8 €.
+- Aucun plafond : les bornes des curseurs limitent la taille. Barème absent pour un produit → pas de prix, commande refusée.
+- **Frais** (`EVARYSTH.frais`, communs au panier et au Worker) : livraison 4,90 € par commande ; emballage cadeau 3 €, message ≤ 200 caractères ; code de démonstration `BIENVENUE10` (−10 %) hors paiement, Stripe décide des codes en paiement.
+- Remise : sur les articles et l'emballage, pas sur la livraison.
+- **Contrôle** : `node tools/rapport-prix.mjs` (tableau ; `--json`) ; la référence `tools/references-prix.json` fige tous les prix (test bloquant, `--mettre-a-jour` si changement voulu).
+- Invariants souhaités, en avertissement seulement : pas de baisse quand une cote augmente, pas de marche ≥ 4 € et ≥ 15 % en un cran, rien sous le « Dès », sur-mesure aux cotes d'une taille = taille + supplément, aucune taille sous son coût.
