@@ -488,7 +488,35 @@ dans `data.js` sans les brancher sur `priceFor`) ; **5b** = branchement des prix
   standards sous le coût ; barème périmé → `geometrie` rouge.
 - **Toi** : ~~confirmer les valeurs du tarif et les plafonds par produit~~ (fait le 9 nov. 2026) ; feu vert de la 5b.
 
-<!-- RESULTATS-5A -->
+#### Résultats Fabrication · phase 5a (9-10 novembre 2026, aucun prix du site changé)
+- **Fichiers** : `tools/lib/bareme.mjs` (grille, empreinte, sans dépendance), `tools/generer-bareme.mjs` (tranchage,
+  assemblage, `--perimes`, `--verifier [--tableau]`), `assets/js/bareme.js` (généré, 7 Ko), `.github/workflows/bareme.yml`
+  (plan → matrice par produit dans l'image → commit sur la branche + relance de `geometrie` ; refuse `main`),
+  étape « Barème à jour » dans `geometrie.yml` (déclencheur étendu à `fabrication/`), `tools/test/bareme.test.mjs`,
+  `trancher.mjs --profil-filament=pla|petg`. `data.js` : `EVARYSTH.tarif`, `densite` / `eurKg` par matière,
+  `EVARYSTH.estimation` et `EVARYSTH.prixCalcule` (plancher, plafond, « plafonné ») **non branchés** sur `priceFor`.
+- **Grille** : min, défaut, max, puis milieux (5 points par axe pour 1 paramètre, 4 pour 2, 3 pour 3) et aucun pas
+  > 100 mm ; 285 points tranchés pour 16 produits. Point stocké : cm³ de filament (masse = cm³ × densité de `data.js`)
+  et temps estimé (s), tous plateaux d'un exemplaire. ASA, PA12, PA-CF : profil PETG (estimation).
+- **Empreinte** par produit (16 hex) : modèle, STL d'origine, `geo.js`, `viewer3d.js`, `impression.mjs`, `generer-stl.mjs`,
+  fiche d'impression (sans remarques), bornes et pas des cotes, jeu, axes, version manifold, profils, `Dockerfile` et
+  lanceur de l'image. Le prix et les textes n'y entrent pas.
+- **Tranchage** fait dans la session avec Bambu Studio 02.08.02.61 installé hors conteneur (même AppImage, même
+  lanceur 1 cœur sans ASLR ; Docker absent) : `passe-cable` a = 60 et 100 redonnent les valeurs de la phase 1a
+  (18,44 g, 42 min ; 38,05 g). Plus long : `support-casque-gyroide` (~100 s par point, 13 à 27 h d'impression).
+- **Écart interpolé / tranché** (14 points hors grille, 7 produits) : ≤ 4 % sauf `equerre-l` (temps 5,6 %),
+  `chat-lord` (masse 6,6 %), `organiseur-tiroir` (≤ 6,9 % après la règle des 100 mm ; 15 % et 18 % avant).
+- **Contrôle du `.gcode.3mf` en écart** (position des pièces dans `plate_1.json`, jusqu'à 9 mm) pour
+  `vide-poche-cles`, `support-casque-gyroide`, `chat-lord`, `carapuce` : masse et temps gardés pour le barème
+  (avertissement). **À corriger** : `vide-poche-cles` est en PLA, donc tranché à l'atelier ; `fabriquer.mjs` refuserait
+  un article payé de ce produit (code 2). Les 3 autres ne sont pas tranchés en fabrication (matière hors atelier).
+- **Constats de prix** (barème actuel, formule non appliquée) : formule au-delà du plafond aux cotes max pour
+  `boite-rugged`, `organiseur-tiroir`, `distributeur-cotons`, `support-casque-gyroide`, `chat-lord`, `carapuce`,
+  `voiture-voronoi` (et dès les cotes par défaut pour l'organiseur et le gyroïde, dès les cotes min pour le gyroïde) ;
+  prix standard sous le coût pour `organiseur-tiroir` (3 tailles), `support-casque-gyroide` (3), `boite-rugged` L,
+  `carapuce` L. Tableau complet : `node tools/generer-bareme.mjs --verifier --tableau`.
+- **Mise à jour du barème** : `bareme.yml` ne se lance qu'une fois présent sur `main` (règle GitHub de
+  `workflow_dispatch`) ; sinon `node tools/generer-bareme.mjs <id>` avec Bambu Studio installé.
 
 ## Points ouverts (propriétaire)
 - Catalogue ASA / PA-CF / PA12 : garder (fabricant externe) ou passer des fiches en PETG (promesse « tient dehors »).

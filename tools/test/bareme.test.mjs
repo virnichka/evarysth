@@ -7,13 +7,13 @@ const E = charger(["assets/js/data.js", FICHIER]);
 const avec = E.products.filter(avecBareme);
 
 test("barème à jour : chaque produit sur-mesure a son barème, empreinte conforme aux entrées", () => {
-  assert.deepEqual(perimes(E), [], "barème périmé : workflow « Barème des prix sur-mesure » (bareme.yml) ou node tools/generer-bareme.mjs <id>");
+  assert.equal(perimes(E).join(", "), "", "barème périmé : workflow « Barème des prix sur-mesure » (bareme.yml) ou node tools/generer-bareme.mjs <id>");
 });
 
 test("barème : axes et nombre de points conformes à la grille, valeurs plausibles", () => {
   for (const p of avec) {
     const b = E.bareme.produits[p.id];
-    assert.deepEqual(b.axes, axes(p), p.id);
+    assert.equal(JSON.stringify(b.axes), JSON.stringify(axes(p)), p.id);
     assert.equal(b.points.length, grille(p).length, p.id);
     for (const [cm3, s] of b.points) assert.ok(cm3 > 0 && s > 0, `${p.id} : point nul`);
     assert.ok(E.matieres[b.matiere], `${p.id} : matière ${b.matiere}`);

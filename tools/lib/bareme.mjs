@@ -11,8 +11,10 @@ export const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 export const FICHIER = "assets/js/bareme.js";
 /* À incrémenter si la règle de grille ou le contenu d'un point change : tous les barèmes deviennent périmés. */
 export const VERSION_GRILLE = 1;
-/* Points par axe selon le nombre de paramètres (min, défaut, max, puis milieux des plus grands intervalles) */
+/* Points par axe selon le nombre de paramètres (min, défaut, max, puis milieux des plus grands intervalles), et aucun
+   intervalle de plus de ECART_MAX mm (organiseur-tiroir : écart interpolé / tranché de 15 % avec des pas de 200 mm). */
 const POINTS = { 1: 5, 2: 4, 3: 3 };
+const ECART_MAX = 100;
 /* Profil de l'atelier utilisé pour trancher chaque matière : hors atelier (ASA, PA12, PA-CF), profil de la famille la
    plus proche, seulement pour estimer (même géométrie ; la masse suit la densité de data.js, le temps reste celui du PETG). */
 export const PROFIL = { pla: "pla", petg: "petg", asa: "petg", pa12: "petg", pacf: "petg" };
@@ -40,12 +42,14 @@ const arrondi = (v, q) => {
   return Number((q.min + Math.round((v - q.min) / pas) * pas).toFixed(d));
 };
 
-/* Valeurs d'un axe : min, défaut, max, puis milieu du plus grand intervalle (arrondi au pas) jusqu'au nombre voulu */
+/* Valeurs d'un axe : min, défaut, max, puis milieu du plus grand intervalle (arrondi au pas) jusqu'au nombre voulu et
+   jusqu'à ce qu'aucun intervalle ne dépasse ECART_MAX */
 export function axe(q, n) {
   const v = [...new Set([q.min, q.def, q.max])].sort((a, b) => a - b);
-  while (v.length < n) {
+  for (;;) {
     let k = 0;
     for (let i = 1; i < v.length - 1; i++) if (v[i + 1] - v[i] > v[k + 1] - v[k]) k = i;
+    if (v.length >= n && v[k + 1] - v[k] <= ECART_MAX) break;
     const m = arrondi((v[k] + v[k + 1]) / 2, q);
     if (m <= v[k] || m >= v[k + 1]) break;
     v.splice(k + 1, 0, m);
