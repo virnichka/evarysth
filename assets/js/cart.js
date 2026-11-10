@@ -195,7 +195,22 @@
 
   function renderGiftCount() { $("#gift-count").textContent = `${gift.message.length} / ${GIFT_MAX}`; }
 
+  /* Prix à jour de chaque article (le Worker le recalcule de toute façon au paiement) : un panier ancien n'affiche pas un
+     prix périmé. En cas d'impossibilité (produit retiré, barème absent), le prix enregistré reste affiché. */
+  function prixAJour() {
+    for (const i of items) {
+      try {
+        const l = ligneCommande(i), p = EVARYSTH.getProduct(l.id);
+        if (!p) continue;
+        const v = l.mode === "custom" ? l.values : (p.variants.options[l.variant] || {}).values;
+        const prix = v && EVARYSTH.priceFor(p, l.mode, v);
+        if (Number.isFinite(prix)) i.unitPrice = prix;
+      } catch { /* prix enregistré gardé */ }
+    }
+  }
+
   function render() {
+    prixAJour();
     const fmt = EVARYSTH.fmt;
     const count = items.reduce((s, i) => s + i.qty, 0);
     const sub = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);

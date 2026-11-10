@@ -433,10 +433,12 @@ EVARYSTH.priceFor = (p, mode, values) => {
    cout = (masse_kg × eurKg + temps_h × machineEurH) × (1 + echec de la matière) + forfait + emballage
           (forfait : préparation, retrait des supports, contrôle ; echec : pièces ratées à refaire) ;
    formule = arrondi à l'euro supérieur de (cout × coefficient + stripeFixe) / (1 − stripePct) ;
-   sur-mesure : prix = max(formule, prix de la taille standard la plus proche) + supplementSurMesure
-   (vérification des cotes, pièce ratée non revendable, pas de retour possible). Pas de plafond : les bornes des cotes
+   sur-mesure : base = max(formule, plancher), plancher = prix de la plus grande taille standard dont toutes les cotes
+   sont ≤ aux cotes demandées (0 si aucune : une pièce plus petite que S suit la formule) ; prix = base + supplément,
+   supplément = 10 % de la base arrondi à l'euro supérieur, entre 2 et 8 € (vérification des cotes, pièce ratée non
+   revendable, pas de retour possible). Audit des prix du 10 nov. 2026 (docs/chaine-fabrication.md). Pas de plafond : les bornes des cotes
    limitent la taille. Standard : prix des tailles dans data.js, au moins la formule à leurs cotes (avertissement CI sinon). */
-EVARYSTH.tarif = { machineEurH: 1.5, forfait: 3, emballage: 0.5, coefficient: 2.5, stripePct: 0.015, stripeFixe: 0.25, supplementSurMesure: 4 };
+EVARYSTH.tarif = { machineEurH: 1.5, forfait: 3, emballage: 0.5, coefficient: 2.5, stripePct: 0.015, stripeFixe: 0.25, supplement: { part: 0.1, min: 2, max: 8 } };
 
 /* Masse et temps estimés d'une configuration : interpolation multilinéaire dans le barème tranché (assets/js/bareme.js,
    généré par tools/generer-bareme.mjs). null si le barème n'est pas chargé ou ne connaît pas le produit. */
@@ -471,11 +473,13 @@ EVARYSTH.prixCalcule = (p, values) => {
   const cout = (e.masse_g / 1000 * m.eurKg + e.temps_min / 60 * t.machineEurH) * (1 + (m.echec || 0)) + t.forfait + t.emballage;
   const formule = Math.ceil((cout * t.coefficient + t.stripeFixe) / (1 - t.stripePct) - 1e-9);
   const tailles = (p.variants && p.variants.options) || [];
-  const dist = o => p.custom.params.reduce((d, q) => d + ((values[q.key] - o.values[q.key]) / (q.max - q.min)) ** 2, 0);
-  const proche = tailles.slice().sort((x, y) => dist(x) - dist(y))[0];
-  const plancher = proche ? (proche.price != null ? proche.price : p.price) : 0;
-  return { ...e, cout: Math.round(cout * 100) / 100, formule, plancher, proche: proche ? proche.label : null,
-    supplement: t.supplementSurMesure, prix: Math.max(formule, plancher) + t.supplementSurMesure };
+  const dessous = tailles.filter(o => p.custom.params.every(q => o.values[q.key] <= values[q.key]))
+    .sort((x, y) => (x.price ?? p.price) - (y.price ?? p.price)).pop();
+  const plancher = dessous ? (dessous.price ?? p.price) : 0;
+  const base = Math.max(formule, plancher), sp = t.supplement;
+  const supplement = Math.min(sp.max, Math.max(sp.min, Math.ceil(base * sp.part - 1e-9)));
+  return { ...e, cout: Math.round(cout * 100) / 100, formule, plancher, taille: dessous ? dessous.label : null,
+    supplement, prix: base + supplement };
 };
 
 EVARYSTH.fmt = n => {

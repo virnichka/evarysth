@@ -39,9 +39,10 @@ test("estimation : exacte aux nœuds de la grille, bornée entre deux nœuds", (
 test("tarifs : chaque matière a densité, €/kg et taux d'échec ; formule, plancher, supplément sur-mesure", () => {
   for (const [k, m] of Object.entries(E.matieres)) assert.ok(m.densite > 0.8 && m.densite < 2 && m.eurKg > 0 && m.echec >= 0 && m.echec < 0.5, k);
   const t = E.tarif;
-  assert.deepEqual([t.machineEurH, t.forfait, t.emballage, t.coefficient, t.supplementSurMesure], [1.5, 3, 0.5, 2.5, 4]);
+  assert.deepEqual([t.machineEurH, t.forfait, t.emballage, t.coefficient], [1.5, 3, 0.5, 2.5]);
+  assert.deepEqual({ ...t.supplement }, { part: 0.1, min: 2, max: 8 });
   /* Produit fictif : 100 cm³ de PLA (124 g), 2 h → (3,10 + 3) × 1,05 + 3 + 0,5 = 9,905 € ;
-     (9,905 × 2,5 + 0,25) / 0,985 = 25,39 → formule 26 € ; sur-mesure = max(26, plancher 10) + 4 = 30 € */
+     (9,905 × 2,5 + 0,25) / 0,985 = 25,39 → formule 26 € ; sur-mesure = max(26, plancher S 10) + 10 % (2,6 → 3) = 29 € */
   const p = { id: "essai", price: 10, variants: { options: [{ label: "S", values: { a: 10 }, price: 10 }, { label: "L", values: { a: 30 }, price: 40 }] },
     custom: { params: [{ key: "a", min: 10, max: 30 }] } };
   const sauve = E.bareme;
@@ -51,13 +52,18 @@ test("tarifs : chaque matière a densité, €/kg et taux d'échec ; formule, pl
     assert.equal(r.cout, 9.91);
     assert.equal(r.formule, 26);
     assert.equal(r.plancher, 10);
-    assert.equal(r.prix, 30);
-    assert.equal(E.priceFor(p, "custom", { a: 10 }), 30);
+    assert.equal(r.supplement, 3);
+    assert.equal(r.prix, 29);
+    assert.equal(E.priceFor(p, "custom", { a: 10 }), 29);
     assert.equal(E.priceFor(p, "standard", { a: 30 }), 40, "standard : prix de la taille");
-    assert.equal(E.prixCalcule(p, { a: 28 }).plancher, 40, "plancher : taille la plus proche (L)");
+    assert.equal(E.prixCalcule(p, { a: 28 }).plancher, 10, "plancher : plus grande taille ≤ (S), pas la plus proche (L)");
+    assert.equal(E.prixCalcule(p, { a: 30 }).plancher, 40);
+    assert.equal(E.prixCalcule(p, { a: 9 }).plancher, 0, "plus petit que S : formule seule");
     E.bareme.produits.essai.points = [[1, 60], [2, 60]];
     const bas = E.prixCalcule(p, { a: 10 });
-    assert.ok(bas.formule <= bas.plancher && bas.prix === 14, "formule sous le plancher : prix de la taille la plus proche + supplément");
+    assert.ok(bas.formule <= bas.plancher && bas.prix === 12, "formule sous le plancher : taille S + supplément minimal 2 €");
+    E.bareme.produits.essai.points = [[3000, 360000], [3000, 360000]];
+    assert.equal(E.prixCalcule(p, { a: 10 }).supplement, 8, "supplément plafonné à 8 €");
   } finally { E.bareme = sauve; }
 });
 
@@ -75,7 +81,21 @@ test("priceFor : standard = prix de la taille, sur-mesure = prix calculé par le
   const p = E.getProduct("passe-cable");
   p.variants.options.forEach(o => assert.equal(E.priceFor(p, "standard", o.values), o.price));
   for (const a of [30, 60, 100]) assert.equal(E.priceFor(p, "custom", { a }), E.prixCalcule(p, { a }).prix);
-  for (const a of [30, 60, 100]) assert.ok(E.priceFor(p, "custom", { a }) >= E.prixCalcule(p, { a }).plancher + E.tarif.supplementSurMesure);
+  for (const a of [30, 60, 100]) assert.ok(E.priceFor(p, "custom", { a }) >= E.prixCalcule(p, { a }).plancher + E.tarif.supplement.min);
+});
+
+test("sur-mesure : jamais moins cher qu'une taille standard plus petite ; plus petit que S = formule (audit du 10 nov.)", () => {
+  for (const p of avec) {
+    const prm = p.custom.params, pas = q => Array.from({ length: 6 }, (_, i) => q.min + Math.round((q.max - q.min) * i / 5 / q.step) * q.step);
+    const cotes = prm.reduce((acc, q) => acc.flatMap(c => pas(q).map(v => ({ ...c, [q.key]: v }))), [{}]);
+    for (const c of cotes) {
+      const prix = E.priceFor(p, "custom", c);
+      for (const o of p.variants.options)
+        if (prm.every(q => o.values[q.key] <= c[q.key])) assert.ok(prix > o.price, `${p.id} ${JSON.stringify(c)} : ${prix} € ≤ taille ${o.label} ${o.price} €`);
+    }
+  }
+  const o = E.getProduct("organiseur-tiroir");
+  assert.ok(E.priceFor(o, "custom", { a: 120, b: 150 }) < o.variants.options[0].price, "organiseur 120 × 150 moins cher que Petit 200 × 300");
 });
 
 test("empreinte : change avec la fiche d'impression, pas avec le prix ni les textes", () => {
