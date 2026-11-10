@@ -16,14 +16,3 @@ export function versionCatalogue() {
   return empreinte;
 }
 
-/* Article sur-mesure du Sheet (« <produit> · a=45 b=32 · … ») dont la formule dépasse le plafond : prix payé = plafond.
-   Recalculé avec le barème courant (alerte « prix plafonné » de /admin) ; null sinon (standard, illisible, sous le plafond). */
-export function prixPlafonne(article) {
-  const [id, cotes] = String(article || "").split(" · ");
-  const p = id && EVARYSTH.getProduct(id.trim());
-  if (!p || !p.custom || !/^[a-z]=-?[\d.]+( [a-z]=-?[\d.]+)*$/.test((cotes || "").trim())) return null;
-  const values = Object.fromEntries(cotes.trim().split(" ").map(x => [x[0], Number(x.slice(2))]));
-  if (!p.custom.params.every(q => Number.isFinite(values[q.key]))) return null;
-  const r = EVARYSTH.prixCalcule(p, values);
-  return r && r.plafonne ? { produit: p.id, formule: r.formule, plafond: r.plafond } : null;
-}

@@ -18,15 +18,15 @@ EVARYSTH.universes = [
    (pièce qui entre dans un trou du client : cote − jeu ; pièce qui entoure un objet du client : cote + jeu).
    Il ne change ni la cote saisie par le client ni le prix. */
 EVARYSTH.matieres = {
-  pa12: { label: "Nylon PA12", court: "PA12", jeu: 0.3, densite: 1.01, eurKg: 60, perk: ["Très résistant", "Nylon industriel"],
+  pa12: { label: "Nylon PA12", court: "PA12", jeu: 0.3, densite: 1.01, eurKg: 60, echec: 0.15, perk: ["Très résistant", "Nylon industriel"],
     desc: "Nylon PA12, imprimé en 3D industrielle : léger, très résistant aux chocs, à l'humidité et aux UV." },
-  petg: { label: "PETG", court: "PETG", jeu: 0.3, densite: 1.27, eurKg: 25, perk: ["Robuste", "Peu cassant"],
+  petg: { label: "PETG", court: "PETG", jeu: 0.3, densite: 1.27, eurKg: 25, echec: 0.05, perk: ["Robuste", "Peu cassant"],
     desc: "PETG, le plastique des bouteilles en version technique : solide, un peu souple plutôt que cassant, et peu sensible à l'humidité." },
-  asa: { label: "ASA", court: "ASA", jeu: 0.3, densite: 1.07, eurKg: 30, perk: ["Tient dehors", "Résiste aux UV"],
+  asa: { label: "ASA", court: "ASA", jeu: 0.3, densite: 1.07, eurKg: 30, echec: 0.15, perk: ["Tient dehors", "Résiste aux UV"],
     desc: "ASA, un plastique pensé pour l'extérieur : il encaisse le soleil, la pluie et le gel sans jaunir ni devenir cassant." },
-  pla: { label: "PLA", court: "PLA", jeu: 0.2, densite: 1.24, eurKg: 25, perk: ["Rigide", "Fini net"],
+  pla: { label: "PLA", court: "PLA", jeu: 0.2, densite: 1.24, eurKg: 25, echec: 0.05, perk: ["Rigide", "Fini net"],
     desc: "PLA, un plastique d'origine végétale : rigide, au rendu net et précis. Il craint la forte chaleur (au-delà de 50 °C environ) : évitez la plage arrière d'une voiture en plein été." },
-  pacf: { label: "Nylon carbone (PA-CF)", court: "PA-CF", jeu: 0.25, densite: 1.12, eurKg: 70, perk: ["Très rigide", "Nylon + carbone"],
+  pacf: { label: "Nylon carbone (PA-CF)", court: "PA-CF", jeu: 0.25, densite: 1.12, eurKg: 70, echec: 0.15, perk: ["Très rigide", "Nylon + carbone"],
     desc: "Nylon chargé de fibres de carbone : très rigide et stable, avec un toucher mat légèrement minéral. Il supporte bien la chaleur et les chocs." }
 };
 /* densite (g/cm³) et eurKg (€/kg de filament) : prix sur-mesure calculé (docs/chaine-fabrication.md, § « Prix sur-mesure ») */
@@ -35,7 +35,9 @@ EVARYSTH.matiere = p => EVARYSTH.matieres[p && p.matiere] || EVARYSTH.matieres.p
 EVARYSTH.jeu = p => (EVARYSTH.matieres[p && p.impression && p.impression.matiere] || EVARYSTH.matiere(p)).jeu;
 
 /* Petites fabriques pour garder le catalogue lisible */
-const sizes = (label, opts) => ({ label, options: opts.map(([l, hint, values]) => ({ label: l, hint, values })) });
+/* Tailles standard : [libellé, indication, cotes, prix]. Prix fixé à la main, au moins le prix calculé à ces cotes
+   (règle du 10 nov. 2026 : le plus haut entre la formule et le prix « valeur », arrondi, croissant de S à L). */
+const sizes = (label, opts) => ({ label, options: opts.map(([l, hint, values, price]) => ({ label: l, hint, values, price })) });
 const param = (key, label, min, max, def, step = 1) => ({ key, label, min, max, step, def });
 
 /* Fiche d'impression (champ impression, contrôlée par tools/lib/impression.mjs et les tests de tools/test/) :
@@ -170,7 +172,7 @@ EVARYSTH.products = [
     ] }
   },
   {
-    id: "boite-rugged", universe: "meubles", matiere: "pacf", shape: "case", model: "boite-rugged", popular: true,
+    id: "boite-rugged", universe: "meubles", matiere: "petg", shape: "case", model: "boite-rugged", popular: true,
     name: "Boîte robuste à loquets", price: 32,
     tagline: "Une boîte qui encaisse les chocs, aux dimensions de ce que vous rangez.",
     desc: "Couvercle à charnière intégrée, deux loquets qui se clipsent et un rebord qui emboîte le couvercle. Réglez la longueur, la largeur et la hauteur intérieures : charnière, loquets et parois gardent leurs vraies cotes, seule la boîte s'agrandit.",
@@ -180,7 +182,7 @@ EVARYSTH.products = [
       { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
       { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 }
     ],
-    impression: { matiere: "pacf", orientation: POSE.debout, supports: false, parPlateau: 1,
+    impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 1,
       remarques: "Quatre pièces dans l'orientation des fichiers d'origine : boîte ouverture en haut, couvercle retourné, loquets debout sur leur tranche.", pieces: [
       { nom: "boîte" }, { nom: "couvercle", orientation: POSE.retourne },
       { nom: "loquet", orientation: [[-1, 0, 0], [0, 1, 0], [0, 0, -1]] }, { nom: "loquet", orientation: [[-1, 0, 0], [0, 1, 0], [0, 0, -1]] }] },
@@ -196,7 +198,7 @@ EVARYSTH.products = [
     photosNote: "Photos : coloris de démonstration, mousse et outils non fournis"
   },
   {
-    id: "support-casque-gyroide", universe: "meubles", matiere: "pacf", shape: "headstand", model: "support-casque-gyroide",
+    id: "support-casque-gyroide", universe: "meubles", matiere: "petg", shape: "headstand", model: "support-casque-gyroide",
     name: "Support casque Gyroïde", price: 29,
     tagline: "Un vrai présentoir pour votre casque, léger comme une dentelle.",
     desc: "Socle plein, colonne et tête en treillis gyroïde, appui bombé qui épouse l'arceau sans le marquer. Réglez la hauteur pour que les coussinets ne touchent pas le bureau, et la largeur de votre arceau, que l'appui déborde de 4 mm de chaque côté : le treillis garde la même maille, il gagne simplement des cellules.",
@@ -206,7 +208,7 @@ EVARYSTH.products = [
       { id: "gris", label: "Gris béton", hex: "#8a8c8e", roughness: 0.7 },
       { id: "rouge", label: "Rouge brique", hex: "#a8382f", roughness: 0.62 }
     ],
-    impression: { matiere: "pacf", orientation: POSE.debout, supports: false, parPlateau: 2,
+    impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 2,
       remarques: "Debout sur son socle : le treillis gyroïde se soutient seul." },
     custom: { params: [
       param("a", "Hauteur totale du support", 200, 255, 250, 5),
@@ -221,7 +223,7 @@ EVARYSTH.products = [
     photosNote: "Photos : coloris de démonstration, casque non fourni"
   },
   {
-    id: "organiseur-tiroir", universe: "meubles", matiere: "pacf", shape: "tray", model: "organiseur-tiroir", popular: true,
+    id: "organiseur-tiroir", universe: "meubles", matiere: "petg", shape: "tray", model: "organiseur-tiroir", popular: true,
     name: "Organiseur de tiroir", price: 28,
     tagline: "Un casier qui épouse exactement votre tiroir.",
     desc: "Fini les centimètres perdus : l'organiseur est fabriqué à la cote intérieure de votre tiroir. Au-delà de 25 cm, il arrive en modules qui se posent côte à côte.",
@@ -231,7 +233,7 @@ EVARYSTH.products = [
       { id: "moutarde", label: "Jaune moutarde", hex: "#d4a72c", roughness: 0.62 },
       { id: "bleu", label: "Bleu lagon", hex: "#5fa8d3", roughness: 0.6 }
     ],
-    impression: { matiere: "pacf", orientation: POSE.debout, supports: false, plateaux: 3,
+    impression: { matiere: "petg", orientation: POSE.debout, supports: false, plateaux: 3,
       remarques: "Chaque module debout sur son fond." },
     custom: { params: [param("a", "Largeur intérieure du tiroir", 120, 560, 320, 5), param("b", "Profondeur intérieure du tiroir", 150, 560, 420, 5)] }
   },
@@ -262,7 +264,7 @@ EVARYSTH.products = [
     photosNote: "Photos : coloris brun cacao ; la vue 3D montre le coloris choisi"
   },
   {
-    id: "distributeur-cotons", universe: "meubles", matiere: "pacf", shape: "dispenser", model: "distributeur-cotons",
+    id: "distributeur-cotons", universe: "meubles", matiere: "petg", shape: "dispenser", model: "distributeur-cotons",
     name: "Distributeur cotons & cotons-tiges", price: 18,
     tagline: "Les disques à portée de main, les cotons-tiges juste à côté.",
     desc: "Un tube où s'empilent les disques de coton, avec une fente frontale arrondie pour attraper le dernier du bas, et un pot accolé pour les cotons-tiges. Réglez le diamètre de vos disques : le tube garde 2,5 mm de jeu pour qu'ils glissent sans flotter. Choisissez ensuite la hauteur de la pile et celle du pot.",
@@ -272,7 +274,7 @@ EVARYSTH.products = [
       { id: "olive", label: "Vert olive", hex: "#6f7a45", roughness: 0.68 },
       { id: "bronze", label: "Bronze", hex: "#9a7240", roughness: 0.38, metalness: 0.55 }
     ],
-    impression: { matiere: "pacf", orientation: POSE.debout, supports: false, parPlateau: 4,
+    impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 4,
       remarques: "Debout sur son fond, fente et pot ouverts vers le haut." },
     custom: { params: [
       param("a", "Diamètre de vos disques de coton", 45, 75, 58, 1),
@@ -410,22 +412,31 @@ EVARYSTH.products = [
 EVARYSTH.getProduct = id => EVARYSTH.products.find(p => p.id === id);
 EVARYSTH.getUniverse = id => EVARYSTH.universes.find(u => u.id === id);
 
-/* Prix d'une configuration : standard = prix fixé à la main ; sur-mesure = prix calculé (EVARYSTH.prixCalcule, barème
-   assets/js/bareme.js chargé après ce fichier). Même code sur le site (curseur) et dans le Worker (prix payé). */
+/* Taille standard dont les cotes sont exactement celles données (null sinon) */
+EVARYSTH.taillePour = (p, values) => ((p.variants && p.variants.options) || [])
+  .find(o => values && Object.keys(o.values).every(k => o.values[k] === values[k])) || null;
+
+/* Prix d'une configuration : standard = prix de la taille, fixé dans data.js ; sur-mesure = prix calculé
+   (EVARYSTH.prixCalcule, barème assets/js/bareme.js chargé après ce fichier). Même code sur le site et dans le Worker. */
 EVARYSTH.priceFor = (p, mode, values) => {
-  if (mode !== "custom") return p.price;
+  if (mode !== "custom") {
+    const o = EVARYSTH.taillePour(p, values);
+    return o && o.price != null ? o.price : p.price;
+  }
   const r = EVARYSTH.prixCalcule(p, values);
   if (!r) throw new Error(`Prix sur-mesure indisponible pour ${p.id} (barème absent)`);
   return r.prix;
 };
 
-/* Prix sur-mesure calculé (Fabrication · phase 5, docs/chaine-fabrication.md § « Prix sur-mesure »), lu par priceFor.
-   Tarifs de départ validés par le propriétaire le 9 nov. 2026, modifiables ici sans retrancher.
-   cout = masse_kg × eurKg(matière) + temps_h × machineEurH + forfait ;
+/* Prix calculé (Fabrication · phase 5, docs/chaine-fabrication.md § « Prix sur-mesure »). Tarifs modifiables ici sans
+   retrancher ; valeurs du 10 nov. 2026 (décisions dans le document) :
+   cout = (masse_kg × eurKg + temps_h × machineEurH) × (1 + echec de la matière) + forfait + emballage
+          (forfait : préparation, retrait des supports, contrôle ; echec : pièces ratées à refaire) ;
    formule = arrondi à l'euro supérieur de (cout × coefficient + stripeFixe) / (1 − stripePct) ;
-   prix = min(max(formule, plancher), plafond) ; plancher = prix de la taille standard la plus proche ;
-   plafond = custom.plafond (exception) sinon plafondFois × prix de la plus grande taille standard ; au-delà : « prix plafonné ». */
-EVARYSTH.tarif = { machineEurH: 1.5, forfait: 3, coefficient: 2.5, stripePct: 0.015, stripeFixe: 0.25, plafondFois: 2 };
+   sur-mesure : prix = max(formule, prix de la taille standard la plus proche) + supplementSurMesure
+   (vérification des cotes, pièce ratée non revendable, pas de retour possible). Pas de plafond : les bornes des cotes
+   limitent la taille. Standard : prix des tailles dans data.js, au moins la formule à leurs cotes (avertissement CI sinon). */
+EVARYSTH.tarif = { machineEurH: 1.5, forfait: 3, emballage: 0.5, coefficient: 2.5, stripePct: 0.015, stripeFixe: 0.25, supplementSurMesure: 4 };
 
 /* Masse et temps estimés d'une configuration : interpolation multilinéaire dans le barème tranché (assets/js/bareme.js,
    généré par tools/generer-bareme.mjs). null si le barème n'est pas chargé ou ne connaît pas le produit. */
@@ -452,23 +463,21 @@ EVARYSTH.estimation = (p, values) => {
   return { cm3, masse_g: cm3 * m.densite, temps_min: s / 60 };
 };
 
+/* Coût, formule et prix d'une configuration (null si le barème ne connaît pas le produit) */
 EVARYSTH.prixCalcule = (p, values) => {
   const e = EVARYSTH.estimation(p, values);
   if (!e) return null;
   const t = EVARYSTH.tarif, m = EVARYSTH.matieres[EVARYSTH.bareme.produits[p.id].matiere];
-  const cout = e.masse_g / 1000 * m.eurKg + e.temps_min / 60 * t.machineEurH + t.forfait;
+  const cout = (e.masse_g / 1000 * m.eurKg + e.temps_min / 60 * t.machineEurH) * (1 + (m.echec || 0)) + t.forfait + t.emballage;
   const formule = Math.ceil((cout * t.coefficient + t.stripeFixe) / (1 - t.stripePct) - 1e-9);
   const tailles = (p.variants && p.variants.options) || [];
-  const prixTaille = o => o.price != null ? o.price : p.price;
   const dist = o => p.custom.params.reduce((d, q) => d + ((values[q.key] - o.values[q.key]) / (q.max - q.min)) ** 2, 0);
   const proche = tailles.slice().sort((x, y) => dist(x) - dist(y))[0];
-  const plancher = proche ? prixTaille(proche) : 0;
-  const plafond = p.custom.plafond != null ? p.custom.plafond : t.plafondFois * Math.max(p.price, ...tailles.map(prixTaille));
-  return { ...e, cout: Math.round(cout * 100) / 100, formule, plancher, plafond,
-    prix: Math.min(Math.max(formule, plancher), plafond), plafonne: formule > plafond };
+  const plancher = proche ? (proche.price != null ? proche.price : p.price) : 0;
+  return { ...e, cout: Math.round(cout * 100) / 100, formule, plancher, proche: proche ? proche.label : null,
+    supplement: t.supplementSurMesure, prix: Math.max(formule, plancher) + t.supplementSurMesure };
 };
 
-/* Seul formateur de prix du site : « 14 € » pour un prix entier, « 12,60 € » sinon */
 EVARYSTH.fmt = n => {
   const entier = Math.abs(n - Math.round(n)) < 0.005;
   return (entier ? Math.round(n) : n).toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: entier ? 0 : 2, maximumFractionDigits: entier ? 0 : 2 });

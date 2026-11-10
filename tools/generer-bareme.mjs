@@ -10,7 +10,7 @@
      node tools/generer-bareme.mjs --assembler <f.json…>                  fusionne des partiels dans bareme.js
      node tools/generer-bareme.mjs --perimes                              liste JSON des produits à retrancher
      node tools/generer-bareme.mjs --verifier [--tableau]                 empreintes (échec si périmé), avertissement
-                                                                          si un prix standard est sous le coût ; --tableau :
+                                                                          si un prix standard est sous la formule ; --tableau :
                                                                           prix par produit (Markdown)
    Tranchage : generer-stl --impression (1 exemplaire) puis trancher.mjs (profil de l'atelier ; ASA, PA12, PA-CF estimés
    avec le profil PETG). Fichier généré : jamais édité à la main. */
@@ -86,24 +86,26 @@ ${lignes.join(",\n")}
   console.log(`${FICHIER} : ${lignes.length} produits (${Object.keys(nouveaux).length} mis à jour)`);
 }
 
-/* Tableau des prix (Markdown) et alertes : prix standard sous le coût, formule au-delà du plafond */
+/* Tableau des prix (Markdown) et alertes : prix d'une taille standard sous la formule (règle de prix) ou sous le coût */
 function tableau(E) {
-  const lignes = ["| Produit | Matière | Formule min / défaut / max | Tailles standard (prix ; coût formule) | Plafond | Alertes |", "|---|---|---|---|---|---|"];
+  const lignes = ["| Produit | Matière | Sur-mesure min / défaut / max | Tailles standard (prix ; formule ; coût) | Alertes |", "|---|---|---|---|---|"];
   const alertes = [];
   const eur = n => `${Math.round(n * 100) / 100} €`.replace(".", ",");
   for (const p of E.products.filter(avecBareme)) {
     const ext = ["min", "def", "max"].map(k => Object.fromEntries(p.custom.params.map(q => [q.key, q[k]])));
     const r = ext.map(v => E.prixCalcule(p, v));
-    if (r.some(x => !x)) { lignes.push(`| ${p.id} | — | barème absent | | | |`); continue; }
-    const std = (p.variants ? p.variants.options : []).map(o => ({ o, r: E.prixCalcule(p, o.values), prix: o.price != null ? o.price : p.price }));
+    if (r.some(x => !x)) { lignes.push(`| ${p.id} | — | barème absent | | |`); continue; }
+    const std = (p.variants ? p.variants.options : []).map(o => ({ o, r: E.prixCalcule(p, o.values), prix: E.priceFor(p, "standard", o.values) }));
     const a = [];
-    ext.forEach((v, i) => { if (r[i].plafonne) a.push(`formule ${["min", "défaut", "max"][i]} ${r[i].formule} € > plafond`); });
-    for (const s of std) if (s.prix < s.r.cout) a.push(`${s.o.label} : prix ${s.prix} € < coût ${eur(s.r.cout)}`);
+    for (const s of std) {
+      if (s.prix < s.r.cout) a.push(`${s.o.label} : prix ${s.prix} € sous le coût ${eur(s.r.cout)}`);
+      else if (s.prix < s.r.formule) a.push(`${s.o.label} : prix ${s.prix} € sous la formule ${s.r.formule} €`);
+    }
     for (const x of a) alertes.push(`${p.id} · ${x}`);
-    lignes.push(`| ${p.id} | ${E.matieres[matiereImpression(p)].court} | ${r.map(x => `${x.formule} €`).join(" / ")}`
+    lignes.push(`| ${p.id} | ${E.matieres[matiereImpression(p)].court} | ${r.map(x => `${x.prix} €`).join(" / ")}`
       + ` <br>(${r.map(x => `${Math.round(x.masse_g)} g, ${Math.round(x.temps_min)} min`).join(" / ")})`
-      + ` | ${std.map(s => `${s.o.label} ${s.prix} € ; ${eur(s.r.cout)} → ${s.r.formule} €`).join(" <br>")}`
-      + ` | ${r[0].plafond} € | ${a.join(" ; ") || "—"} |`);
+      + ` | ${std.map(s => `${s.o.label} ${s.prix} € ; ${s.r.formule} € ; ${eur(s.r.cout)}`).join(" <br>")}`
+      + ` | ${a.join(" ; ") || "—"} |`);
   }
   return { md: lignes.join("\n"), alertes };
 }

@@ -58,7 +58,9 @@ function productPage(p) {
     name: p.name, description: `${p.tagline} ${p.desc}`, sku: p.id, category: u.name,
     image: [img, ...(p.photos || []).map(x => `${SITE}/${x.src}`)],
     brand: { "@type": "Brand", name: "Evarysth" },
-    offers: { "@type": "Offer", url, price: p.price.toFixed(2), priceCurrency: "EUR" }
+    /* Une offre par taille standard (prix fixes) ; le sur-mesure, calculé, n'y figure pas */
+    offers: { "@type": "AggregateOffer", url, priceCurrency: "EUR", offerCount: p.variants.options.length,
+      lowPrice: Math.min(...p.variants.options.map(o => o.price)).toFixed(2), highPrice: Math.max(...p.variants.options.map(o => o.price)).toFixed(2) }
   }, {
     "@context": "https://schema.org", "@type": "BreadcrumbList",
     itemListElement: [

@@ -92,22 +92,35 @@ plateaux (pièces, positions, masse g, temps min, filament, **mapping AMS** : co
 contrôles, statut.
 
 ## Prix sur-mesure
-- `cout = masse_kg × €/kg(matière) + temps_h × €/h machine + forfait`
-- `prix = arrondi à l'euro supérieur de ((cout × coefficient + 0,25) / (1 − 0,015))` (frais Stripe ≈ 1,5 % + 0,25 €)
-- **Plancher** : prix de la taille standard la plus proche (distance des cotes normalisée par les bornes).
-- **Plafond** (décidé le 9 nov. 2026) : par défaut **2 × prix de la plus grande taille standard** du produit ;
-  `custom.plafond` dans `data.js` seulement pour une exception. Formule au-delà : prix affiché = plafond et alerte
-  « prix plafonné » dans /admin ; **pas de blocage** de la commande.
-- Tarifs de départ **validés par le propriétaire (9 nov. 2026)**, modifiables plus tard : PLA 25 €/kg, PETG 25, ASA 30,
-  PA12 60, PA-CF 70 ; machine 1,5 €/h ; forfait 3 € ; coefficient 2,5. Rangés dans `data.js` (`EVARYSTH.tarif`,
-  `densite` et `eurKg` par matière) : changer un tarif ne demande pas de retrancher. Densités (g/cm³) choisies en 5a :
-  PLA 1,24 et PETG 1,27 (profils de l'atelier), ASA 1,07, PA12 1,01, PA-CF 1,12 (fiches courantes ; les profils
-  génériques Bambu disent 1,04 pour ASA et PA).
+Règle en vigueur depuis le 10 nov. 2026 (revue externe « tailles standard », le propriétaire a délégué les choix) ;
+historique : plafond « 2 × standard » et prix standard unique du 9 au 10 nov., retirés.
+- `cout = (masse_kg × €/kg(matière) + temps_h × €/h machine) × (1 + échec(matière)) + forfait + emballage`
+  (échec : pièces ratées à refaire, 5 % PLA/PETG, 15 % ASA/PA12/PA-CF ; forfait 3 € = préparation, retrait des supports,
+  contrôle, soit environ 10 min de travail ; emballage 0,50 €). Pas de temps humain en plus : il doublerait le prix des
+  petites pièces.
+- `formule = arrondi à l'euro supérieur de ((cout × coefficient + 0,25) / (1 − 0,015))` (frais Stripe ≈ 1,5 % + 0,25 €).
+- **Tailles standard** : un prix par taille (4e élément de `sizes(...)` dans `data.js`), fixé une fois par calcul puis
+  modifiable à la main : le plus haut entre la formule à ses cotes et le prix « valeur » d'avant (prix unique d'origine,
+  pour ne pas brader une figurine sur ses grammes), arrondi (euro supérieur sous 30 €, prix finissant par 4 ou 9 au-delà),
+  croissant de S à L. `price` du produit = la plus petite taille (« Dès … »). Test : chaque taille ≥ formule, croissance ;
+  la CI avertit si une taille passe sous la formule après un retranchage. Retour possible (14 jours, frais à la charge du
+  client).
+- **Sur-mesure** : `prix = max(formule, prix de la taille standard la plus proche) + supplément sur-mesure (4 €)`
+  (vérification des cotes, pièce ratée non revendable, pas de rétractation). **Pas de plafond** : les bornes des curseurs
+  limitent la taille ; plus d'alerte « prix plafonné » dans /admin.
+- **Rétractation** : case à cocher obligatoire dans le panier dès qu'il contient du sur-mesure (« j'ai vérifié mes cotes… »),
+  revérifiée par le Worker (`surMesureAccepte: true`, sinon 400) ; CGV : tolérance ± 0,5 mm sur les cotes fonctionnelles.
+- **Matières** (10 nov. 2026) : les 4 produits en PA-CF (boîte, support gyroïde, organiseur, distributeur de cotons)
+  passent en **PETG**, imprimé à l'atelier à coût connu ; une option PA-CF payante pourra revenir plus tard. PA-CF, PA12 et
+  ASA partent chez un fabricant externe : leur prix réel sera ajusté par appels d'offres (propriétaire).
+- Tarifs (validés le 9 nov. 2026, modifiables) : PLA 25 €/kg, PETG 25, ASA 30, PA12 60, PA-CF 70 ; machine 1,5 €/h ;
+  coefficient 2,5. Rangés dans `data.js` (`EVARYSTH.tarif` ; `densite`, `eurKg`, `echec` par matière). Densités (g/cm³) :
+  PLA 1,24 et PETG 1,27 (profils de l'atelier), ASA 1,07, PA12 1,01, PA-CF 1,12.
 - Barème (`assets/js/bareme.js`, généré, jamais édité à la main) : par produit, grille de cotes (au moins min / défaut /
-  max par paramètre) → masse (g) et temps (min) tranchés ; interpolation multilinéaire ; empreinte des entrées (modèle,
-  `geo.js`, profils, image) pour détecter un barème périmé. Matières hors atelier : profil générique de la même famille,
-  seulement pour estimer.
-- Prix standards : inchangés (fixés à la main) ; la CI signale (avertissement) un prix standard sous le coût formule.
+  max par paramètre) → volume de filament et temps tranchés ; interpolation multilinéaire ; empreinte des entrées (modèle,
+  `geo.js`, profils, image) pour détecter un barème périmé. Matières hors atelier : profil PETG, seulement pour estimer.
+- Restent ouverts (propriétaire) : livraison (incluse ou facturée, transporteur, formats lettre / colis) ; mention TVA
+  des CGV ; option matière premium.
 
 ## Phases
 

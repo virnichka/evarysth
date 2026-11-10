@@ -84,6 +84,9 @@ async function creerSession(req, env, origine) {
   if (pause.active) return json({ error: pause.message, pause: true }, 503, origine);
   const corps = await lireJson(req);
   const lignes = lirePanier(corps);
+  /* Sur-mesure : pas de droit de rétractation (L221-28 3°) ; le client l'accepte par une case cochée dans le panier */
+  if (lignes.some(l => l.mode === "custom") && corps.surMesureAccepte !== true)
+    throw new ErreurPanier("Cochez la case « Sur-mesure » du panier : ces pièces ne sont ni reprises ni échangées.");
   const cadeau = lireCadeau(corps);
   let promotionCode = null;
   if (corps.promo) {

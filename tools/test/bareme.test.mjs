@@ -36,36 +36,46 @@ test("estimation : exacte aux nœuds de la grille, bornée entre deux nœuds", (
   }
 });
 
-test("tarifs : chaque matière a densité et €/kg ; formule, plancher et plafond", () => {
-  for (const [k, m] of Object.entries(E.matieres)) assert.ok(m.densite > 0.8 && m.densite < 2 && m.eurKg > 0, k);
+test("tarifs : chaque matière a densité, €/kg et taux d'échec ; formule, plancher, supplément sur-mesure", () => {
+  for (const [k, m] of Object.entries(E.matieres)) assert.ok(m.densite > 0.8 && m.densite < 2 && m.eurKg > 0 && m.echec >= 0 && m.echec < 0.5, k);
   const t = E.tarif;
-  assert.deepEqual([t.machineEurH, t.forfait, t.coefficient, t.plafondFois], [1.5, 3, 2.5, 2]);
-  /* Produit fictif : 100 cm³ de PLA (124 g), 2 h → coût 3,10 + 3 + 3 = 9,10 € ; (9,10 × 2,5 + 0,25) / 0,985 = 23,35 → 24 € */
-  const p = { id: "essai", price: 10, variants: { options: [{ label: "S", values: { a: 10 } }, { label: "L", values: { a: 30 } }] },
+  assert.deepEqual([t.machineEurH, t.forfait, t.emballage, t.coefficient, t.supplementSurMesure], [1.5, 3, 0.5, 2.5, 4]);
+  /* Produit fictif : 100 cm³ de PLA (124 g), 2 h → (3,10 + 3) × 1,05 + 3 + 0,5 = 9,905 € ;
+     (9,905 × 2,5 + 0,25) / 0,985 = 25,39 → formule 26 € ; sur-mesure = max(26, plancher 10) + 4 = 30 € */
+  const p = { id: "essai", price: 10, variants: { options: [{ label: "S", values: { a: 10 }, price: 10 }, { label: "L", values: { a: 30 }, price: 40 }] },
     custom: { params: [{ key: "a", min: 10, max: 30 }] } };
   const sauve = E.bareme;
   try {
     E.bareme = { produits: { essai: { matiere: "pla", axes: { a: [10, 30] }, points: [[100, 7200], [300, 21600]] } } };
     const r = E.prixCalcule(p, { a: 10 });
-    assert.equal(r.cout, 9.1);
-    assert.equal(r.formule, 24);
+    assert.equal(r.cout, 9.91);
+    assert.equal(r.formule, 26);
     assert.equal(r.plancher, 10);
-    assert.equal(r.plafond, 20);
-    assert.equal(r.prix, 20);
-    assert.equal(r.plafonne, true);
-    p.custom.plafond = 50;
-    assert.equal(E.prixCalcule(p, { a: 10 }).prix, 24);
+    assert.equal(r.prix, 30);
+    assert.equal(E.priceFor(p, "custom", { a: 10 }), 30);
+    assert.equal(E.priceFor(p, "standard", { a: 30 }), 40, "standard : prix de la taille");
+    assert.equal(E.prixCalcule(p, { a: 28 }).plancher, 40, "plancher : taille la plus proche (L)");
     E.bareme.produits.essai.points = [[1, 60], [2, 60]];
     const bas = E.prixCalcule(p, { a: 10 });
-    assert.ok(bas.formule < 10 && bas.prix === 10 && !bas.plafonne, "plancher : prix de la taille standard la plus proche");
+    assert.ok(bas.formule < 10 && bas.prix === 14, "formule sous le plancher : prix de la taille la plus proche + supplément");
   } finally { E.bareme = sauve; }
 });
 
-test("priceFor : standard = prix fixé, sur-mesure = prix calculé par le barème (phase 5b)", () => {
+test("tailles standard : un prix par taille, croissant de S à L, au moins la formule ; prix du produit = le plus petit", () => {
+  for (const p of avec) {
+    const prix = p.variants.options.map(o => o.price);
+    assert.ok(prix.every(x => Number.isFinite(x) && x > 0), `${p.id} : prix de chaque taille`);
+    prix.slice(1).forEach((x, i) => assert.ok(x >= prix[i], `${p.id} : prix croissant de S à L`));
+    assert.equal(p.price, Math.min(...prix), `${p.id} : « Dès » = plus petite taille`);
+    for (const o of p.variants.options) assert.ok(o.price >= E.prixCalcule(p, o.values).formule, `${p.id} ${o.label} : prix ${o.price} € sous la formule`);
+  }
+});
+
+test("priceFor : standard = prix de la taille, sur-mesure = prix calculé par le barème", () => {
   const p = E.getProduct("passe-cable");
-  assert.equal(E.priceFor(p, "standard"), p.price);
+  p.variants.options.forEach(o => assert.equal(E.priceFor(p, "standard", o.values), o.price));
   for (const a of [30, 60, 100]) assert.equal(E.priceFor(p, "custom", { a }), E.prixCalcule(p, { a }).prix);
-  assert.equal(E.priceFor(p, "custom", { a: 100 }), 15);
+  for (const a of [30, 60, 100]) assert.ok(E.priceFor(p, "custom", { a }) >= E.prixCalcule(p, { a }).plancher + E.tarif.supplementSurMesure);
 });
 
 test("empreinte : change avec la fiche d'impression, pas avec le prix ni les textes", () => {
