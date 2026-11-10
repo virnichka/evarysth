@@ -47,6 +47,57 @@
     store.set("evarysth.theme", next);
   });
 
+  /* ---------- Menu mobile (bouton ☰ affiché sous 900 px) : catalogue, univers, thème ---------- */
+  (function menu() {
+    const btn = $("[data-menu-open]");
+    if (!btn) return;
+    const b = document.body, here = location.pathname.replace(/index\.html$/, "");
+    const prod = b.dataset.productId && EVARYSTH.getProduct(b.dataset.productId);
+    const lien = (href, titre, sous, id) => {
+      const cur = here.endsWith("/" + href) ? "page" : (prod && prod.universe === id ? "true" : "");
+      return `<a href="${href}"${cur ? ` aria-current="${cur}"` : ""}>${esc(titre)}${sous ? `<small>${esc(sous)}</small>` : ""}</a>`;
+    };
+    b.insertAdjacentHTML("beforeend", `
+      <div class="menu-overlay" data-menu-close></div>
+      <aside class="drawer drawer--menu" id="menu" role="dialog" aria-modal="true" aria-label="Menu">
+        <header class="drawer__head"><b>Menu</b><button class="icon-btn" data-menu-close aria-label="Fermer le menu">✕</button></header>
+        <nav class="menu__nav" aria-label="Catalogue et univers">
+          ${lien("catalogue/", "Catalogue", "Toutes les pièces")}
+          ${EVARYSTH.universes.map(u => lien(`univers/${u.id}/`, u.name, u.pitch, u.id)).join("")}
+        </nav>
+        <div class="menu__foot"><button type="button" class="btn" data-theme-toggle><span class="ico-moon">Passer en thème sombre</span><span class="ico-sun">Passer en thème clair</span></button></div>
+      </aside>`);
+    const drawer = $("#menu");
+    let retour = null;
+    const ouvert = () => b.classList.contains("menu-open");
+    const ouvrir = () => {
+      retour = document.activeElement;
+      b.classList.add("menu-open");
+      btn.setAttribute("aria-expanded", "true");
+      drawer.querySelector("a").focus();
+    };
+    const fermer = () => {
+      if (!ouvert()) return;
+      b.classList.remove("menu-open");
+      btn.setAttribute("aria-expanded", "false");
+      if (retour && retour.focus) retour.focus();
+    };
+    document.addEventListener("click", e => {
+      if (e.target.closest("[data-menu-open]")) ouvrir();
+      else if (e.target.closest("[data-menu-close]") || e.target.closest("#menu a")) fermer();
+    });
+    document.addEventListener("keydown", e => {
+      if (!ouvert()) return;
+      if (e.key === "Escape") { fermer(); return; }
+      if (e.key !== "Tab") return;
+      /* Focus gardé dans le tiroir */
+      const f = [...drawer.querySelectorAll("a[href], button")], first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    matchMedia("(max-width: 900px)").addEventListener("change", e => { if (!e.matches) fermer(); });
+  })();
+
   /* ---------- Favoris ---------- */
   const FKEY = "evarysth.favs.v1";
   let favs = store.get(FKEY, []);
@@ -96,8 +147,13 @@
       <span class="mono eyebrow">Guide de mesure</span>
       <h2>Mesurer pour « ${esc(p.name)} »</h2>
       <ol class="guide">
-        <li><b>Prenez un mètre ruban</b><span>Un simple mètre de couturière ou de bricolage suffit, pas besoin de pied à coulisse.</span></li>
-        ${p.custom.params.map(prm => `<li><b>${esc(prm.label)}</b><span>Mesurez en millimètres (1 cm = 10 mm), entre ${prm.min} et ${prm.max} mm. Mesurez deux fois, au point le plus large.</span></li>`).join("")}
+        ${p.custom.outil
+          ? `<li><b>Préparez de quoi mesurer</b><span>${esc(p.custom.outil)}</span></li>`
+          : `<li><b>Prenez un mètre ruban</b><span>Un simple mètre de couturière ou de bricolage suffit, pas besoin de pied à coulisse.</span></li>`}
+        ${p.custom.params.map((prm, i) => prm.aide
+          /* Aide propre à la cote (data.js : aide, schema facultatif) ; sinon consigne générique */
+          ? `<li><b>${"ABC"[i]} · ${esc(prm.label)}</b><span>${esc(prm.aide)} Entre ${prm.min} et ${prm.max} mm.</span>${prm.schema ? prm.schema.replace("<svg ", '<svg class="guide__schema" aria-hidden="true" ') : ""}</li>`
+          : `<li><b>${esc(prm.label)}</b><span>Mesurez en millimètres (1 cm = 10 mm), entre ${prm.min} et ${prm.max} mm. Mesurez deux fois, au point le plus large.</span></li>`).join("")}
         <li><b>Réglez les curseurs</b><span>Ne vous souciez pas du jeu : on ajoute nous-mêmes la tolérance pour que la pièce s'ajuste parfaitement.</span></li>
       </ol>
       <button class="btn btn--primary btn--block" data-modal-close>C'est compris</button>`);

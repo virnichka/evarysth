@@ -2,6 +2,7 @@
 (function () {
   const $ = (s, r = document) => r.querySelector(s);
   const fmt = EVARYSTH.fmt;
+  const SOON_NOTE = "Boutique en préparation : commandes bientôt ouvertes";
 
   /* Illustrations line-art (aucune image externe) */
   const SHAPES = {
@@ -266,6 +267,9 @@
     const mat = EVARYSTH.matiere(p);
     const LETTERS = ["A", "B", "C"];
     const photos = p.photos || [];
+    /* Cotes communes aux 3 tailles standard (paramètres qui ont un libellé court « court » dans data.js) */
+    const coteFixes = p.custom.params.filter(prm => prm.court && new Set(p.variants.options.map(o => o.values[prm.key])).size === 1)
+      .map(prm => `${prm.court} ${p.variants.options[0].values[prm.key]} mm`).join(" · ");
 
     root.innerHTML = `
       <nav class="crumbs" aria-label="Fil d'Ariane"><a href="catalogue/">Catalogue</a> / <a href="univers/${u.id}/">${u.name}</a> / <span>${p.name}</span></nav>
@@ -310,7 +314,8 @@
           <h1>${p.name}</h1>
           <p class="lead">${p.tagline}</p>
           <div class="pdp__price"><span id="price"></span><small id="price-note"></small></div>
-          <p class="desc">${p.desc}</p>
+          <div class="desc"><p class="desc__text" id="desc-text">${p.desc}</p>
+            <button type="button" class="link desc__more" id="desc-more" aria-expanded="false" aria-controls="desc-text" hidden>Lire la suite</button></div>
 ${colors.length ? `
           <div class="colors" role="radiogroup" aria-label="Coloris">
             <span class="label">Coloris <span class="colors__name" id="color-name"></span></span>
@@ -330,6 +335,7 @@ ${colors.length ? `
               ${p.variants.options.map((o, i) => `
                 <button type="button" class="opt" data-variant="${i}"><b>${o.label}</b><small>${o.hint}</small></button>`).join("")}
             </div>
+            <p class="std-note">${coteFixes ? `Toutes les tailles : ${coteFixes}. ` : ""}<button type="button" class="link" data-mode="custom">Autre dimension ? Passez en sur-mesure</button></p>
           </div>
 
           <div class="pane" id="pane-custom" hidden>
@@ -337,13 +343,14 @@ ${colors.length ? `
               <div class="slider">
                 <div class="slider__head">
                   <label for="s-${prm.key}"><span class="mono letter">${LETTERS[i]}</span>${prm.label}</label>
-                  <div class="slider__val"><input type="number" id="n-${prm.key}" min="${prm.min}" max="${prm.max}" step="${prm.step}" value="${prm.def}"><span>mm</span></div>
+                  <div class="slider__val"><input type="number" id="n-${prm.key}" min="${prm.min}" max="${prm.max}" step="${prm.step}" value="${prm.def}" inputmode="${prm.step < 1 ? "decimal" : "numeric"}" aria-describedby="m-${prm.key}"><span>mm</span></div>
                 </div>
                 <input type="range" id="s-${prm.key}" data-key="${prm.key}" min="${prm.min}" max="${prm.max}" step="${prm.step}" value="${prm.def}">
                 <span class="slider__bulle mono" id="b-${prm.key}" aria-hidden="true"></span>
                 <div class="slider__scale mono"><span>${prm.min}</span><span>${prm.max} mm</span></div>
+                <p class="slider__msg" id="m-${prm.key}" aria-live="polite" hidden></p>
               </div>`).join("")}
-            <p class="tip">Un mètre ruban suffit. On ajoute nous-mêmes la tolérance pour un ajustement parfait.
+            <p class="tip">${p.custom.astuce || "Un mètre ruban suffit."} On ajoute nous-mêmes la tolérance pour un ajustement parfait.
               <button class="link" data-measure="${p.id}">Comment mesurer ?</button></p>
             <p class="legal-note">Fabriquée à vos cotes, une pièce sur-mesure n'est ni reprise ni échangée (hors défaut) : les cotes saisies font foi. <a href="cgv/#retractation">CGV</a></p>
           </div>
@@ -359,6 +366,7 @@ ${colors.length ? `
             </div>
             <button class="btn btn--primary btn--grow" id="add">Ajouter au panier — <span id="add-price"></span></button>
           </div>
+          <p class="soon-note">${SOON_NOTE}</p>
           <p class="delivery"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>
             <span>Livraison estimée <b>${deliveryRange()}</b></span></p>
 
@@ -378,12 +386,16 @@ ${colors.length ? `
           </div>
         </header>
         <div class="rail" tabindex="0" aria-label="Autres hacks ${u.name}">${EVARYSTH.products.filter(x => x.universe === p.universe && x.id !== p.id).map(card).join("")}</div>
-      </section>`;
+      </section>
+      <div class="buybar" id="buybar" role="region" aria-label="Achat rapide">
+        <div class="buybar__info"><b class="mono" id="buybar-price"></b><small>${SOON_NOTE}</small></div>
+        <button type="button" class="btn btn--primary" id="buybar-add">Ajouter au panier</button>
+      </div>`;
 
     const values = () => state.mode === "custom" ? state.custom : p.variants.options[state.variant].values;
 
     function update() {
-      root.querySelectorAll("[data-mode]").forEach(b => { const on = b.dataset.mode === state.mode; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", on); });
+      root.querySelectorAll(".segmented [data-mode]").forEach(b => { const on = b.dataset.mode === state.mode; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", on); });
       root.querySelectorAll("[data-variant]").forEach(b => { const on = +b.dataset.variant === state.variant; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", on); });
       $("#pane-standard").hidden = state.mode !== "standard";
       $("#pane-custom").hidden = state.mode !== "custom";
@@ -397,6 +409,7 @@ ${colors.length ? `
       $("#price").textContent = fmt(unit);
       $("#price-note").textContent = state.mode === "custom" ? "Sur-mesure, fabriqué pour vous" : "Taille standard";
       $("#add-price").textContent = fmt(unit * state.qty);
+      $("#buybar-price").textContent = fmt(unit * state.qty);
       prixScene(unit, v);
       $("#qty").textContent = state.qty;
 
@@ -438,7 +451,6 @@ ${colors.length ? `
     /* Prix sur-mesure en direct : pastille sur la vue 3D (chiffre qui défile, écart « +2 € », « prix max » au plafond)
        et bulle au-dessus du curseur qu'on déplace. Rien en standard. Sans animation si le système le demande. */
     const calme = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const euros = n => Number.isInteger(n) ? `${n.toLocaleString("fr-FR")} €` : fmt(n);
     const prix = { vu: null, cible: null, anim: 0, delta: 0 };
     function prixScene(unit, v) {
       const box = $("#stage-prix");
@@ -448,10 +460,10 @@ ${colors.length ? `
       box.classList.toggle("is-max", !!(r && r.prix >= r.plafond));
       const avant = prix.cible;
       prix.cible = unit;
-      if (avant == null || calme()) { cancelAnimationFrame(prix.anim); prix.vu = unit; $("#stage-prix-val").textContent = euros(unit); }
+      if (avant == null || calme()) { cancelAnimationFrame(prix.anim); prix.vu = unit; $("#stage-prix-val").textContent = fmt(unit); }
       else if (unit !== avant) {
         const d = $("#stage-prix-delta"), e = unit - avant;
-        d.textContent = `${e > 0 ? "+" : "−"}${euros(Math.abs(e))}`;
+        d.textContent = `${e > 0 ? "+" : "−"}${fmt(Math.abs(e))}`;
         d.classList.remove("is-on"); void d.offsetWidth; d.classList.add("is-on");
         clearTimeout(prix.delta); prix.delta = setTimeout(() => d.classList.remove("is-on"), 1200);
         const de = prix.vu, t0 = performance.now();
@@ -459,7 +471,7 @@ ${colors.length ? `
         const pas = t => {
           const k = Math.min(1, (t - t0) / 300), x = de + (unit - de) * (1 - (1 - k) ** 3);
           prix.vu = k < 1 ? x : unit;
-          $("#stage-prix-val").textContent = euros(k < 1 ? Math.round(x) : unit);
+          $("#stage-prix-val").textContent = fmt(k < 1 ? Math.round(x) : unit);
           if (k < 1) prix.anim = requestAnimationFrame(pas);
         };
         prix.anim = requestAnimationFrame(pas);
@@ -472,7 +484,7 @@ ${colors.length ? `
       const k = (range.value - prm.min) / (prm.max - prm.min), pouce = 22;
       b.style.left = `${range.offsetLeft + pouce / 2 + k * (range.offsetWidth - pouce)}px`;
       b.style.top = `${range.offsetTop}px`;
-      b.textContent = euros(EVARYSTH.priceFor(p, "custom", values()));
+      b.textContent = fmt(EVARYSTH.priceFor(p, "custom", values()));
       b.classList.add("is-on");
     }
 
@@ -483,8 +495,11 @@ ${colors.length ? `
       if (m) {
         state.mode = m.dataset.mode; update(); pulse();
         /* Mobile + 3D : amène les curseurs juste sous la vue épinglée */
-        if (p.model && state.mode === "custom" && matchMedia("(max-width: 900px)").matches)
-          $("#pane-custom").scrollIntoView({ behavior: "smooth", block: "start" });
+        if (p.model && state.mode === "custom" && matchMedia("(max-width: 900px)").matches) {
+          const pane = $("#pane-custom");
+          if (pane.getBoundingClientRect().top > innerHeight * .4) document.body.classList.add("header-cache"); // on descend : l'en-tête se masque
+          pane.scrollIntoView({ behavior: calme() ? "auto" : "smooth", block: "start" });
+        }
       }
       const o = e.target.closest("[data-variant]"); if (o) { state.variant = +o.dataset.variant; update(); pulse(); }
       const c = e.target.closest("[data-color]");
@@ -495,12 +510,35 @@ ${colors.length ? `
     p.custom.params.forEach(prm => {
       const range = $(`#s-${prm.key}`), num = $(`#n-${prm.key}`);
       const paint = () => range.style.setProperty("--p", ((range.value - prm.min) / (prm.max - prm.min)) * 100 + "%");
-      range.addEventListener("input", () => { state.custom[prm.key] = +range.value; num.value = range.value; paint(); update(); bulle(prm, range, true); });
+      range.addEventListener("input", () => { state.custom[prm.key] = +range.value; num.value = range.value; $(`#m-${prm.key}`).hidden = true; num.setAttribute("aria-invalid", "false"); paint(); update(); bulle(prm, range, true); });
       range.addEventListener("pointerdown", () => bulle(prm, range, true));
       for (const ev of ["pointerup", "pointercancel", "change", "blur"]) range.addEventListener(ev, () => bulle(prm, range, false));
+      /* Saisie au clavier : appliquée pendant la frappe si elle est dans les bornes (3D recalculée après une courte
+         pause) ; hors bornes, vide ou à 0 : message sous le champ, puis valeur corrigée à la validation, jamais en silence */
+      const msg = $(`#m-${prm.key}`), bornes = `${prm.min} à ${prm.max} mm`;
+      const dire = txt => { msg.textContent = txt || ""; msg.hidden = !txt; num.setAttribute("aria-invalid", txt ? "true" : "false"); };
+      const lire = () => num.value.trim() === "" ? NaN : +num.value;
+      const appliquer = val => {
+        range.value = val; state.custom[prm.key] = val; paint();
+        clearTimeout(num._t); num._t = setTimeout(() => { update(); pulse(); }, 250);
+      };
+      num.addEventListener("input", () => {
+        const x = lire();
+        if (!x) return dire(`Saisissez une cote entre ${bornes}.`);
+        if (x < prm.min || x > prm.max) return dire(`${bornes} : valeur ramenée à ${x < prm.min ? prm.min : prm.max} à la validation.`);
+        dire(""); appliquer(Math.round(x / prm.step) * prm.step);
+      });
       num.addEventListener("change", () => {
-        const val = Math.min(prm.max, Math.max(prm.min, Math.round(+num.value / prm.step) * prm.step || prm.def));
-        num.value = range.value = val; state.custom[prm.key] = val; paint(); update(); pulse();
+        const x = lire();
+        let val;
+        if (!x) { val = state.custom[prm.key]; dire(`${bornes} : champ vide ou à 0, cote remise à ${val} mm.`); }
+        else {
+          val = +(Math.min(prm.max, Math.max(prm.min, Math.round(x / prm.step) * prm.step))).toFixed(3);
+          if (x < prm.min || x > prm.max) dire(`${bornes} : valeur ramenée à ${val}.`);
+          else if (val !== x) dire(`Cote arrondie à ${val} mm (pas de ${prm.step} mm).`);
+          else dire("");
+        }
+        num.value = val; appliquer(val);
       });
       paint();
     });
@@ -535,6 +573,47 @@ ${colors.length ? `
       markView(0);
     }
 
+    /* Mobile : la vue 3D n'est épinglée sous l'en-tête que tant que les curseurs sur-mesure sont visibles sous elle
+       (CSS : .pdp--3d.is-pinned, écrans ≤ 900 px ; sans effet au-delà) */
+    if (p.model && window.IntersectionObserver) {
+      const pdp = root.querySelector(".pdp"), stage = $("#stage"), pane = $("#pane-custom");
+      let io = null, t = 0;
+      const watch = () => {
+        if (io) io.disconnect();
+        const haut = Math.round(stage.offsetHeight + 24); // zone couverte par la vue épinglée (l'en-tête peut être masqué)
+        io = new IntersectionObserver(([en]) => pdp.classList.toggle("is-pinned", en.isIntersecting), { rootMargin: `-${haut}px 0px 0px 0px` });
+        io.observe(pane);
+      };
+      watch();
+      addEventListener("resize", () => { clearTimeout(t); t = setTimeout(watch, 200); });
+    }
+
+    /* Mobile : barre d'achat fixe en bas tant que le bouton « Ajouter au panier » est hors écran (CSS : ≤ 900 px ;
+       masquée panier, modale ou menu ouverts, et pendant la saisie d'une cote au clavier) */
+    const bar = $("#buybar");
+    $("#buybar-add").addEventListener("click", () => $("#add").click());
+    if (window.IntersectionObserver) new IntersectionObserver(([en]) => {
+      bar.classList.toggle("is-on", !en.isIntersecting);
+      document.body.classList.toggle("has-buybar", !en.isIntersecting);
+    }).observe($("#add"));
+    root.addEventListener("focusin", e => { if (e.target.matches("input[type=number]")) bar.classList.add("is-typing"); });
+    root.addEventListener("focusout", e => { if (e.target.matches("input[type=number]")) bar.classList.remove("is-typing"); });
+
+    /* Description coupée à 3 lignes sur mobile (CSS) : « Lire la suite » seulement si le texte dépasse */
+    const descTxt = $("#desc-text"), descBtn = $("#desc-more"), etroit = matchMedia("(max-width: 900px)");
+    const descFit = () => {
+      descBtn.hidden = !etroit.matches || (!descTxt.classList.contains("is-open") && descTxt.scrollHeight <= descTxt.clientHeight + 1);
+    };
+    descBtn.addEventListener("click", () => {
+      const open = descTxt.classList.toggle("is-open");
+      descBtn.setAttribute("aria-expanded", open);
+      descBtn.textContent = open ? "Réduire" : "Lire la suite";
+      if (!open) descFit();
+    });
+    descFit();
+    etroit.addEventListener("change", descFit);
+    if (document.fonts) document.fonts.ready.then(descFit);
+
     disposeViewer();
     if (p.model && EVARYSTH.viewer3d) {
       viewer = EVARYSTH.viewer3d.mount($("#viewer3d"), p.model, p.custom.params, build => {
@@ -562,6 +641,26 @@ ${colors.length ? `
     }
 
     update();
+  }
+
+  /* Fiche produit, écrans ≤ 900 px : l'en-tête se masque quand on descend, revient quand on remonte
+     (body.header-cache ; le CSS ne l'applique que sous 900 px). Toujours visible en haut de page, panier,
+     modale ou menu ouverts, ou si le focus clavier y entre. */
+  function enteteMobile() {
+    const header = $(".site-header"), etroit = matchMedia("(max-width: 900px)"), b = document.body;
+    if (!header) return;
+    let y0 = scrollY, raf = 0;
+    addEventListener("scroll", () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const y = scrollY, d = y - y0;
+        if (!etroit.matches || y < header.offsetHeight + 16 || b.matches(".cart-open, .modal-open, .menu-open")) { b.classList.remove("header-cache"); y0 = y; return; }
+        if (Math.abs(d) < 8) return;
+        b.classList.toggle("header-cache", d > 0); y0 = y;
+      });
+    }, { passive: true });
+    header.addEventListener("focusin", () => b.classList.remove("header-cache"));
   }
 
   function deliveryRange() {
@@ -667,7 +766,7 @@ ${colors.length ? `
     if (pid) {
       const p = EVARYSTH.getProduct(pid);
       if (!p) return;
-      renderProduct(p.id); EVARYSTH.syncFavs();
+      renderProduct(p.id); EVARYSTH.syncFavs(); enteteMobile();
       document.querySelectorAll("[data-nav]").forEach(a => a.classList.toggle("is-current", a.dataset.nav === "f-" + p.universe));
       window.evarysthTrack();
       return;

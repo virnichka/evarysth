@@ -127,11 +127,21 @@ EVARYSTH.products = [
     ],
     impression: { matiere: "asa", orientation: POSE.retourne, supports: true, parPlateau: 6,
       remarques: "Tête en bas, languette à œillet contre le plateau (comme le modèle d'origine) ; supports sous les crochets." },
-    custom: { params: [
-      param("a", "Diamètre de la tige d'appui-tête", 10, 20, 14),
-      param("b", "Épaisseur de la tablette", 6, 22, 15),
-      param("c", "Distance tige – dos du siège", 25, 55, 35)
-    ] },
+    custom: {
+      astuce: "Un pied à coulisse ou un réglet gradué suffit : le guide explique chaque cote.",
+      outil: "Un pied à coulisse, ou un réglet gradué en millimètres. Sans pied à coulisse, une bande de papier suffit pour la tige (cote A).",
+      params: [
+        { ...param("a", "Diamètre de la tige d'appui-tête", 10, 20, 14), court: "tige Ø",
+          aide: "Remontez l'appui-tête au maximum pour dégager une tige et mesurez son diamètre au pied à coulisse. Sans pied à coulisse : enroulez une bande de papier autour de la tige, marquez le recouvrement, mesurez la longueur à plat et divisez par 3,14 (44 mm → 14 mm).",
+          schema: `<svg viewBox="0 0 160 110"><rect x="44" y="6" width="72" height="30" rx="10"/><path d="M74 36v62M86 36v62M20 98h120"/><path class="cote" d="M74 56v12M86 56v12M54 62h20M106 62H86M69 59l5 3-5 3M91 59l-5 3 5 3"/><text x="118" y="67">A</text></svg>` },
+        { ...param("b", "Épaisseur de la tablette", 6, 22, 15), court: "tablette",
+          aide: "Mesurez la tablette telle que vous l'utiliserez, coque comprise, sur la tranche qui se pose dans les petits crochets : de la face avant à la face arrière, à l'endroit le plus épais de cette tranche." ,
+          schema: `<svg viewBox="0 0 160 110"><rect x="10" y="44" width="116" height="20" rx="6"/><path class="ghost" d="M18 50h100"/><path class="cote" d="M126 44h20M126 64h20M140 28v16M140 80V64M137 39l3 5 3-5M137 69l3-5 3 5"/><text x="134" y="100">B</text></svg>` },
+        { ...param("c", "Distance tige – dos du siège", 25, 55, 35), court: "distance",
+          aide: "Appui-tête en place, mesurez à l'horizontale, en haut du dossier : du milieu de la tige jusqu'à la face arrière du dossier, celle que voient les passagers arrière. Une règle posée à plat sur le haut du dossier aide à viser.",
+          schema: `<svg viewBox="0 0 160 110"><rect x="30" y="6" width="56" height="24" rx="10"/><path d="M55 30v22M61 30v22"/><rect x="34" y="52" width="66" height="54" rx="8"/><path class="ghost" d="M58 50h46v44"/><path class="cote" d="M100 34v18M58 40h42M63 37l-5 3 5 3M95 37l5 3-5 3"/><text x="110" y="45">C</text></svg>` }
+      ]
+    },
     photos: [
       { src: "assets/photos/crochet-appui-tete/1.webp", alt: "Tablette posée sur les petits crochets derrière un siège avant, un sac et une gourde suspendus aux grands crochets" },
       { src: "assets/photos/crochet-appui-tete/2.webp", alt: "Gros plan des grands crochets : sangle de sac et mousqueton de gourde", pos: "50% 40%" }
@@ -458,4 +468,8 @@ EVARYSTH.prixCalcule = (p, values) => {
     prix: Math.min(Math.max(formule, plancher), plafond), plafonne: formule > plafond };
 };
 
-EVARYSTH.fmt = n => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+/* Seul formateur de prix du site : « 14 € » pour un prix entier, « 12,60 € » sinon */
+EVARYSTH.fmt = n => {
+  const entier = Math.abs(n - Math.round(n)) < 0.005;
+  return (entier ? Math.round(n) : n).toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: entier ? 0 : 2, maximumFractionDigits: entier ? 0 : 2 });
+};
