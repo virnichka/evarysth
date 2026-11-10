@@ -678,7 +678,7 @@ async function vueCatalogue(env, email, bandeau) {
         }
         return `<div class="ligne"><span>${esc(o.label)} <span class="muted">${esc(o.hint || "")}</span> · ${prix(o.price != null ? o.price : p.price)}</span>${etatStl}</div>`;
       });
-      const sm = p.custom ? `Sur-mesure (prix calculé, taille la plus proche + ${prix(EVARYSTH.tarif.supplementSurMesure)} au moins) : ${(p.custom.params || []).map(x => `${esc(x.label)} ${x.min}–${x.max} mm`).join(" ; ")}` : "";
+      const sm = p.custom ? `Sur-mesure (prix calculé + ${Math.round(EVARYSTH.tarif.supplement.part * 100)} %, jamais sous une taille standard plus petite) : ${(p.custom.params || []).map(x => `${esc(x.label)} ${x.min}–${x.max} mm`).join(" ; ")}` : "";
       const stl = cles ? `<span class="badge ${presents === tailles.length ? "present" : "manque"}">STL ${presents}/${tailles.length}</span>` : "";
       return `<details><summary><span class="nom">${esc(p.name)}</span>${stl}<span class="resume">dès ${prix(p.price)}</span></summary><div class="detail">
 <p class="muted">${esc(p.id)} · <a href="${SITE}/produits/${encodeURIComponent(p.id)}/" target="_blank" rel="noopener noreferrer">fiche ↗</a></p>

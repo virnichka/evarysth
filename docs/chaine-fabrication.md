@@ -106,8 +106,11 @@ historique : plafond « 2 × standard » et prix standard unique du 9 au 10 nov.
   croissant de S à L. `price` du produit = la plus petite taille (« Dès … »). Test : chaque taille ≥ formule, croissance ;
   la CI avertit si une taille passe sous la formule après un retranchage. Retour possible (14 jours, frais à la charge du
   client).
-- **Sur-mesure** : `prix = max(formule, prix de la taille standard la plus proche) + supplément sur-mesure (4 €)`
-  (vérification des cotes, pièce ratée non revendable, pas de rétractation). **Pas de plafond** : les bornes des curseurs
+- **Sur-mesure** (corrigé après l'audit des prix du 10 nov.) : `base = max(formule, plancher)`, plancher = prix de la
+  **plus grande taille standard dont toutes les cotes sont ≤** aux cotes demandées (0 si aucune) ; `prix = base +
+  supplément`, supplément = 10 % de la base arrondi à l'euro supérieur, **entre 2 et 8 €** (vérification des cotes, pièce
+  ratée non revendable, pas de rétractation). L'ancien plancher « taille la plus proche » faisait payer une pièce plus
+  petite que S au prix de S (organiseur 120 × 150 : 68 € → 35 €) et créait 621 hausses de plus de 25 % en un cran. **Pas de plafond** : les bornes des curseurs
   limitent la taille ; plus d'alerte « prix plafonné » dans /admin.
 - **Rétractation** : case à cocher obligatoire dans le panier dès qu'il contient du sur-mesure (« j'ai vérifié mes cotes… »),
   revérifiée par le Worker (`surMesureAccepte: true`, sinon 400) ; CGV : tolérance ± 0,5 mm sur les cotes fonctionnelles.
@@ -567,6 +570,13 @@ revue externe « tailles standard », puis choix délégués. Règle complète :
   tortue 23/39/69 (19) ; voiture 24/29/54 (24). Exemple : boîte sur-mesure 140 × 105 × 75 mm = 48 € (M 39 €, L 69 €).
 - Restent chers par nature (temps d'impression de 13 à 30 h) : support gyroïde et organiseur ; à revoir avec les
   appels d'offres fabricants ou en réduisant les tailles.
+
+#### Audit des prix (10 novembre 2026)
+Revue externe : calcul conforme, Worker = site sur 80 configurations. Corrigé : plancher (ci-dessus), supplément de
+10 % entre 2 et 8 €, panier qui affichait le prix enregistré à l'ajout (désormais recalculé à chaque affichage ; le
+Worker recalculait déjà au paiement). Non retenu pour l'instant : coefficient 1,5 sur les heures machine (attendre les
+appels d'offres). Accepté : une pièce sur-mesure un cran plus petite qu'une taille standard coûte 1 à 3 € de moins.
+À confirmer : crochet-appui-tête, masse en baisse de 0,7 % quand la tige passe de 10 à 12 mm (géométrie).
 
 ## Points ouverts (propriétaire)
 - Catalogue ASA / PA-CF / PA12 : garder (fabricant externe) ou passer des fiches en PETG (promesse « tient dehors »).

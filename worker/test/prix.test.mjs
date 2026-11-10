@@ -38,19 +38,20 @@ test("prix du curseur = prix payé : 100 configurations sur-mesure tirées au ha
     assert.equal(l.unitCents, Math.round(affiche * 100), `${p.id} ${JSON.stringify(values)}`);
     assert.ok(Number.isInteger(affiche), "prix à l'euro");
     const r = EVARYSTH.prixCalcule(p, values);
-    assert.equal(affiche, Math.max(r.formule, r.plancher) + EVARYSTH.tarif.supplementSurMesure, `${p.id} : formule ou taille la plus proche, + supplément`);
+    assert.equal(affiche, Math.max(r.formule, r.plancher) + r.supplement, `${p.id} : formule ou taille standard plus petite, + supplément`);
+    assert.ok(r.supplement >= 2 && r.supplement <= 8);
     if (r.formule < r.plancher) planchers++;
   }
   assert.ok(planchers > 0, "le tirage couvre des prix au plancher");
 });
 
-test("tailles standard : prix de la taille payé tel quel ; sur-mesure jamais sous la taille la plus proche + supplément", () => {
+test("tailles standard : prix de la taille payé tel quel ; sur-mesure aux mêmes cotes ≥ taille + supplément", () => {
   for (const p of EVARYSTH.products.filter(q => q.custom)) {
     p.variants.options.forEach((o, i) => {
       const [l] = lirePanier({ items: [{ id: p.id, mode: "standard", variant: i, color: p.colors[0].id, qty: 1 }] });
       assert.equal(l.unitCents, Math.round(o.price * 100), `${p.id} ${o.label}`);
       assert.equal(site.priceFor(site.getProduct(p.id), "standard", o.values), o.price);
-      assert.ok(EVARYSTH.priceFor(p, "custom", o.values) >= o.price + EVARYSTH.tarif.supplementSurMesure, `${p.id} ${o.label} : sur-mesure ≥ taille + supplément`);
+      assert.ok(EVARYSTH.priceFor(p, "custom", o.values) >= o.price + EVARYSTH.tarif.supplement.min, `${p.id} ${o.label} : sur-mesure ≥ taille + supplément`);
     });
   }
 });

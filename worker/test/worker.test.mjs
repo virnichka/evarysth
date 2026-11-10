@@ -51,7 +51,7 @@ test("prix recalculés depuis le catalogue (standard et sur-mesure calculé par 
   assert.equal(std.unitCents, 3400, "prix de la taille Moyenne");
   assert.deepEqual(std.values, { a: 50, b: 220 });
   /* Barème : 106,6 cm³ d'ASA (114 g), 3 h 34 → coût (3,42 + 5,35) × 1,15 + 3 + 0,5 = 13,58 € → formule 35 € ;
-     taille la plus proche : Moyenne 34 € → max(35, 34) + 4 € de sur-mesure = 39 € */
+     plus grande taille ≤ 45 × 250 : Fine 34 € → max(35, 34) + 10 % (3,5 → 4 €) = 39 € */
   assert.equal(sm.unitCents, 3900);
 });
 
