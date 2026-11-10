@@ -277,6 +277,7 @@
             ${p.model ? `
             <label class="stage__open mono" hidden><span>Ouvrir</span><input type="range" id="open3d" min="0" max="100" value="0" style="--p:0%" aria-label="Ouvrir pour voir l'intérieur"></label>` : ""}
             <div class="dims" id="dims"></div>
+            <div class="stage__prix" id="stage-prix" aria-hidden="true" hidden><b class="mono" id="stage-prix-val"></b><small class="mono" id="stage-prix-delta"></small><em id="stage-prix-max">prix max</em></div>
             <span class="stage__mat mono" id="stage-mat">${mat.court} · NOIR MAT</span>
             ${photos.length ? `
             <div class="stage__photos" id="photos" tabindex="-1">
@@ -339,6 +340,7 @@ ${colors.length ? `
                   <div class="slider__val"><input type="number" id="n-${prm.key}" min="${prm.min}" max="${prm.max}" step="${prm.step}" value="${prm.def}"><span>mm</span></div>
                 </div>
                 <input type="range" id="s-${prm.key}" data-key="${prm.key}" min="${prm.min}" max="${prm.max}" step="${prm.step}" value="${prm.def}">
+                <span class="slider__bulle mono" id="b-${prm.key}" aria-hidden="true"></span>
                 <div class="slider__scale mono"><span>${prm.min}</span><span>${prm.max} mm</span></div>
               </div>`).join("")}
             <p class="tip">Un mètre ruban suffit. On ajoute nous-mêmes la tolérance pour un ajustement parfait.
@@ -395,6 +397,7 @@ ${colors.length ? `
       $("#price").textContent = fmt(unit);
       $("#price-note").textContent = state.mode === "custom" ? "Sur-mesure, fabriqué pour vous" : "Taille standard";
       $("#add-price").textContent = fmt(unit * state.qty);
+      prixScene(unit, v);
       $("#qty").textContent = state.qty;
 
       const dimRows = p.custom.params.map((prm, i) => [`${LETTERS[i]} · ${prm.label}`, `${v[prm.key]} mm`]);
@@ -432,6 +435,47 @@ ${colors.length ? `
       if (i > 0) track.scrollTo({ left: (i - 1) * track.clientWidth, behavior: first ? "instant" : "smooth" });
     }
 
+    /* Prix sur-mesure en direct : pastille sur la vue 3D (chiffre qui défile, écart « +2 € », « prix max » au plafond)
+       et bulle au-dessus du curseur qu'on déplace. Rien en standard. Sans animation si le système le demande. */
+    const calme = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const euros = n => Number.isInteger(n) ? `${n.toLocaleString("fr-FR")} €` : fmt(n);
+    const prix = { vu: null, cible: null, anim: 0, delta: 0 };
+    function prixScene(unit, v) {
+      const box = $("#stage-prix");
+      box.hidden = state.mode !== "custom";
+      if (box.hidden) { prix.cible = null; return; }
+      const r = EVARYSTH.prixCalcule(p, v);
+      box.classList.toggle("is-max", !!(r && r.prix >= r.plafond));
+      const avant = prix.cible;
+      prix.cible = unit;
+      if (avant == null || calme()) { cancelAnimationFrame(prix.anim); prix.vu = unit; $("#stage-prix-val").textContent = euros(unit); }
+      else if (unit !== avant) {
+        const d = $("#stage-prix-delta"), e = unit - avant;
+        d.textContent = `${e > 0 ? "+" : "−"}${euros(Math.abs(e))}`;
+        d.classList.remove("is-on"); void d.offsetWidth; d.classList.add("is-on");
+        clearTimeout(prix.delta); prix.delta = setTimeout(() => d.classList.remove("is-on"), 1200);
+        const de = prix.vu, t0 = performance.now();
+        cancelAnimationFrame(prix.anim);
+        const pas = t => {
+          const k = Math.min(1, (t - t0) / 300), x = de + (unit - de) * (1 - (1 - k) ** 3);
+          prix.vu = k < 1 ? x : unit;
+          $("#stage-prix-val").textContent = euros(k < 1 ? Math.round(x) : unit);
+          if (k < 1) prix.anim = requestAnimationFrame(pas);
+        };
+        prix.anim = requestAnimationFrame(pas);
+      }
+    }
+    function bulle(prm, range, montrer) {
+      const b = $(`#b-${prm.key}`);
+      clearTimeout(b._t);
+      if (!montrer) { b._t = setTimeout(() => b.classList.remove("is-on"), 700); return; }
+      const k = (range.value - prm.min) / (prm.max - prm.min), pouce = 22;
+      b.style.left = `${range.offsetLeft + pouce / 2 + k * (range.offsetWidth - pouce)}px`;
+      b.style.top = `${range.offsetTop}px`;
+      b.textContent = euros(EVARYSTH.priceFor(p, "custom", values()));
+      b.classList.add("is-on");
+    }
+
     function pulse() { const d = $("#dims"); d.classList.remove("pulse"); void d.offsetWidth; d.classList.add("pulse"); }
 
     root.onclick = e => {
@@ -451,7 +495,9 @@ ${colors.length ? `
     p.custom.params.forEach(prm => {
       const range = $(`#s-${prm.key}`), num = $(`#n-${prm.key}`);
       const paint = () => range.style.setProperty("--p", ((range.value - prm.min) / (prm.max - prm.min)) * 100 + "%");
-      range.addEventListener("input", () => { state.custom[prm.key] = +range.value; num.value = range.value; paint(); update(); });
+      range.addEventListener("input", () => { state.custom[prm.key] = +range.value; num.value = range.value; paint(); update(); bulle(prm, range, true); });
+      range.addEventListener("pointerdown", () => bulle(prm, range, true));
+      for (const ev of ["pointerup", "pointercancel", "change", "blur"]) range.addEventListener(ev, () => bulle(prm, range, false));
       num.addEventListener("change", () => {
         const val = Math.min(prm.max, Math.max(prm.min, Math.round(+num.value / prm.step) * prm.step || prm.def));
         num.value = range.value = val; state.custom[prm.key] = val; paint(); update(); pulse();

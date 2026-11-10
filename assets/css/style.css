@@ -318,6 +318,20 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .viewer3d--repli img.is-rendu { object-fit: contain; padding: 8%; box-sizing: border-box; }
 .viewer3d__msg { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); margin: 0; font-size: 11px; padding: 6px 12px; border-radius: 999px; background: var(--bg-2); color: var(--soft); white-space: nowrap; }
 .stage.is-repli > .shape, .stage.is-repli .stage__mat { display: none; }
+/* Prix sur-mesure en direct (bas droite de la vue ; l'étiquette matière remonte au-dessus) */
+.stage__prix { position: absolute; bottom: 18px; right: 18px; z-index: 1; pointer-events: none; display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 16px; background: var(--text); color: var(--bg); box-shadow: var(--shadow-float); }
+.stage__prix[hidden] { display: none; }
+.stage__prix b { font: 600 22px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.stage__prix small { position: absolute; right: 8px; bottom: calc(100% + 6px); padding: 3px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 600; opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .2s; }
+.stage__prix small.is-on { opacity: 1; transform: none; }
+.stage__prix em { display: none; font: 600 10px/1 var(--mono); font-style: normal; text-transform: uppercase; letter-spacing: .04em; padding: 4px 6px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); }
+.stage__prix.is-max em { display: block; }
+.stage:has(.stage__prix:not([hidden])) .stage__mat { bottom: 66px; }
+.stage:has(.stage__prix:not([hidden])) .viewer3d__msg { left: 18px; transform: none; max-width: calc(100% - 150px); overflow: hidden; text-overflow: ellipsis; }
+.slider { position: relative; }
+.slider__bulle { position: absolute; z-index: 2; transform: translate(-50%, calc(-100% - 14px)) scale(.85); padding: 4px 9px; border-radius: 8px; background: var(--text); color: var(--bg); font-size: 13px; font-weight: 600; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .15s, transform .15s; }
+.slider__bulle::after { content: ""; position: absolute; left: 50%; top: 100%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--text); }
+.slider__bulle.is-on { opacity: 1; transform: translate(-50%, calc(-100% - 14px)); }
 .stage .dims, .stage__mat { pointer-events: none; z-index: 1; }
 /* Curseur d'ouverture (modèles ouvrables) : affichage seulement */
 .stage__open { position: absolute; top: 18px; right: 18px; z-index: 1; display: flex; align-items: center; gap: 10px; font-size: 11px; padding: 8px 14px; border-radius: 999px; background: var(--bg-2); color: var(--soft); opacity: 0; pointer-events: none; transition: opacity .4s; }
@@ -372,6 +386,9 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
   .pdp--3d .stage.is-3d .dim { font-size: 15px; padding: 6px 10px; border-radius: 12px; gap: 6px; }
   .pdp--3d .stage.is-3d .dim i { width: 18px; height: 18px; font-size: 10px; }
   .pdp--3d .stage__mat { bottom: 12px; right: 12px; }
+  .pdp--3d .stage__prix { bottom: 12px; right: 12px; padding: 6px 12px; border-radius: 12px; }
+  .pdp--3d .stage__prix b { font-size: 18px; }
+  .pdp--3d .stage:has(.stage__prix:not([hidden])) .stage__mat { bottom: 56px; }
   .pdp--3d .stage__open { top: auto; bottom: 12px; right: auto; left: 12px; padding: 6px 12px; }
   .pdp--3d .pane { scroll-margin-top: calc(var(--header-h, 64px) + min(40vh, 380px) + 12px); }
 }
