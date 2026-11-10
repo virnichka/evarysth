@@ -323,13 +323,14 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 @keyframes pulse { 40% { transform: translateX(4px); box-shadow: 0 0 0 2px var(--accent); } }
 .stage__mat { position: absolute; bottom: 18px; right: 18px; font-size: 11px; padding: 6px 12px; border-radius: 999px; background: var(--bg-2); color: var(--soft); }
 /* Viewer 3D (fiches avec model) */
-/* pan-y : un glissement vertical fait défiler la page, l'horizontal fait tourner la pièce */
-.viewer3d { position: absolute; inset: 0; touch-action: pan-y; cursor: grab; -webkit-user-select: none; user-select: none; }
+/* Tactile : un doigt posé sur la vue = rotation complète de la pièce, jamais annulée en plein geste (touch-action: none :
+   le navigateur ne prend ni le défilement ni le zoom de page sur la vue, le pincement zoome la pièce). Avec pan-y, tout
+   geste vertical ou diagonal faisait défiler la page et le navigateur annulait la rotation (pointercancel). La vue ne
+   fait que ~30 % de la hauteur (≤ 900 px) : la page se fait défiler depuis tout le reste de l'écran, pastilles de la vue incluses. */
+.viewer3d { position: absolute; inset: 0; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
 .viewer3d:active { cursor: grabbing; }
 .viewer3d canvas { display: block; width: 100%; height: 100%; outline: none; }
-/* OrbitControls pose touch-action: none en style en ligne sur le canvas : !important rend le défilement vertical à la page
-   (le navigateur annule alors le geste de rotation, pointercancel). Fait ici et non dans viewer3d.js, haché par le barème. */
-.viewer3d canvas { touch-action: pan-y !important; }
+.viewer3d canvas { touch-action: none; } /* idem OrbitControls, qui le pose aussi en ligne */
 .stage.is-3d > .shape { display: none; }
 /* Repli sans 3D (WebGL ou WASM indisponible) : image fixe + message court */
 .viewer3d--repli { cursor: default; touch-action: auto; display: grid; }
