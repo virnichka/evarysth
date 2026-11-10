@@ -329,7 +329,7 @@ ${colors.length ? `
 
           <div class="segmented" role="group" aria-label="Type de commande">
             <button type="button" data-mode="standard">Standard <small>3 tailles prêtes</small></button>
-            <button type="button" data-mode="custom">Sur-mesure <small>${p.custom.sansMesure ? "Choisissez la taille" : "À vos cotes, prix calculé"}</small></button>
+            <button type="button" data-mode="custom">Sur-mesure <small>À vos dimensions</small></button>
           </div>
 
           <div class="pane" id="pane-standard">
@@ -353,8 +353,6 @@ ${colors.length ? `
                 <div class="slider__scale mono"><span>${prm.min}</span><span>${prm.max} mm</span></div>
                 <p class="slider__msg" id="m-${prm.key}" aria-live="polite" hidden></p>
               </div>`).join("")}
-            ${p.custom.sansMesure ? "" : `<p class="tip">${p.custom.astuce || "Un mètre ruban suffit."}
-              <button class="link" data-measure="${p.id}">Comment mesurer ?</button></p>`}
           </div>
 
           <div class="buy">
@@ -366,8 +364,8 @@ ${colors.length ? `
           <p class="legal-note" id="legal-note" hidden>Fabriqué à vos cotes : ni repris ni échangé, sauf défaut. Les cotes saisies font foi. <a href="cgv/#retractation">CGV</a></p>
 
           <div class="accordion accordion--pdp">
-            <details><summary><span>Livraison estimée <b>${deliveryRange()}</b></span></summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut. <a href="cgv/">Voir les CGV</a>.</p></details>
-            <details><summary>Garantie légale 2 ans</summary><p>Une pièce défectueuse ou non conforme à la commande (taille standard ou cotes saisies) est réparée, refabriquée ou remboursée, dans le cadre de la garantie légale de conformité.</p></details>
+            <details><summary><span>Livraison estimée <b>${deliveryRange()}</b></span></summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut.</p><p>Garantie légale de conformité, 2 ans : une pièce défectueuse ou non conforme à la commande (taille standard ou dimensions saisies) est réparée, refabriquée ou remboursée. <a href="cgv/">Voir les CGV</a>.</p></details>
+            
           </div>
         </div>
       </div>
