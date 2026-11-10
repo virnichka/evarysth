@@ -14,10 +14,13 @@ dépendances : `cd tools && npm ci`) ; refonte close (historique et décisions :
 `tools/references-geometrie.json`, à committer). Jeu par matière : `jeu` des matières de `data.js`, reçu par le modèle.
 **Barème des prix** (`assets/js/bareme.js`, généré, jamais à la main) : périmé dès qu'une forme, une fiche d'impression,
 des bornes de cotes ou un profil change (`geometrie` rouge) → workflow « Barème des prix sur-mesure » (`bareme.yml`) sur la
-branche, ou `node tools/generer-bareme.mjs <id>` si Bambu Studio est installé ; tarifs : `EVARYSTH.tarif` de `data.js`.
+branche, ou `node tools/generer-bareme.mjs <id>` si Bambu Studio est installé ; tarifs : `EVARYSTH.tarif` de `assets/js/prix.js`.
 Il fixe le **prix sur-mesure** (site et Worker, `priceFor`) : nouveau produit = son barème avant la PR.
+**Prix** : tout le calcul dans `assets/js/prix.js` (après `bareme.js` ; `data.js` = données), règle dans `docs/prix.md`,
+livraison / cadeau / code de démo dans `EVARYSTH.frais`. Rapport : `node tools/rapport-prix.mjs` ; tout prix changé
+fait échouer `tools/test/prix.test.mjs` : si voulu, `--mettre-a-jour` (référence `tools/references-prix.json`, à committer).
 
-Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js`,
+Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js` et `prix.js`,
 tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Circuit des commandes (validation sur la page /admin) : README « Paiement et commandes ».
 Fiche produit (`renderProduct`, `app.js`) : une information = un seul endroit. Même gabarit pour tous les produits (pas de cas par type d'objet ; pas de bloc « Comment mesurer ? », le guide
 reste dans `ui.js` si on le rebranche). Statut « boutique en préparation » : constante `BOUTIQUE_OUVERTE` en tête de `app.js`.

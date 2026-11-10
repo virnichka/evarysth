@@ -1,10 +1,10 @@
 name: Déployer le Worker de paiement
 
-# Le Worker recalcule les prix depuis assets/js/data.js et assets/js/bareme.js : redéployé à chaque changement de l'un d'eux.
+# Le Worker recalcule les prix depuis assets/js/data.js, bareme.js et prix.js : redéployé à chaque changement de l'un d'eux.
 on:
   push:
     branches: [main]
-    paths: ["worker/**", "assets/js/data.js", "assets/js/bareme.js", ".github/workflows/worker.yml"]
+    paths: ["worker/**", "assets/js/data.js", "assets/js/bareme.js", "assets/js/prix.js", ".github/workflows/worker.yml"]
   workflow_dispatch:
 
 permissions:

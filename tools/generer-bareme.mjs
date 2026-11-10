@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Evarysth · barème des prix sur-mesure (Fabrication · phase 5, docs/chaine-fabrication.md § « Prix sur-mesure »).
    Tranche une grille de cotes par produit (tools/lib/bareme.mjs) et écrit assets/js/bareme.js : volume de filament (cm³)
-   et temps estimé (s) par point, lus par EVARYSTH.estimation / EVARYSTH.prixCalcule (data.js) par interpolation.
+   et temps estimé (s) par point, lus par EVARYSTH.estimation / EVARYSTH.prixCalcule (prix.js) par interpolation.
    Usage :
      node tools/generer-bareme.mjs [id…] [--tous] [--docker=<image>]     tranche les produits donnés (défaut : barèmes
                                                                           absents ou périmés) et met à jour bareme.js
@@ -18,7 +18,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { RACINE, FICHIER, VERSION_GRILLE, PROFIL, charger, avecBareme, matiereImpression, grille, axes, empreinte, perimes } from "./lib/bareme.mjs";
+import { RACINE, FICHIER, SCRIPTS_PRIX, VERSION_GRILLE, PROFIL, charger, avecBareme, matiereImpression, grille, axes, empreinte, perimes } from "./lib/bareme.mjs";
 
 const args = process.argv.slice(2);
 const opt = k => { const a = args.find(x => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : undefined; };
@@ -74,7 +74,7 @@ function ecrire(E, nouveaux) {
   fs.writeFileSync(path.join(RACINE, FICHIER), `/* Evarysth — barème des prix sur-mesure. FICHIER GÉNÉRÉ par tools/generer-bareme.mjs (workflow « Barème »,
    bareme.yml) : ne pas modifier à la main. Par produit : empreinte des entrées (périmée → job geometrie rouge), matière,
    profil de tranchage, axes de la grille (mm) et points [cm³ de filament, temps estimé en s], premier axe = rang le plus
-   lent. Lu par EVARYSTH.estimation et EVARYSTH.prixCalcule (data.js). */
+   lent. Lu par EVARYSTH.estimation et EVARYSTH.prixCalcule (prix.js). */
 window.EVARYSTH = window.EVARYSTH || {};
 EVARYSTH.bareme = {
   version: ${VERSION_GRILLE},
@@ -112,7 +112,7 @@ function tableau(E) {
 
 function principal() {
   if (args.includes("--perimes")) { console.log(JSON.stringify(perimes())); return 0; }
-  const E = charger(["assets/js/data.js", FICHIER]);
+  const E = charger(SCRIPTS_PRIX);
   if (args.includes("--verifier")) {
     const p = perimes(E);
     const { md, alertes } = tableau(E);

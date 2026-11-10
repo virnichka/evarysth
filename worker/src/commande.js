@@ -5,12 +5,13 @@ import { EVARYSTH } from "./catalogue.js";
 const LETTRES = "ABCDEFGH";
 const MAX_LIGNES = 30;
 const MAX_QTE = 99;
-export const LIVRAISON_CENTS = 490;          /* identique à SHIPPING dans assets/js/cart.js */
+/* Livraison et emballage cadeau : EVARYSTH.frais (assets/js/prix.js), même définition que le panier du site ;
+   prix fixés ici, jamais lus dans la requête du navigateur */
+export const LIVRAISON_CENTS = Math.round(EVARYSTH.frais.livraison * 100);
 export const PAYS_LIVRAISON = ["FR", "BE", "LU", "MC"];
 export const URL_CGV = "https://www.evarysth.fr/cgv/";
-/* Emballage cadeau : prix fixé ici, jamais lu dans la requête du navigateur (identique à GIFT dans cart.js) */
-export const CADEAU_CENTS = 300;
-export const MESSAGE_CADEAU_MAX = 200;
+export const CADEAU_CENTS = Math.round(EVARYSTH.frais.cadeau * 100);
+export const MESSAGE_CADEAU_MAX = EVARYSTH.frais.messageCadeauMax;
 
 export class ErreurPanier extends Error {}
 
