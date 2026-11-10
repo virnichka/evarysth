@@ -115,6 +115,10 @@ body.cart-open, body.modal-open { overflow: hidden; }
 .menu__nav a:hover, .menu__nav a:focus-visible { background: var(--bg-3); }
 .menu__nav a[aria-current] { background: var(--inv); color: var(--inv-text); }
 .menu__nav a[aria-current] small { color: var(--inv-muted); }
+.menu__outils { display: none; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.menu__outils button, .menu__outils a { min-height: 48px; display: grid; place-items: center; padding: 8px 14px; border-radius: 16px; font-weight: 600; font-size: 16px; background: var(--bg-3); }
+.menu__nav .menu__outils a { display: grid; gap: 0; font-size: 16px; }
+body[data-product-id] .menu__outils { display: grid; } /* sur la fiche, recherche et favoris quittent l'en-tête (≤ 600 px) : ils vivent ici */
 .menu__foot { padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
 .menu__foot .btn { width: 100%; }
 .ico-sun { display: none; }
@@ -323,13 +327,14 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 @keyframes pulse { 40% { transform: translateX(4px); box-shadow: 0 0 0 2px var(--accent); } }
 .stage__mat { position: absolute; bottom: 18px; right: 18px; font-size: 11px; padding: 6px 12px; border-radius: 999px; background: var(--bg-2); color: var(--soft); }
 /* Viewer 3D (fiches avec model) */
-/* pan-y : un glissement vertical fait défiler la page, l'horizontal fait tourner la pièce */
-.viewer3d { position: absolute; inset: 0; touch-action: pan-y; cursor: grab; -webkit-user-select: none; user-select: none; }
+/* Tactile : un doigt posé sur la vue = rotation complète de la pièce, jamais annulée en plein geste (touch-action: none :
+   le navigateur ne prend ni le défilement ni le zoom de page sur la vue, le pincement zoome la pièce). Avec pan-y, tout
+   geste vertical ou diagonal faisait défiler la page et le navigateur annulait la rotation (pointercancel). La vue ne
+   fait que ~30 % de la hauteur (≤ 900 px) : la page se fait défiler depuis tout le reste de l'écran, pastilles de la vue incluses. */
+.viewer3d { position: absolute; inset: 0; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
 .viewer3d:active { cursor: grabbing; }
 .viewer3d canvas { display: block; width: 100%; height: 100%; outline: none; }
-/* OrbitControls pose touch-action: none en style en ligne sur le canvas : !important rend le défilement vertical à la page
-   (le navigateur annule alors le geste de rotation, pointercancel). Fait ici et non dans viewer3d.js, haché par le barème. */
-.viewer3d canvas { touch-action: pan-y !important; }
+.viewer3d canvas { touch-action: none; } /* idem OrbitControls, qui le pose aussi en ligne */
 .stage.is-3d > .shape { display: none; }
 /* Repli sans 3D (WebGL ou WASM indisponible) : image fixe + message court */
 .viewer3d--repli { cursor: default; touch-action: auto; display: grid; }
@@ -339,7 +344,7 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .stage.is-repli > .shape, .stage.is-repli .stage__mat { display: none; }
 /* Prix sur-mesure en direct (bas droite de la vue ; l'étiquette matière remonte au-dessus) */
 .stage__prix { position: absolute; bottom: 18px; right: 18px; z-index: 1; pointer-events: none; display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 16px; background: var(--text); color: var(--bg); box-shadow: var(--shadow-float); }
-.stage__prix[hidden] { display: none; }
+.stage__prix, .stage__prix[hidden] { display: none; } /* pastille de prix sur la vue : retirée, le prix est dit sous le titre (le calcul reste dans app.js) */
 .stage__prix b { font: 600 22px/1 var(--mono); font-variant-numeric: tabular-nums; }
 .stage__prix small { position: absolute; right: 8px; bottom: calc(100% + 6px); padding: 3px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 600; opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .2s; }
 .stage__prix small.is-on { opacity: 1; transform: none; }
@@ -374,7 +379,9 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .views__btn img { width: 100%; height: 100%; object-fit: cover; }
 .views__btn .shape { width: 60%; opacity: .5; }
 .views__btn span { position: absolute; font-size: 12px; font-weight: 700; }
-.views__note { flex-basis: 100%; margin: 0; font-size: 11px; color: var(--soft); }
+/* Note sur les photos : seulement devant une photo (classe .is-photo posée par app.js), en phrase lisible */
+.views__note { display: none; flex-basis: 100%; margin: 0; font: 400 13px/1.4 var(--sans); color: var(--muted); }
+.views.is-photo .views__note { display: block; }
 /* Vignette du catalogue : photos à faire défiler au doigt, points indicateurs */
 .card__media.has-photo { overflow: hidden; }
 .card__media.has-photo .shape { visibility: hidden; }
@@ -408,9 +415,8 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
   .pdp--3d .stage.is-3d .dim { font-size: 15px; padding: 6px 10px; border-radius: 12px; gap: 6px; }
   .pdp--3d .stage.is-3d .dim i { width: 18px; height: 18px; font-size: 10px; }
   .pdp--3d .stage__mat { bottom: 12px; right: 12px; }
-  .pdp--3d .stage__prix { bottom: 12px; right: 12px; padding: 6px 12px; border-radius: 12px; }
-  .pdp--3d .stage__prix b { font-size: 18px; }
-  .pdp--3d .stage:has(.stage__prix:not([hidden])) .stage__mat { bottom: 56px; }
+  /* La matière ne se répète pas sur la vue (elle est dans les atouts) */
+  .pdp .stage__mat { display: none; }
   .pdp--3d .stage__open { top: auto; bottom: 12px; right: auto; left: 12px; padding: 6px 12px; }
   .pdp--3d .pane { scroll-margin-top: calc(var(--header-h, 64px) + min(30vh, 300px) + 12px); }
   body.header-cache .pdp--3d .pane { scroll-margin-top: calc(min(30vh, 300px) + 12px); }
@@ -423,7 +429,8 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .perks b { display: block; font-weight: 600; }
 .perks span { color: var(--muted); font-size: 13px; }
 
-.pdp__top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.pdp__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.pdp__head h1 { flex: 1; min-width: 0; }
 .pdp__actions { display: flex; gap: 8px; }
 .pdp__info h1 { font-size: clamp(34px, 3.8vw, 52px); font-weight: 800; letter-spacing: -.035em; line-height: 1; }
 .lead { color: var(--soft); font-size: 17px; margin-top: 6px; }
@@ -485,18 +492,9 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .slider:has(.slider__msg:not([hidden])) .slider__val { border-color: var(--accent); }
 .std-note { margin: 10px 0 0; font-size: 14px; color: var(--soft); }
 .std-note .link { font-size: 14px; color: var(--accent-text); font-weight: 600; }
-.tip { font-size: 14px; color: var(--soft); padding: 14px 16px; background: var(--bg-3); border-radius: 16px; }
+.tip { font-size: 14px; color: var(--soft); padding: 10px 14px; background: var(--bg-3); border-radius: 16px; }
 .tip .link { margin-left: 4px; color: var(--accent-text); font-weight: 600; }
 
-.summary { margin-top: 16px; border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: var(--bg-2); }
-.summary__head { padding: 10px 18px; color: var(--muted); font-size: 11px; border-bottom: 1px solid var(--line); }
-.summary ul { list-style: none; padding: 6px 18px 10px; }
-.summary li { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; font-size: 14px; }
-.summary li span { color: var(--muted); }
-.summary li b { font-weight: 500; text-align: right; font-family: var(--mono); font-size: 13px; }
-.summary__total { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px !important; }
-.summary__total span { color: var(--text) !important; font-weight: 600; }
-.summary__total b { font-size: 18px !important; color: var(--accent-text); }
 
 .buy { display: flex; gap: 12px; margin-top: 16px; }
 .buy .btn { min-height: 54px; font-size: 17px; }
@@ -507,7 +505,7 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .qty--lg { padding: 0 6px; }
 .qty--lg button { width: 44px; height: 50px; font-size: 20px; }
 .qty--lg span { min-width: 26px; font-size: 17px; }
-.soon-note { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.soon-note { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 13px; color: var(--muted); }
 .soon-note::before { content: ""; width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--accent); }
 /* Barre d'achat mobile (fiche produit) : affichée par app.js (.is-on) quand le bouton d'ajout est hors écran */
 .buybar { display: none; }
@@ -524,8 +522,7 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
   body.has-buybar .toasts { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
   body[data-product-id] .site-footer { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 }
-.delivery { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 10px 16px; border-radius: 16px; background: var(--bg-2); border: 1px solid var(--line); font-size: 14px; color: var(--soft); }
-.delivery b { color: var(--text); font-weight: 600; }
+.accordion--pdp summary b { color: var(--text); font-weight: 600; }
 .row-block--related { margin-top: 64px; border-top: 1px solid var(--line); }
 
 /* ---------- Panier (tiroir) ---------- */
@@ -590,6 +587,10 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .cart-accept a { color: inherit; text-decoration: underline; }
 .cart-legal a, .legal-note a { color: inherit; text-decoration: underline; }
 .legal-note { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; line-height: 1.45; }
+.legal-note[hidden] { display: none; }
+/* Le prix n'est dit qu'une fois par écran : tant que celui du titre est visible (.prix-vu, posée par app.js), le bouton ne le répète pas ;
+   ensuite le bouton et la barre d'achat portent le total (quantité comprise) */
+.pdp.prix-vu .add__prix { display: none; }
 /* Pages légales (cgv/, mentions-legales/, confidentialite/) */
 .legal { max-width: 760px; margin: 0 auto; padding: 32px 20px 72px; line-height: 1.6; }
 .legal h1 { margin: 0 0 6px; }
@@ -707,8 +708,12 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
   .perks span { font-size: 12px; }
   .options { grid-template-columns: repeat(3, 1fr); }
   .opt { padding: 10px; }
-  .buy { flex-direction: column; }
-  .qty--lg { align-self: flex-start; }
+  .buy { align-items: center; gap: 8px; }
+  .buy .btn { padding-inline: 12px; font-size: 16px; }
+  .qty--lg { padding: 0 2px; flex: none; }
+  .qty--lg button { width: 40px; height: 48px; }
+  .qty--lg span { min-width: 20px; }
+  body[data-product-id] .site-header .search-pill, body[data-product-id] .site-header a[href="#favoris"] { display: none; }
   .reassure, .site-footer { grid-template-columns: minmax(0, 1fr); }
   .toolbar { flex-direction: column; align-items: flex-start; gap: 10px; }
   .toasts { bottom: 14px; }

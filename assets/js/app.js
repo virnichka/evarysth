@@ -2,6 +2,9 @@
 (function () {
   const $ = (s, r = document) => r.querySelector(s);
   const fmt = EVARYSTH.fmt;
+  /* Ventes fermées : passer BOUTIQUE_OUVERTE à true à l'ouverture, le statut disparaît de la fiche (il n'est affiché qu'une fois,
+     sous le prix). Voir aussi le message du bouton « Commander » dans cart.js. */
+  const BOUTIQUE_OUVERTE = false;
   const SOON_NOTE = "Boutique en préparation : commandes bientôt ouvertes";
 
   /* Illustrations line-art (aucune image externe) */
@@ -304,16 +307,15 @@
         </div>
 
         <div class="pdp__info">
-          <div class="pdp__top">
-            <span class="pill" data-u="${u.id}">${u.name}</span>
+          <div class="pdp__head">
+            <h1>${p.name}</h1>
             <div class="pdp__actions">
               <button class="icon-btn fav ${EVARYSTH.favs.has(p.id) ? "is-on" : ""}" data-fav="${p.id}" aria-pressed="${EVARYSTH.favs.has(p.id)}" aria-label="Ajouter aux favoris"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
               <button class="icon-btn" data-share aria-label="Partager"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg></button>
             </div>
           </div>
-          <h1>${p.name}</h1>
-          <p class="lead">${p.tagline}</p>
-          <div class="pdp__price"><span id="price"></span><small id="price-note"></small></div>
+          <div class="pdp__price"><span id="price"></span></div>
+          ${BOUTIQUE_OUVERTE ? "" : `<p class="soon-note">${SOON_NOTE}</p>`}
           <div class="desc"><p class="desc__text" id="desc-text">${p.desc}</p>
             <button type="button" class="link desc__more" id="desc-more" aria-expanded="false" aria-controls="desc-text" hidden>Lire la suite</button></div>
 ${colors.length ? `
@@ -326,7 +328,7 @@ ${colors.length ? `
 
           <div class="segmented" role="group" aria-label="Type de commande">
             <button type="button" data-mode="standard">Standard <small>3 tailles prêtes</small></button>
-            <button type="button" data-mode="custom">Sur-mesure <small>À vos cotes, prix calculé</small></button>
+            <button type="button" data-mode="custom">Sur-mesure <small>À vos dimensions</small></button>
           </div>
 
           <div class="pane" id="pane-standard">
@@ -350,29 +352,19 @@ ${colors.length ? `
                 <div class="slider__scale mono"><span>${prm.min}</span><span>${prm.max} mm</span></div>
                 <p class="slider__msg" id="m-${prm.key}" aria-live="polite" hidden></p>
               </div>`).join("")}
-            <p class="tip">${p.custom.astuce || "Un mètre ruban suffit."} On ajoute nous-mêmes la tolérance pour un ajustement parfait.
-              <button class="link" data-measure="${p.id}">Comment mesurer ?</button></p>
-            <p class="legal-note">Fabriquée à vos cotes, une pièce sur-mesure n'est ni reprise ni échangée (hors défaut) : les cotes saisies font foi. <a href="cgv/#retractation">CGV</a></p>
-          </div>
-
-          <div class="summary">
-            <div class="summary__head mono">RÉSUMÉ DE COMMANDE</div>
-            <ul id="summary"></ul>
           </div>
 
           <div class="buy">
             <div class="qty qty--lg">
               <button data-q="-1" aria-label="Moins">−</button><span id="qty">1</span><button data-q="1" aria-label="Plus">+</button>
             </div>
-            <button class="btn btn--primary btn--grow" id="add">Ajouter au panier — <span id="add-price"></span></button>
+            <button class="btn btn--primary btn--grow" id="add">Ajouter au panier<span class="add__prix"> — <span id="add-price"></span></span></button>
           </div>
-          <p class="soon-note">${SOON_NOTE}</p>
-          <p class="delivery"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>
-            <span>Livraison estimée <b>${deliveryRange()}</b></span></p>
+          <p class="legal-note" id="legal-note" hidden>Fabriqué à vos cotes : ni repris ni échangé, sauf défaut. Les cotes saisies font foi. <a href="cgv/#retractation">CGV</a></p>
 
           <div class="accordion accordion--pdp">
-            <details><summary>Livraison &amp; retours</summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut. <a href="cgv/">Voir les CGV</a>.</p></details>
-            <details><summary>Garantie légale 2 ans</summary><p>Une pièce défectueuse ou non conforme à la commande (taille standard ou cotes saisies) est réparée, refabriquée ou remboursée, dans le cadre de la garantie légale de conformité.</p></details>
+            <details><summary><span>Livraison estimée <b>${deliveryRange()}</b></span></summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut.</p><p>Garantie légale de conformité, 2 ans : une pièce défectueuse ou non conforme à la commande (taille standard ou dimensions saisies) est réparée, refabriquée ou remboursée. <a href="cgv/">Voir les CGV</a>.</p></details>
+            
           </div>
         </div>
       </div>
@@ -388,7 +380,7 @@ ${colors.length ? `
         <div class="rail" tabindex="0" aria-label="Autres hacks ${u.name}">${EVARYSTH.products.filter(x => x.universe === p.universe && x.id !== p.id).map(card).join("")}</div>
       </section>
       <div class="buybar" id="buybar" role="region" aria-label="Achat rapide">
-        <div class="buybar__info"><b class="mono" id="buybar-price"></b><small>${SOON_NOTE}</small></div>
+        <div class="buybar__info"><b class="mono" id="buybar-price"></b></div>
         <button type="button" class="btn btn--primary" id="buybar-add">Ajouter au panier</button>
       </div>`;
 
@@ -407,7 +399,6 @@ ${colors.length ? `
       const v = values();
       const unit = EVARYSTH.priceFor(p, state.mode, v);
       $("#price").textContent = fmt(unit);
-      $("#price-note").textContent = state.mode === "custom" ? "Sur-mesure, fabriqué pour vous" : "Taille standard";
       $("#add-price").textContent = fmt(unit * state.qty);
       $("#buybar-price").textContent = fmt(unit * state.qty);
       prixScene(unit, v);
@@ -417,14 +408,7 @@ ${colors.length ? `
       $("#dims").innerHTML = p.custom.params.map((prm, i) =>
         `<span class="dim mono"><i>${LETTERS[i]}</i>${v[prm.key]}<small>mm</small></span>`).join("");
 
-      const rows = [
-        ["Version", state.mode === "custom" ? "Sur-mesure" : `Standard — ${p.variants.options[state.variant].label}`],
-        ...dimRows,
-        ["Matière", col ? `${mat.label} · ${col.label}` : `${mat.label} noir mat`],
-        ["Quantité", `× ${state.qty}`]
-      ];
-      $("#summary").innerHTML = rows.map(r => `<li><span>${r[0]}</span><b>${r[1]}</b></li>`).join("") +
-        `<li class="summary__total"><span>Total</span><b>${fmt(unit * state.qty)}</b></li>`;
+      $("#legal-note").hidden = state.mode !== "custom";
       state._unit = unit; state._dimRows = dimRows;
       if (viewer) viewer.update(v);
       const key = JSON.stringify(v);
@@ -438,6 +422,7 @@ ${colors.length ? `
     function markView(i) {
       view = i;
       root.querySelector("#stage").classList.toggle("is-photo", i > 0);
+      root.querySelector("#views")?.classList.toggle("is-photo", i > 0); // la note sur les photos ne s'affiche que devant une photo
       root.querySelectorAll("#views [data-view]").forEach(b => { const on = +b.dataset.view === i; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on); });
       root.querySelectorAll(".stage__nav").forEach(b => { b.hidden = (b.dataset.go < 0 && i === 0) || (b.dataset.go > 0 && i === photos.length); });
     }
@@ -586,14 +571,20 @@ ${colors.length ? `
       addEventListener("resize", () => { clearTimeout(t); t = setTimeout(watch, 200); });
     }
 
-    /* Mobile : barre d'achat fixe en bas tant que le bouton « Ajouter au panier » est hors écran (CSS : ≤ 900 px ;
-       masquée panier, modale ou menu ouverts, et pendant la saisie d'une cote au clavier) */
+    /* Mobile : barre d'achat fixe en bas une fois le prix de la page passé au-dessus de l'écran (elle ne le recouvre jamais),
+       et tant que le bouton « Ajouter au panier » de la page est hors écran (CSS : ≤ 900 px ; masquée panier, modale ou
+       menu ouverts, et pendant la saisie d'une cote au clavier) */
     const bar = $("#buybar");
     $("#buybar-add").addEventListener("click", () => $("#add").click());
-    if (window.IntersectionObserver) new IntersectionObserver(([en]) => {
-      bar.classList.toggle("is-on", !en.isIntersecting);
-      document.body.classList.toggle("has-buybar", !en.isIntersecting);
-    }).observe($("#add"));
+    if (window.IntersectionObserver) {
+      const vu = { add: false, prixPasse: false };
+      const majBarre = () => { const on = vu.prixPasse && !vu.add; bar.classList.toggle("is-on", on); document.body.classList.toggle("has-buybar", on); };
+      new IntersectionObserver(([en]) => { vu.add = en.isIntersecting; majBarre(); }).observe($("#add"));
+      new IntersectionObserver(([en]) => {
+        vu.prixPasse = !en.isIntersecting && en.boundingClientRect.bottom < 0; majBarre();
+        root.querySelector(".pdp").classList.toggle("prix-vu", en.isIntersecting); // prix du titre à l'écran : le bouton ne le répète pas
+      }).observe(root.querySelector(".pdp__price"));
+    }
     root.addEventListener("focusin", e => { if (e.target.matches("input[type=number]")) bar.classList.add("is-typing"); });
     root.addEventListener("focusout", e => { if (e.target.matches("input[type=number]")) bar.classList.remove("is-typing"); });
 

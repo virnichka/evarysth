@@ -19,6 +19,8 @@ Il fixe le **prix sur-mesure** (site et Worker, `priceFor`) : nouveau produit = 
 
 Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js`,
 tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Circuit des commandes (validation sur la page /admin) : README « Paiement et commandes ».
+Fiche produit (`renderProduct`, `app.js`) : une information = un seul endroit. Même gabarit pour tous les produits (pas de cas par type d'objet ; pas de bloc « Comment mesurer ? », le guide
+reste dans `ui.js` si on le rebranche). Statut « boutique en préparation » : constante `BOUTIQUE_OUVERTE` en tête de `app.js`.
 Chantier en cours « chaîne de fabrication » (commande payée → fichier tranché, R2, agent d'atelier, prix calculé) :
 `docs/chaine-fabrication.md` (décisions, architecture, phases) : lire la phase demandée avant d'agir.
 
