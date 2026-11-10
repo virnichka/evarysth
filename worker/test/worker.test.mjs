@@ -48,10 +48,11 @@ test("prix recalculés depuis le catalogue (standard et sur-mesure calculé par 
     { id: "tablette-rambarde", mode: "standard", variant: 1, color: "blanc", qty: 1 },
     tablette
   ] });
-  assert.equal(std.unitCents, 2900);
+  assert.equal(std.unitCents, 3400, "prix de la taille Moyenne");
   assert.deepEqual(std.values, { a: 50, b: 220 });
-  /* Barème : 106,6 cm³ d'ASA (114 g) et 3 h 34 → coût 11,77 € → (11,77 × 2,5 + 0,25) / 0,985 → 31 € (plancher 29, plafond 58) */
-  assert.equal(sm.unitCents, 3100);
+  /* Barème : 106,6 cm³ d'ASA (114 g), 3 h 34 → coût (3,42 + 5,35) × 1,15 + 3 + 0,5 = 13,58 € → formule 35 € ;
+     taille la plus proche : Moyenne 34 € → max(35, 34) + 4 € de sur-mesure = 39 € */
+  assert.equal(sm.unitCents, 3900);
 });
 
 test("panier refusé : cotes hors bornes, hors pas, inconnues, produit/coloris/quantité invalides", () => {
@@ -74,7 +75,7 @@ test("panier refusé : cotes hors bornes, hors pas, inconnues, produit/coloris/q
 test("session Stripe : lignes, cotes en métadonnées, livraison, promo, retours", () => {
   const lignes = lirePanier({ items: [tablette] });
   const p = decode(encoder(parametresSession(lignes, { base: SITE + "/", retour: SITE + "/produits/tablette-rambarde/", ref: "EV-1", catalogue: "abc", environnement: "test" })));
-  assert.equal(p["line_items[0][price_data][unit_amount]"], "3100");
+  assert.equal(p["line_items[0][price_data][unit_amount]"], "3900");
   assert.equal(p["line_items[0][quantity]"], "2");
   assert.equal(p["line_items[0][price_data][product_data][metadata][cotes_mm]"], '{"a":45,"b":250}');
   assert.match(p["line_items[0][price_data][product_data][description]"], /A · .* : 45 mm · B · Largeur de la tablette : 250 mm · Matière : ASA · Coloris : Noir mat/);
@@ -88,14 +89,14 @@ test("session Stripe : lignes, cotes en métadonnées, livraison, promo, retours
 });
 
 test("POST /checkout : renvoie l'URL Stripe, ignore tout prix envoyé par le navigateur", async () => {
-  const r = await poster("/checkout", { items: [{ ...tablette, unitPrice: 0.01 }], base: SITE + "/", retour: "https://pirate.example/x" });
+  const r = await poster("/checkout", { surMesureAccepte: true, items: [{ ...tablette, unitPrice: 0.01 }], base: SITE + "/", retour: "https://pirate.example/x" });
   assert.equal(r.status, 200);
   assert.equal(r.headers.get("Access-Control-Allow-Origin"), SITE);
   const j = await r.json();
   assert.equal(j.url, "https://checkout.stripe.com/c/pay/cs_test_abc");
   assert.match(j.ref, /^EV-\d{6}-[A-Z2-9]{4}$/);
   const p = decode(appels.at(-1).corps);
-  assert.equal(p["line_items[0][price_data][unit_amount]"], "3100");
+  assert.equal(p["line_items[0][price_data][unit_amount]"], "3900");
   assert.equal(p.cancel_url, SITE + "/?panier=annule", "retour vers un autre site refusé");
   assert.match(p["metadata[catalogue]"], /^[0-9a-f]{12}$/);
 });
@@ -105,25 +106,36 @@ test("code promo : vérifié chez Stripe puis appliqué à la session", async ()
   assert.deepEqual(await r.json(), { valide: true, code: "BRABOU78", rate: 0.1, amount: 0 });
   r = await poster("/promo", { code: "FAUX" });
   assert.equal((await r.json()).valide, false);
-  r = await poster("/checkout", { items: [tablette], promo: "BRABOU78" });
+  r = await poster("/checkout", { surMesureAccepte: true, items: [tablette], promo: "BRABOU78" });
   assert.equal(r.status, 200);
   const p = decode(appels.at(-1).corps);
   assert.equal(p["discounts[0][promotion_code]"], "promo_123");
   assert.equal(p.allow_promotion_codes, undefined);
-  r = await poster("/checkout", { items: [tablette], promo: "FAUX" });
+  r = await poster("/checkout", { surMesureAccepte: true, items: [tablette], promo: "FAUX" });
   assert.equal(r.status, 400);
 });
 
 test("sécurité : origine inconnue, clé live en mode test, panier invalide", async () => {
-  assert.equal((await poster("/checkout", { items: [tablette] }, "https://pirate.example")).status, 403);
-  assert.equal((await poster("/checkout", { items: [tablette] }, null)).status, 403);
+  assert.equal((await poster("/checkout", { surMesureAccepte: true, items: [tablette] }, "https://pirate.example")).status, 403);
+  assert.equal((await poster("/checkout", { surMesureAccepte: true, items: [tablette] }, null)).status, 403);
   const live = await worker.fetch(new Request("https://w.dev/checkout", { method: "POST", headers: { Origin: SITE }, body: "{}" }),
     { ...env, STRIPE_SECRET_KEY: "sk_live_x" });
   assert.equal(live.status, 503);
-  const r = await poster("/checkout", { items: [{ ...tablette, values: { a: 999, b: 220 } }] });
+  const r = await poster("/checkout", { surMesureAccepte: true, items: [{ ...tablette, values: { a: 999, b: 220 } }] });
   assert.equal(r.status, 400);
   assert.match((await r.json()).error, /entre 15 et 100 mm/);
   assert.equal(appels.length, 0, "aucun appel Stripe pour une demande refusée");
+});
+
+test("sur-mesure : paiement refusé sans la case cochée dans le panier (pas de rétractation, L221-28 3°) ; standard seul accepté", async () => {
+  for (const accord of [undefined, false, "true", 1]) {
+    const r = await poster("/checkout", { surMesureAccepte: accord, items: [tablette] });
+    assert.equal(r.status, 400);
+    assert.match((await r.json()).error, /Cochez la case « Sur-mesure »/);
+  }
+  assert.equal(appels.length, 0, "aucun appel Stripe");
+  const std = await poster("/checkout", { items: [{ id: "tablette-rambarde", mode: "standard", variant: 1, color: "noir", qty: 1 }] });
+  assert.equal(std.status, 200);
 });
 
 test("webhook : signature vérifiée (valide, falsifiée, périmée)", async () => {
@@ -186,7 +198,7 @@ test("e-mail de commande : reply-to contact@evarysth.fr si le client n'a pas d'e
 });
 
 test("emballage cadeau : ligne à 3 € ajoutée par le Worker, message en métadonnées", async () => {
-  const r = await poster("/checkout", { items: [tablette], cadeau: true, message: "  Joyeux\nanniversaire !  ", base: SITE + "/" });
+  const r = await poster("/checkout", { surMesureAccepte: true, items: [tablette], cadeau: true, message: "  Joyeux\nanniversaire !  ", base: SITE + "/" });
   assert.equal(r.status, 200);
   const p = decode(appels.at(-1).corps);
   assert.equal(p["line_items[1][price_data][product_data][name]"], "Emballage cadeau");
@@ -196,7 +208,7 @@ test("emballage cadeau : ligne à 3 € ajoutée par le Worker, message en méta
   assert.equal(p["metadata[cadeau]"], "oui");
   assert.equal(p["metadata[message_cadeau]"], "Joyeux anniversaire !");
   /* Sans option : pas de ligne cadeau, message ignoré */
-  await poster("/checkout", { items: [tablette], message: "ignoré" });
+  await poster("/checkout", { surMesureAccepte: true, items: [tablette], message: "ignoré" });
   const q = decode(appels.at(-1).corps);
   assert.equal(q["line_items[1][quantity]"], undefined);
   assert.equal(q["metadata[cadeau]"], "non");
@@ -204,27 +216,27 @@ test("emballage cadeau : ligne à 3 € ajoutée par le Worker, message en méta
 });
 
 test("emballage cadeau : prix falsifié ignoré, cadeau non booléen ignoré", async () => {
-  await poster("/checkout", { items: [tablette], cadeau: true, prixCadeau: 0, giftPrice: 0.01, cadeauCents: 1 });
+  await poster("/checkout", { surMesureAccepte: true, items: [tablette], cadeau: true, prixCadeau: 0, giftPrice: 0.01, cadeauCents: 1 });
   const p = decode(appels.at(-1).corps);
   assert.equal(p["line_items[1][price_data][unit_amount]"], "300");
-  await poster("/checkout", { items: [tablette], cadeau: "oui" });
+  await poster("/checkout", { surMesureAccepte: true, items: [tablette], cadeau: "oui" });
   assert.equal(decode(appels.at(-1).corps)["line_items[1][quantity]"], undefined);
 });
 
 test("emballage cadeau : message trop long ou illisible refusé", async () => {
   const n = appels.length;
-  let r = await poster("/checkout", { items: [tablette], cadeau: true, message: "x".repeat(201) });
+  let r = await poster("/checkout", { surMesureAccepte: true, items: [tablette], cadeau: true, message: "x".repeat(201) });
   assert.equal(r.status, 400);
   assert.match((await r.json()).error, /200 caractères/);
-  r = await poster("/checkout", { items: [tablette], cadeau: true, message: { html: "<b>" } });
+  r = await poster("/checkout", { surMesureAccepte: true, items: [tablette], cadeau: true, message: { html: "<b>" } });
   assert.equal(r.status, 400);
   assert.equal(appels.length, n, "aucune session Stripe créée");
-  r = await poster("/checkout", { items: [tablette], cadeau: true, message: "é".repeat(200) });
+  r = await poster("/checkout", { surMesureAccepte: true, items: [tablette], cadeau: true, message: "é".repeat(200) });
   assert.equal(r.status, 200, "200 caractères exactement : accepté");
 });
 
 test("CGV : case de consentement Stripe, repli sur le texte si l'URL n'est pas renseignée", async () => {
-  let r = await poster("/checkout", { items: [tablette] });
+  let r = await poster("/checkout", { surMesureAccepte: true, items: [tablette] });
   assert.equal((await r.json()).cgv, "case");
   let p = decode(appels.at(-1).corps);
   assert.equal(p["consent_collection[terms_of_service]"], "required");
@@ -239,7 +251,7 @@ test("CGV : case de consentement Stripe, repli sur le texte si l'URL n'est pas r
     }
     return fauxFetch(url, init);
   };
-  r = await poster("/checkout", { items: [tablette] });
+  r = await poster("/checkout", { surMesureAccepte: true, items: [tablette] });
   assert.equal(r.status, 200);
   assert.equal((await r.json()).cgv, "texte");
   p = decode(appels.at(-1).corps);

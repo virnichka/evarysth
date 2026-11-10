@@ -40,7 +40,7 @@ import { A_REEXPEDIER, A_VALIDER, ajouterNote, dateParis, journaliser, majArticl
 import { euros, margeCommande } from "./finances.js";
 import { lireTransporteurs } from "./fournisseur.js";
 import { contenuRetrait, envoyerEmail } from "./email.js";
-import { EVARYSTH, prixPlafonne } from "./catalogue.js";
+import { EVARYSTH } from "./catalogue.js";
 import { ICONES } from "./icones.js";
 import { CLES, derniereSauvegardeZip, entretien, lireEtatR2, lirePause, MESSAGE_PAUSE, r2Disponible, reglerPause, sauvegarderSheet } from "./systeme.js";
 
@@ -605,13 +605,8 @@ export function chiffres(etat, maintenant = Date.now()) {
     const ls = lignes.filter(l => l.cf === cf), actives = ls.filter(l => !CLOS.includes(l.statut));
     return actives.length && actives.every(l => PARTIS.includes(l.statut)) && !(etat.fabs[ls[0].fabricant.trim()] || {}).atelier && ls.every(l => l.cout == null);
   }).map(cf => ({ cf, ev: evDeCF(cf) })).sort((a, b) => a.cf.localeCompare(b.cf));
-  /* Articles sur-mesure encore à valider dont la formule dépasse le plafond (prix payé = plafond) : à vérifier avant l'envoi */
-  const plafonnes = lignes.filter(l => A_ENVOYER.includes(l.statut)).map(l => {
-    const r = prixPlafonne(l.article);
-    return r && { ev: l.ev, ref: refArticle(l.ev, l.n), ...r };
-  }).filter(Boolean).sort((a, b) => a.ref.localeCompare(b.ref));
   return { aValider: aValider.length, chez: chez.length, attente, expediees: expediees.length, bloquees: bloquees.length, relances, sansFabricant, echecsGen,
-    aReexpedier, horsDelai, echeance, coutsManquants, plafonnes };
+    aReexpedier, horsDelai, echeance, coutsManquants };
 }
 
 /* Alertes de fonctionnement lues dans R2 (aucun e-mail) : ventes en pause, clé Brevo, sauvegarde du Sheet. Rien tant qu'aucun passage n'a eu lieu. */
@@ -646,7 +641,6 @@ async function vueTableau(env, email, etat, bandeau) {
     ...c.echecsGen.map(x => `<div class="ligne"><span><a href="${versFiche(x.ev)}"><b>${esc(x.ref)}</b></a><br><span class="muted">génération des fichiers en échec${x.motif ? ` : ${esc(x.motif)}` : ""}</span></span><span class="badge t-err">Fichiers</span></div>`),
     ...c.sansFabricant.map(x => `<div class="ligne"><span><a href="${versFiche(x.ev)}"><b>${esc(x.ev)}</b></a><br><span class="muted">payée le ${esc(x.date)}, toujours sans fabricant</span></span><span class="badge">+ 24 h</span></div>`),
     ...c.coutsManquants.map(x => ligne(versFiche(x.ev), x.cf, "expédiée, coût du fabricant à saisir (marge non calculée)", "Coût")),
-    ...c.plafonnes.map(x => ligne(versFiche(x.ev), x.ref, `${x.produit} : prix calculé ${x.formule} €, payé au plafond ${x.plafond} € (marge réduite, à vérifier avant l'envoi)`, "Prix plafonné", "t-att")),
     ...sys.map(x => ligne("/admin?vue=systeme", x.titre, x.detail, x.badge, x.tonErr ? "t-err" : "t-att"))
   ];
   return page("Tableau de bord", cadre("tableau", email, bandeau, `<h1>Tableau de bord</h1>
@@ -682,11 +676,11 @@ async function vueCatalogue(env, email, bandeau) {
           total++; if (!ok) manquants++; else presents++;
           etatStl = ok ? '<span class="badge present">STL présent</span>' : '<span class="badge manque">STL manquant</span>';
         }
-        return `<div class="ligne"><span>${esc(o.label)} <span class="muted">${esc(o.hint || "")}</span></span>${etatStl}</div>`;
+        return `<div class="ligne"><span>${esc(o.label)} <span class="muted">${esc(o.hint || "")}</span> · ${prix(o.price != null ? o.price : p.price)}</span>${etatStl}</div>`;
       });
-      const sm = p.custom ? `Sur-mesure (prix calculé, de ${prix(p.price)} à ${prix(EVARYSTH.prixCalcule(p, Object.fromEntries(p.custom.params.map(q => [q.key, q.def]))).plafond)}) : ${(p.custom.params || []).map(x => `${esc(x.label)} ${x.min}–${x.max} mm`).join(" ; ")}` : "";
+      const sm = p.custom ? `Sur-mesure (prix calculé, taille la plus proche + ${prix(EVARYSTH.tarif.supplementSurMesure)} au moins) : ${(p.custom.params || []).map(x => `${esc(x.label)} ${x.min}–${x.max} mm`).join(" ; ")}` : "";
       const stl = cles ? `<span class="badge ${presents === tailles.length ? "present" : "manque"}">STL ${presents}/${tailles.length}</span>` : "";
-      return `<details><summary><span class="nom">${esc(p.name)}</span>${stl}<span class="resume">${prix(p.price)}</span></summary><div class="detail">
+      return `<details><summary><span class="nom">${esc(p.name)}</span>${stl}<span class="resume">dès ${prix(p.price)}</span></summary><div class="detail">
 <p class="muted">${esc(p.id)} · <a href="${SITE}/produits/${encodeURIComponent(p.id)}/" target="_blank" rel="noopener noreferrer">fiche ↗</a></p>
 <p class="muted">${(p.colors || []).map(c => `<span class="pastille" style="background:${/^#[0-9a-f]{3,8}$/i.test(c.hex) ? c.hex : "#ccc"}"></span>${esc(c.label)}`).join(" · ")}</p>
 <p class="muted">${esc((p.variants || {}).label || "Tailles")}</p>${tailles.join("")}${sm ? `<p class="muted" style="margin-top:8px">${sm}</p>` : ""}</div></details>`;

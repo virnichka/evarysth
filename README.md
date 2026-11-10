@@ -235,7 +235,7 @@ Il n'y a **pas de base de données** : tout le contenu est écrit directement da
 | Quoi | Où |
 |---|---|
 | Produits (nom, description, prix, tailles, curseurs sur-mesure), univers et leurs textes | `assets/js/data.js` |
-| Tarifs du prix sur-mesure (€/kg par matière, €/h machine, forfait, coefficient, plafond) | `assets/js/data.js` (`EVARYSTH.tarif`, matières) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/chaine-fabrication.md`) |
+| Tarifs du prix sur-mesure (€/kg par matière, €/h machine, forfait, emballage, taux d’échec, coefficient, supplément sur-mesure) ; prix de chaque taille standard | `assets/js/data.js` (`EVARYSTH.tarif`, matières) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/chaine-fabrication.md`) |
 | Textes fixes de la page : accueil, étapes, FAQ, pied de page | `index.html` |
 | Textes de la fiche produit (boutons, libellés, livraison…) | `assets/js/app.js` |
 | Photos | `assets/photos/<produit>/` |

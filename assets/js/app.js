@@ -281,7 +281,7 @@
             ${p.model ? `
             <label class="stage__open mono" hidden><span>Ouvrir</span><input type="range" id="open3d" min="0" max="100" value="0" style="--p:0%" aria-label="Ouvrir pour voir l'intérieur"></label>` : ""}
             <div class="dims" id="dims"></div>
-            <div class="stage__prix" id="stage-prix" aria-hidden="true" hidden><b class="mono" id="stage-prix-val"></b><small class="mono" id="stage-prix-delta"></small><em id="stage-prix-max">prix max</em></div>
+            <div class="stage__prix" id="stage-prix" aria-hidden="true" hidden><b class="mono" id="stage-prix-val"></b><small class="mono" id="stage-prix-delta"></small></div>
             <span class="stage__mat mono" id="stage-mat">${mat.court} · NOIR MAT</span>
             ${photos.length ? `
             <div class="stage__photos" id="photos" tabindex="-1">
@@ -333,7 +333,7 @@ ${colors.length ? `
             <span class="label">${p.variants.label}</span>
             <div class="options">
               ${p.variants.options.map((o, i) => `
-                <button type="button" class="opt" data-variant="${i}"><b>${o.label}</b><small>${o.hint}</small></button>`).join("")}
+                <button type="button" class="opt" data-variant="${i}"><b>${o.label}</b><small>${o.hint}</small><span class="opt__prix mono">${fmt(EVARYSTH.priceFor(p, "standard", o.values))}</span></button>`).join("")}
             </div>
             <p class="std-note">${coteFixes ? `Toutes les tailles : ${coteFixes}. ` : ""}<button type="button" class="link" data-mode="custom">Autre dimension ? Passez en sur-mesure</button></p>
           </div>
@@ -448,7 +448,7 @@ ${colors.length ? `
       if (i > 0) track.scrollTo({ left: (i - 1) * track.clientWidth, behavior: first ? "instant" : "smooth" });
     }
 
-    /* Prix sur-mesure en direct : pastille sur la vue 3D (chiffre qui défile, écart « +2 € », « prix max » au plafond)
+    /* Prix sur-mesure en direct : pastille sur la vue 3D (chiffre qui défile, écart « +2 € »)
        et bulle au-dessus du curseur qu'on déplace. Rien en standard. Sans animation si le système le demande. */
     const calme = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
     const prix = { vu: null, cible: null, anim: 0, delta: 0 };
@@ -456,8 +456,6 @@ ${colors.length ? `
       const box = $("#stage-prix");
       box.hidden = state.mode !== "custom";
       if (box.hidden) { prix.cible = null; return; }
-      const r = EVARYSTH.prixCalcule(p, v);
-      box.classList.toggle("is-max", !!(r && r.prix >= r.plafond));
       const avant = prix.cible;
       prix.cible = unit;
       if (avant == null || calme()) { cancelAnimationFrame(prix.anim); prix.vu = unit; $("#stage-prix-val").textContent = fmt(unit); }

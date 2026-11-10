@@ -343,8 +343,6 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .stage__prix b { font: 600 22px/1 var(--mono); font-variant-numeric: tabular-nums; }
 .stage__prix small { position: absolute; right: 8px; bottom: calc(100% + 6px); padding: 3px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 600; opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .2s; }
 .stage__prix small.is-on { opacity: 1; transform: none; }
-.stage__prix em { display: none; font: 600 10px/1 var(--mono); font-style: normal; text-transform: uppercase; letter-spacing: .04em; padding: 4px 6px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); }
-.stage__prix.is-max em { display: block; }
 .stage:has(.stage__prix:not([hidden])) .stage__mat { bottom: 66px; }
 .stage:has(.stage__prix:not([hidden])) .viewer3d__msg { left: 18px; transform: none; max-width: calc(100% - 150px); overflow: hidden; text-overflow: ellipsis; }
 .slider { position: relative; }
@@ -450,6 +448,7 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 .opt { min-height: 54px; padding: 9px 12px; border: 2px solid var(--line); background: var(--bg-2); border-radius: 18px; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; justify-content: center; text-align: left; transition: border-color .2s; }
 .opt b { font-weight: 600; font-size: 16px; }
 .opt small { color: var(--muted); font: 13px var(--mono); }
+.opt__prix { margin-top: 2px; font-size: 14px; font-weight: 600; color: var(--text); }
 .opt:hover { border-color: var(--line-strong); }
 .opt.is-active { border-color: var(--text); }
 .colors { margin: 0 0 14px; }
@@ -585,6 +584,10 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .gift-msg small:last-child { justify-self: end; }
 .cart-legal { font-size: 12.5px; color: var(--muted); margin: 8px 0 10px; line-height: 1.45; }
 .cart-legal[hidden] { display: none; }
+.cart-accept { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.45; margin: 0 0 12px; padding: 10px 12px; border: 1.5px solid var(--accent); border-radius: 12px; cursor: pointer; }
+.cart-accept[hidden] { display: none; }
+.cart-accept input { flex: none; margin-top: 2px; width: 18px; height: 18px; accent-color: var(--accent); }
+.cart-accept a { color: inherit; text-decoration: underline; }
 .cart-legal a, .legal-note a { color: inherit; text-decoration: underline; }
 .legal-note { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; line-height: 1.45; }
 /* Pages légales (cgv/, mentions-legales/, confidentialite/) */

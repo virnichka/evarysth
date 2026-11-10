@@ -62,6 +62,7 @@
         items: items.map(ligneCommande),
         promo: remiseActive() ? promo : "",
         cadeau: gift.on,
+        surMesureAccepte: $("#custom-ok").checked,
         message: gift.on ? gift.message.trim() : "",
         base: new URL(".", document.baseURI).href,
         retour: location.origin + location.pathname
@@ -98,7 +99,8 @@
           <div class="row" id="cart-gift-row" hidden><span>Emballage cadeau</span><span>${EVARYSTH.fmt(GIFT)}</span></div>
           <div class="row muted"><span>Livraison</span><span id="cart-shipcost">—</span></div>
           <div class="row total"><span>Total</span><span id="cart-total">${EVARYSTH.fmt(0)}</span></div>
-          <p class="cart-legal" id="cart-legal">En commandant, vous acceptez nos <a href="cgv/" data-cart-close>conditions générales de vente</a>.<span id="cart-custom-note" hidden> <b>Sur-mesure :</b> ces pièces sont fabriquées à vos cotes ; elles ne sont ni reprises ni échangées (hors défaut). Vérifiez vos mesures.</span></p>
+          <p class="cart-legal" id="cart-legal">En commandant, vous acceptez nos <a href="cgv/" data-cart-close>conditions générales de vente</a>.</p>
+          <label class="cart-accept" id="cart-custom-note" hidden><input type="checkbox" id="custom-ok"> <span><b>Sur-mesure :</b> j'ai vérifié mes cotes. Ces pièces sont fabriquées à mes cotes : elles ne sont ni reprises ni échangées, sauf défaut de conformité (<a href="cgv/#retractation" data-cart-close>CGV</a>).</span></label>
           <p class="promo__msg is-err" id="checkout-msg" role="alert" hidden></p>
           <button class="btn btn--primary btn--block" id="cart-checkout">Commander</button>
           <p class="promo__msg checkout-test" id="checkout-test" hidden>Mode test : aucun paiement réel. Carte 4242 4242 4242 4242, date future, CVC au choix.</p>
@@ -150,6 +152,8 @@
     $("#gift-on").checked = gift.on;
     $("#gift-message").value = gift.message.slice(0, GIFT_MAX);
     $("#gift-on").addEventListener("change", e => { gift.on = e.target.checked; saveGift(); render(); });
+    /* Sur-mesure sans droit de rétractation (CGV, L221-28 3°) : accord explicite avant de payer, revérifié par le Worker */
+    $("#custom-ok").addEventListener("change", render);
     $("#gift-message").addEventListener("input", e => { gift.message = e.target.value.slice(0, GIFT_MAX); saveGift(); renderGiftCount(); });
     render();
     /* Retour depuis Stripe sans payer */
@@ -206,7 +210,9 @@
     $("#gift-box").hidden = !gift.on;
     $("#cart-gift").hidden = !items.length;
     $("#cart-legal").hidden = !items.length;
-    $("#cart-custom-note").hidden = !items.some(i => i.mode === "custom");
+    const surMesure = items.some(i => i.mode === "custom");
+    $("#cart-custom-note").hidden = !surMesure;
+    if (!surMesure) $("#custom-ok").checked = false;
     renderGiftCount();
     const ship = !items.length ? 0 : SHIPPING;
     $("#cart-disc-row").hidden = !disc;
@@ -220,7 +226,7 @@
     $("#cart-sub").textContent = fmt(sub);
     $("#cart-shipcost").textContent = !items.length ? "—" : fmt(ship);
     $("#cart-total").textContent = fmt(net + ship);
-    $("#cart-checkout").disabled = !items.length;
+    $("#cart-checkout").disabled = !items.length || (surMesure && !$("#custom-ok").checked);
     $("#cart-list").innerHTML = items.length ? items.map(i => `
       <li class="line">
         <div class="line__thumb">${EVARYSTH.shapeSVG(i.shape)}${vignette(i.id)}</div>
