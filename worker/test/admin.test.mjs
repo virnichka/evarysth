@@ -275,6 +275,25 @@ test("Catalogue : STL présent / manquant par taille standard (une liste R2), sa
   assert.match(await (await vue("catalogue")).text(), /Binding R2 « STL » absent/);
 });
 
+test("Catalogue : la pastille « STL présent » télécharge le fichier via /admin/stl (derrière Access, clé standard seulement)", async () => {
+  const octets = new TextEncoder().encode("solid x\nendsolid\n");
+  const STL = { head: async k => k === "crochet-balcon/m.stl" ? { size: octets.length } : null,
+    get: async k => k === "crochet-balcon/m.stl" ? { size: octets.length, body: new Blob([octets]).stream() } : null,
+    list: async () => ({ objects: [{ key: "crochet-balcon/m.stl" }], truncated: false }) };
+  const e = { ...env, STL };
+  assert.match(await (await vue("catalogue", e)).text(), /<a class="badge present" href="\/admin\/stl\?cle=crochet-balcon%2Fm\.stl" download/);
+  const telecharger = async (cle, jeton = true) => silence(async () => worker.fetch(new Request(`${ORIGINE}/admin/stl?cle=${encodeURIComponent(cle)}`,
+    { headers: jeton ? { "Cf-Access-Jwt-Assertion": await jwt() } : {} }), e));
+  const r = await telecharger("crochet-balcon/m.stl");
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get("Content-Disposition"), /attachment; filename="crochet-balcon-m\.stl"/);
+  assert.deepEqual(new Uint8Array(await r.arrayBuffer()), octets);
+  assert.equal((await telecharger("crochet-balcon/s.stl")).status, 404, "absent");
+  assert.equal((await telecharger("commandes/CF-2026-0001-1/0123456789ab/a.stl")).status, 404, "fichiers de commande : pas par cette route");
+  assert.equal((await telecharger("../x.stl")).status, 404);
+  assert.equal((await telecharger("crochet-balcon/m.stl", false)).status, 403, "sans Access");
+});
+
 test("Système : voyants sans valeur de secret ; « Lancer la tâche » protégé, puis heure du dernier passage notée", async () => {
   let html = await (await vue("systeme")).text();
   assert.match(html, /aucun passage noté/);

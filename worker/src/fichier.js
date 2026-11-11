@@ -57,6 +57,14 @@ export async function routeFichier(req, env, jeton) {
     if (e.code === "expire") return texte("Ce lien a expiré. Demandez-nous un nouveau lien en répondant à l'e-mail de commande.", 410);
     return texte("Lien invalide.", 403);
   }
+  return reponseFichier(req, env, cle);
+}
+
+/* STL standard servi à la page /admin (accès déjà vérifié par Cloudflare Access) : clé standard seulement */
+export const cleStandard = c => RE_STANDARD.test(String(c || ""));
+
+/* Réponse de téléchargement d'un objet R2 (clé déjà validée) */
+export async function reponseFichier(req, env, cle) {
   let obj;
   try { obj = await lireObjet(env, cle, req.method === "HEAD"); }
   catch (e) { console.error("R2", e.message); return texte(e.code === "volume" ? e.message : "Fichiers indisponibles pour le moment.", e.code === "volume" ? 413 : 503); }

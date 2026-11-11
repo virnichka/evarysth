@@ -34,7 +34,7 @@ import { verifierAcces } from "./acces.js";
 import { ErreurGoogle, googleConfigure } from "./google.js";
 import { egal, jetonConfigure, signature } from "./jeton.js";
 import { atelierPossible, dossierR2, etatGitHub, fabricationConfiguree, GEN, liensGeneres, matiereArticle, MATIERES_ATELIER, NON_CONFIGUREE, refArticle, relancerArticle } from "./fabrication.js";
-import { EXTENSIONS, fichierStandardDispo, segmentTaille } from "./fichier.js";
+import { cleStandard, EXTENSIONS, fichierStandardDispo, reponseFichier, segmentTaille } from "./fichier.js";
 import { A_ENVOYER, STATUTS, statutEV, baseWorker, cfsRendues, DELAI_RELANCE_MS, envoyerSelonStatut, estTest, journaliserSiNouveau, lancerTache, liensGroupe, lirePassage, lireEtat, numerosCF, parisVersMs, RELANCE } from "./planifie.js";
 import { A_REEXPEDIER, A_VALIDER, ajouterNote, dateParis, journaliser, majArticle, majLignesCF, noterCouts, passeParAtelier, REF_EXTERNE, REFUSEE, rendreCF, RETIRABLES, STL_A_INDIQUER } from "./sheet.js";
 import { euros, margeCommande } from "./finances.js";
@@ -172,7 +172,7 @@ details{border-top:1px solid var(--line)}details:first-child{border-top:0}summar
 summary::-webkit-details-marker{display:none}summary::after{content:"";flex:none;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);margin:0 4px 0 2px;transition:transform .15s}
 details[open]>summary::after{transform:rotate(45deg)}summary .nom{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}summary .resume{color:var(--muted);font-size:14px;white-space:nowrap}
 .detail{padding:0 0 14px}.ligne>span:last-child{text-align:right}.liste{padding-top:6px;padding-bottom:6px}
-.pastille{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid var(--line);vertical-align:-2px;margin-right:4px}.manque{color:var(--err);border-color:#f0c7c2}.present{color:var(--ok);border-color:#bfdcc8}
+.pastille{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid var(--line);vertical-align:-2px;margin-right:4px}.manque{color:var(--err);border-color:#f0c7c2}.present{color:var(--ok);border-color:#bfdcc8}a.badge{text-decoration:none}
 </style></head><body><main><div class="marque">Evarysth · back-office</div>${corps}</main></body></html>`, { status: statut, headers: ENTETES });
 }
 const simple = (titre, texte, statut) => page(titre, `<h1>${esc(titre)}</h1><div class="carte"><p>${esc(texte)}</p></div>`, statut);
@@ -683,9 +683,10 @@ async function vueCatalogue(env, email, bandeau) {
       const tailles = ((p.variants || {}).options || []).map(o => {
         let etatStl = "";
         if (cles) {
-          const ok = EXTENSIONS.some(x => cles.has(`${p.id}/${segmentTaille(o.label)}.${x}`));
-          total++; if (!ok) manquants++; else presents++;
-          etatStl = ok ? '<span class="badge present">STL présent</span>' : '<span class="badge manque">STL manquant</span>';
+          const cle = EXTENSIONS.map(x => `${p.id}/${segmentTaille(o.label)}.${x}`).find(c => cles.has(c));
+          total++; if (!cle) manquants++; else presents++;
+          /* Pastille = lien de téléchargement (route /admin, derrière Access, même origine) */
+          etatStl = cle ? `<a class="badge present" href="/admin/stl?cle=${encodeURIComponent(cle)}" download title="Télécharger ${esc(cle)}">STL présent ↓</a>` : '<span class="badge manque">STL manquant</span>';
         }
         return `<div class="ligne"><span>${esc(o.label)} <span class="muted">${esc(o.hint || "")}</span> · ${prix(EVARYSTH.priceFor(p, "standard", o.values))}</span>${etatStl}</div>`
           + decomposition(p, o.values);
@@ -1151,7 +1152,7 @@ export async function routeAdmin(req, env, url) {
   const icone = /^\/admin\/([a-z0-9-]+\.(?:svg|png|webmanifest))$/.exec(url.pathname);
   if (icone && req.method === "GET") { const r = ressource(icone[1]); if (r) return r; }
   const route = `${req.method} ${url.pathname}`;
-  const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/cloturer", "POST /admin/renvoyer", "POST /admin/retirer", "POST /admin/accepter", "POST /admin/expedier", "POST /admin/reference", "POST /admin/couts", "POST /admin/tache", "POST /admin/generation", "POST /admin/pause", "POST /admin/sauvegarde", "GET /admin/sauvegarde.zip"];
+  const routes = ["GET /admin", "POST /admin/valider", "POST /admin/bloquer", "POST /admin/debloquer", "POST /admin/cloturer", "POST /admin/renvoyer", "POST /admin/retirer", "POST /admin/accepter", "POST /admin/expedier", "POST /admin/reference", "POST /admin/couts", "POST /admin/tache", "POST /admin/generation", "POST /admin/pause", "POST /admin/sauvegarde", "GET /admin/sauvegarde.zip", "GET /admin/stl"];
   if (!routes.includes(route)) return simple("Introuvable", "Page introuvable.", 404);
 
   let email;
@@ -1159,11 +1160,17 @@ export async function routeAdmin(req, env, url) {
   if (!email) return simple("Accès refusé", "Connectez-vous avec le compte autorisé.", 403);
   const vue = req.method === "GET" ? VUES.map(x => x[0]).find(v => v && v === url.searchParams.get("vue")) || "" : "";
   /* Catalogue, Système et Liens restent visibles sans secrets Google (diagnostic) ; HMAC_SECRET toujours requis (jeton CSRF) */
-  const sansSheet = ["catalogue", "systeme", "liens"].includes(vue) && !url.searchParams.get("q");
+  const sansSheet = (["catalogue", "systeme", "liens"].includes(vue) && !url.searchParams.get("q")) || url.pathname === "/admin/stl";
   if ((!sansSheet && !googleConfigure(env)) || !jetonConfigure(env)) return simple("Service indisponible", "Configuration incomplète (secrets Google ou HMAC_SECRET).", 503);
 
   try {
     if (req.method === "GET" && url.pathname === "/admin/sauvegarde.zip") return await telechargerSauvegarde(env);
+    if (req.method === "GET" && url.pathname === "/admin/stl") {
+      const cle = url.searchParams.get("cle");
+      if (!cleStandard(cle)) return simple("Introuvable", "Fichier introuvable.", 404);
+      if (!env.STL || typeof env.STL.get !== "function") return simple("Service indisponible", "Binding R2 « STL » absent.", 503);
+      return await reponseFichier(req, env, cle);
+    }
     if (req.method === "GET") {
       const { bandeau, cookie } = await lireFlash(env, url, req, vue);
       const q = nettoyer(url.searchParams.get("q"), 80);
