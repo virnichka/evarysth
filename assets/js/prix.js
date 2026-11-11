@@ -5,8 +5,13 @@
    Contrôle : node tools/rapport-prix.mjs --verifier (référence tools/references-prix.json, invariants bloquants). */
 (function (E) {
   /* Frais de commande, communs au panier (cart.js) et au Worker (worker/src/commande.js), en euros TTC.
+     livraison : en point relais, une fois par commande, selon la masse du colis (E.livraison) ; paliers [masse max en g,
+     prix], auDela au-delà du dernier palier ; carton_g ajouté à la masse des pièces.
      promosDemo : codes de démonstration du panier hors paiement (sans ?checkout=test) ; en paiement, Stripe décide. */
-  E.frais = { livraison: 4.9, cadeau: 3, messageCadeauMax: 200, promosDemo: { BIENVENUE10: 0.10 } };
+  E.frais = {
+    livraison: { paliers: [[500, 4.5], [1000, 6.5], [3000, 8.5]], auDela: 11.5, carton_g: 100 },
+    cadeau: 3, messageCadeauMax: 200, promosDemo: { BIENVENUE10: 0.10 }
+  };
 
   /* Tarifs (11 nov. 2026), en euros ; g = masse estimée (g), h = temps estimé (h), r = taux d'échec de la matière.
      V (coût d'une pièce) = Mat + Mach + Vm + MO + emballage + fixes ;
@@ -99,6 +104,26 @@
     const r = E.prixDetail(p, values, n);
     if (!r) throw new Error(`Prix indisponible pour ${p.id} (barème absent)`);
     return r.prix;
+  };
+
+  /* Livraison d'un colis de masse_g grammes (carton compris) */
+  E.livraison = masse_g => {
+    const l = E.frais.livraison, palier = l.paliers.find(([max]) => masse_g <= max);
+    return palier ? palier[1] : l.auDela;
+  };
+  /* Masse du colis : lignes [{ masse_g (d'une pièce), qty }] + carton */
+  E.masseColis = lignes => lignes.reduce((s, l) => s + l.masse_g * l.qty, 0) + E.frais.livraison.carton_g;
+
+  /* Totaux du panier, en euros : lignes [{ prix (unitaire, déjà dégressif), masse_g (d'une pièce), qty }] ;
+     cadeau : emballage choisi ; remise : { rate, amount } ou null. Comme Stripe : la remise porte sur les articles et
+     l'emballage, pas sur la livraison. Le Worker refait le même total en centimes (worker/src/commande.js). */
+  E.totalPanier = (lignes, { cadeau = false, remise = null } = {}) => {
+    const c = x => Math.round(x * 100) / 100, vide = !lignes.length;
+    const articles = c(lignes.reduce((s, l) => s + l.prix * l.qty, 0)), emballage = !vide && cadeau ? E.frais.cadeau : 0;
+    const base = articles + emballage;
+    const reduction = remise ? Math.min(base, c(base * (remise.rate || 0) + (remise.amount || 0))) : 0;
+    const masse_g = vide ? 0 : E.masseColis(lignes), livraison = vide ? 0 : E.livraison(masse_g);
+    return { articles, emballage, remise: reduction, masse_g, livraison, total: c(base - reduction + livraison) };
   };
 
   /* « Dès » : prix aux cotes minimales des curseurs (le prix ne baisse jamais quand une cote augmente) ; sans sur-mesure,

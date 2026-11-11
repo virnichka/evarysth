@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
-import { lirePanier, LIVRAISON_CENTS, CADEAU_CENTS, MESSAGE_CADEAU_MAX } from "../src/commande.js";
+import { lirePanier, CADEAU_CENTS, MESSAGE_CADEAU_MAX } from "../src/commande.js";
 import { EVARYSTH } from "../src/catalogue.js";
 
 /* Le site tel que le navigateur le charge : data.js, bareme.js puis prix.js, dans un contexte à part */
@@ -54,13 +54,13 @@ test("barème absent pour un produit : commande refusée proprement (pas de prix
   const sauve = EVARYSTH.bareme.produits["passe-cable"];
   try {
     delete EVARYSTH.bareme.produits["passe-cable"];
-    assert.throws(() => lirePanier({ items: [{ id: "passe-cable", mode: "custom", values: { a: 60 }, color: "noir", qty: 1 }] }), /prix sur-mesure indisponible/);
+    assert.throws(() => lirePanier({ items: [{ id: "passe-cable", mode: "custom", values: { a: 60 }, color: "noir", qty: 1 }] }), /prix indisponible/);
   } finally { EVARYSTH.bareme.produits["passe-cable"] = sauve; }
 });
 
 test("livraison, emballage cadeau, code de démo : une seule définition (prix.js) pour le site et le Worker", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(site.frais)), JSON.parse(JSON.stringify(EVARYSTH.frais)));
-  assert.deepEqual([LIVRAISON_CENTS, CADEAU_CENTS, MESSAGE_CADEAU_MAX], [490, 300, 200], "montants inchangés");
+  assert.deepEqual([CADEAU_CENTS, MESSAGE_CADEAU_MAX], [300, 200], "montants inchangés");
   assert.equal(site.frais.promosDemo.BIENVENUE10, 0.1);
   const panier = fs.readFileSync(new URL("../../assets/js/cart.js", import.meta.url), "utf8");
   assert.doesNotMatch(panier, /const (SHIPPING|GIFT|GIFT_MAX|PROMOS) = [\d{]/, "cart.js lit EVARYSTH.frais, sans valeur à lui");

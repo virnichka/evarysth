@@ -5,9 +5,8 @@ import { EVARYSTH } from "./catalogue.js";
 const LETTRES = "ABCDEFGH";
 const MAX_LIGNES = 30;
 const MAX_QTE = 99;
-/* Livraison et emballage cadeau : EVARYSTH.frais (assets/js/prix.js), même définition que le panier du site ;
-   prix fixés ici, jamais lus dans la requête du navigateur */
-export const LIVRAISON_CENTS = Math.round(EVARYSTH.frais.livraison * 100);
+/* Livraison et emballage cadeau : EVARYSTH.frais et EVARYSTH.livraison (assets/js/prix.js), mêmes fonctions que le
+   panier du site ; montants calculés ici, jamais lus dans la requête du navigateur */
 export const PAYS_LIVRAISON = ["FR", "BE", "LU", "MC"];
 export const URL_CGV = "https://www.evarysth.fr/cgv/";
 export const CADEAU_CENTS = Math.round(EVARYSTH.frais.cadeau * 100);
@@ -56,8 +55,25 @@ function lireLigne(it, n) {
     if (!coloris) throw new ErreurPanier(`Ligne ${n} : coloris inconnu.`);
   }
   let prix;
-  try { prix = EVARYSTH.priceFor(p, it.mode, values); } catch { throw new ErreurPanier(`Ligne ${n} : prix sur-mesure indisponible pour le moment.`); }
-  return { p, mode: it.mode, taille, values, coloris, qty, unitCents: Math.round(prix * 100) };
+  let masse_g;
+  /* Prix unitaire dégressif selon la quantité de la ligne (docs/prix.md) ; masse d'une pièce pour la livraison */
+  try { prix = EVARYSTH.priceFor(p, it.mode, values, qty); masse_g = EVARYSTH.estimation(p, values).masse_g; }
+  catch { throw new ErreurPanier(`Ligne ${n} : prix indisponible pour le moment.`); }
+  return { p, mode: it.mode, taille, values, coloris, qty, masse_g, unitCents: Math.round(prix * 100) };
+}
+
+/* Livraison en point relais, une fois par commande, selon la masse du colis (pièces × quantités + carton) */
+export const livraisonCents = lignes => Math.round(EVARYSTH.livraison(EVARYSTH.masseColis(lignes)) * 100);
+
+/* Total de la commande en centimes, tel que Stripe le facture (remise sur articles et emballage, pas sur la livraison) ;
+   remise : { rate, amount } (code de démonstration ou code vérifié chez Stripe). Doit égaler le total du panier
+   (EVARYSTH.totalPanier) au centime : worker/test/panier.test.mjs. */
+export function totalCommande(lignes, { cadeau = false, remise = null } = {}) {
+  const articles = lignes.reduce((s, l) => s + l.unitCents * l.qty, 0), emballage = cadeau ? CADEAU_CENTS : 0;
+  const base = articles + emballage;
+  const reduction = remise ? Math.min(base, Math.round(base * (remise.rate || 0) + (remise.amount || 0) * 100)) : 0;
+  const livraison = livraisonCents(lignes);
+  return { articles, emballage, remise: reduction, livraison, total: base - reduction + livraison };
 }
 
 /* Option cadeau : seuls `cadeau: true` et `message` sont lus ; tout autre champ (prix…) est ignoré */
@@ -148,9 +164,9 @@ export function parametresSession(lignes, { base, retour, ref, promotionCode, ca
     shipping_address_collection: { allowed_countries: PAYS_LIVRAISON },
     shipping_options: [{
       shipping_rate_data: {
-        display_name: "Livraison suivie",
+        display_name: "Livraison en point relais",
         type: "fixed_amount",
-        fixed_amount: { amount: LIVRAISON_CENTS, currency: "eur" }
+        fixed_amount: { amount: livraisonCents(lignes), currency: "eur" }
       }
     }],
     ...(promotionCode ? { discounts: [{ promotion_code: promotionCode }] } : { allow_promotion_codes: true }),

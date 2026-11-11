@@ -393,7 +393,7 @@ function blocMontants(etat, ev, arts) {
   const ligne = (nom, v) => `<div class="ligne"><span>${nom}</span><span>${v}</span></div>`;
   const resume = g ? (g.marge == null ? "marge à calculer" : `marge ${euros(g.marge)}`) : euros(m.total);
   return `<details class="options"><summary><span class="nom">Montants</span><span class="resume">${esc(resume)}</span></summary><div class="detail">
-${ligne("Total payé (TTC)", esc(euros(m.total)))}${m.livraison ? ligne("dont livraison", esc(euros(m.livraison))) : ""}${m.remise ? ligne("Remise appliquée", esc(euros(m.remise))) : ""}
+${ligne("Total payé (TTC)", esc(euros(m.total)))}${m.livraison ? ligne("dont livraison (point relais, au poids)", esc(euros(m.livraison))) : ""}${m.remise ? ligne("Remise appliquée", esc(euros(m.remise))) : ""}
 ${ligne("Frais Stripe", esc(euros(m.frais)))}${g ? `${ligne("Coûts fabricants", esc(euros(g.couts)))}${ligne("Frais d'envoi", esc(euros(g.envois)))}
 ${ligne("<b>Marge (TTC)</b>", g.marge == null ? `<span class="muted">${esc(g.manque)}</span>` : `<b>${esc(euros(g.marge))}</b>`)}` : '<p class="muted">Colonnes de coûts absentes du Sheet : marge non calculée.</p>'}</div></details>`;
 }
