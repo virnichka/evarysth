@@ -1771,7 +1771,7 @@
    "filiere": "atelier",
    "provisoire": false,
    "valeur": 1,
-   "des": 24,
+   "des": 25,
    "tailles": [
     {
      "taille": "Court",
@@ -1779,8 +1779,8 @@
       "a": 60,
       "b": 190
      },
-     "prix": 26,
-     "surMesure": 26
+     "prix": 29,
+     "surMesure": 29
     },
     {
      "taille": "Standard",
@@ -1788,8 +1788,8 @@
       "a": 60,
       "b": 220
      },
-     "prix": 29,
-     "surMesure": 29
+     "prix": 31,
+     "surMesure": 31
     },
     {
      "taille": "Long",
@@ -1797,8 +1797,8 @@
       "a": 60,
       "b": 250
      },
-     "prix": 31,
-     "surMesure": 31
+     "prix": 34,
+     "surMesure": 34
     }
    ],
    "reperes": {
@@ -1807,24 +1807,24 @@
       "a": 50,
       "b": 180
      },
-     "masse_g": 94.5,
-     "heures": 3.24,
-     "mat": 4.96,
-     "mach": 2.04,
-     "vm": 3.24,
-     "mo": 3.16,
+     "masse_g": 101.7,
+     "heures": 3.59,
+     "mat": 5.34,
+     "mach": 2.26,
+     "vm": 3.59,
+     "mo": 3.21,
      "emballage": 0.3,
      "fixes": 4,
      "lancement": 2,
-     "prelevements": 3.45,
-     "prix": 24,
+     "prelevements": 3.62,
+     "prix": 25,
      "parQuantite": [
+      25,
       24,
-      22,
-      22,
-      22,
-      22,
-      22
+      23,
+      23,
+      23,
+      23
      ]
     },
     "def": {
@@ -1832,24 +1832,24 @@
       "a": 60,
       "b": 220
      },
-     "masse_g": 135,
-     "heures": 4.38,
-     "mat": 7.09,
-     "mach": 2.76,
-     "vm": 4.38,
-     "mo": 3.48,
+     "masse_g": 152.6,
+     "heures": 5.03,
+     "mat": 8.01,
+     "mach": 3.17,
+     "vm": 5.03,
+     "mo": 3.62,
      "emballage": 0.3,
      "fixes": 4,
      "lancement": 2,
-     "prelevements": 4.2,
-     "prix": 29,
+     "prelevements": 4.58,
+     "prix": 31,
      "parQuantite": [
+      31,
+      30,
+      30,
       29,
-      28,
-      27,
-      27,
-      27,
-      27
+      29,
+      29
      ]
     },
     "max": {
@@ -1857,24 +1857,24 @@
       "a": 68,
       "b": 250
      },
-     "masse_g": 174.2,
-     "heures": 5.4,
-     "mat": 9.14,
-     "mach": 3.4,
-     "vm": 5.4,
-     "mo": 3.79,
+     "masse_g": 194.6,
+     "heures": 6.21,
+     "mat": 10.22,
+     "mach": 3.91,
+     "vm": 6.21,
+     "mo": 3.96,
      "emballage": 0.3,
      "fixes": 4,
      "lancement": 2,
-     "prelevements": 4.91,
-     "prix": 33,
+     "prelevements": 5.36,
+     "prix": 36,
      "parQuantite": [
-      33,
-      32,
-      32,
-      32,
-      32,
-      31
+      36,
+      35,
+      35,
+      35,
+      35,
+      34
      ]
     }
    },
@@ -1894,14 +1894,14 @@
     },
     "hausseMaxMm": 1,
     "min": {
-     "prix": 24,
+     "prix": 25,
      "cotes": {
       "a": 50,
       "b": 180
      }
     },
     "max": {
-     "prix": 33,
+     "prix": 36,
      "cotes": {
       "a": 66,
       "b": 250
