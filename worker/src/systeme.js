@@ -33,11 +33,12 @@ export async function ecrireEtatR2(env, cle, valeur) {
 
 /* ── Clé Brevo ─────────────────────────────────────────────────────────────────────────────────────────────── */
 /* Un appel en lecture (GET /v3/account) par jour, nouvel essai toutes les heures après un échec.
+   forcer (bouton « Lancer la tâche maintenant » de /admin) : appel fait même si le dernier date de moins de 24 h / 1 h.
    Renvoie { inactif } | { saute } | { ok, detail }. */
-export async function maintenirBrevo(env, maintenant = Date.now()) {
+export async function maintenirBrevo(env, maintenant = Date.now(), { forcer = false } = {}) {
   if (!env.BREVO_API_KEY || !bucket(env)) return { inactif: true };
   const e = await lireEtatR2(env, CLES.brevo);
-  if (e && maintenant - e.t < (e.ok ? PERIODE_BREVO_MS : REESSAI_MS)) return { saute: true };
+  if (e && !forcer && maintenant - e.t < (e.ok ? PERIODE_BREVO_MS : REESSAI_MS)) return { saute: true };
   let ok = false, detail = "";
   try {
     const r = await fetch("https://api.brevo.com/v3/account", { headers: { "api-key": env.BREVO_API_KEY, Accept: "application/json" } });
@@ -133,9 +134,9 @@ export async function reglerPause(env, { active, message = "" }) {
 }
 
 /* Passage de la tâche planifiée : ne lève jamais */
-export async function entretien(env, maintenant = Date.now()) {
+export async function entretien(env, maintenant = Date.now(), { forcerBrevo = false } = {}) {
   const bilan = {};
-  try { bilan.brevo = await maintenirBrevo(env, maintenant); } catch (e) { console.error("Entretien : Brevo", e.message); }
+  try { bilan.brevo = await maintenirBrevo(env, maintenant, { forcer: forcerBrevo }); } catch (e) { console.error("Entretien : Brevo", e.message); }
   try { bilan.sauvegarde = await sauvegarderSheet(env, { maintenant }); } catch (e) { console.error("Entretien : sauvegarde", e.message); }
   if (googleConfigure(env)) { try { bilan.frais = await completerFrais(env, maintenant); } catch (e) { console.error("Entretien : frais Stripe", e.message); } }
   return bilan;

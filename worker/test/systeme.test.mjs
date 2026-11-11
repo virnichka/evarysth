@@ -74,6 +74,9 @@ test("Brevo : un appel de maintien par jour, nouvel essai toutes les heures apr�
   brevoStatut = 403;                                        /* 403 : le message de Brevo est gardé (IP non autorisée, droits…) */
   const r403 = await silence(() => maintenirBrevo(env, t0 + 3 * PERIODE_BREVO_MS));
   assert.equal(r403.detail, "appel refusé (HTTP 403) — Brevo : « Unauthorized IP address 1.2.3.4 »");
+  brevoStatut = 200;                                        /* forcé (bouton /admin) : pas d'attente d'1 h après un échec */
+  assert.deepEqual(await maintenirBrevo(env, t0 + 3 * PERIODE_BREVO_MS + 1000), { saute: true });
+  assert.equal((await maintenirBrevo(env, t0 + 3 * PERIODE_BREVO_MS + 1000, { forcer: true })).ok, true);
 });
 
 test("Sauvegarde : une archive (un CSV par onglet, formules d'en-tête, manifeste) ; une par semaine ; 12 semaines gardées", async () => {

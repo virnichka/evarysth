@@ -798,7 +798,7 @@ ${ss && ss.ok ? '<p class="muted" style="margin-top:8px"><a href="/admin/sauvega
 
 /* POST /admin/tache : même code que le cron, bilan en bandeau sur l'onglet Système */
 async function tacheMaintenant(env) {
-  await entretien(env);                                     /* maintien de la clé Brevo et sauvegarde si dues (ne lève jamais) */
+  await entretien(env, Date.now(), { forcerBrevo: true });  /* clé Brevo revérifiée tout de suite, sauvegarde si due (ne lève jamais) */
   const b = await lancerTache(env);
   if (b.inactive) return redirection(env, "Secrets Google absents : rien à vérifier.", "err", "systeme");
   if (b.erreur) return redirection(env, `Sheet indisponible : ${b.erreur}`, "err", "systeme");
