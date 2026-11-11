@@ -13,6 +13,12 @@ EVARYSTH.viewer3d.define("support-accessoires-aspirateur", ({ m, circ, rect }) =
     const zb = c - ri - 0.5;                                        // face avant de la barre (hors de l'alésage)
     return { ri, ro, s, zb, zm: (DOS + zb) / 2 - NERF };              // zm : arrière de la lisse intermédiaire, centrée
   };
+  /* Révolution partielle d'un profil [rayon, hauteur] autour de Y (comme k.rev), sur « angle » degrés :
+     ouverture centrée sur +z, faces d'extrémité radiales ; même règle de corde que k.rev */
+  const fendu = (k, pts, angle) => {
+    const n = Math.max(4, Math.ceil(k.segments(Math.max(...pts.map(q => q[0]))) * angle / 360));
+    return k.solid(k.Manifold.revolve(k.section(pts).cs, n, angle)).rotateZ((270 - (angle + 360) / 2) * Math.PI / 180).rotateX(-Math.PI / 2);
+  };
   /* Profil vu de dessus (x, z) extrudé sur la hauteur h à partir de y0 */
   const dessus = (k, pts, h, y0 = 0) => k.ext(pts, h).rotateX(Math.PI / 2).translate(0, y0 + h / 2, 0);
   /* Lisse vue de face (x, y), épaisseur e, face arrière en z0, percée aux vis */
@@ -26,7 +32,7 @@ EVARYSTH.viewer3d.define("support-accessoires-aspirateur", ({ m, circ, rect }) =
       const f = Math.PI / 2 * i / 6;
       return [ro - 1.5 + 1.5 * Math.cos(f), HA - 1.5 + 1.5 * Math.sin(f)];
     });
-    const anneau = k.rev([[ri, 0], [ro, 0], ...arr, [ri + 1, HA], [ri, HA - 1]], 360 - 2 * Math.asin(FENTE / 2 / ri) * 180 / Math.PI)
+    const anneau = fendu(k, [[ri, 0], [ro, 0], ...arr, [ri + 1, HA], [ri, HA - 1]], 360 - 2 * Math.asin(FENTE / 2 / ri) * 180 / Math.PI)
       .translate(0, 0, c);
     const anneaux = xs.map(x => anneau.clone().translate(x, 0, 0));
     /* Joues : du dos jusqu'à l'anneau d'extrémité, dont elles épousent le galbe (recouvrement 0,3 mm) */
