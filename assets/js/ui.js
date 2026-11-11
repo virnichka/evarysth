@@ -187,7 +187,7 @@
         <li><a href="produits/${p.id}/" data-modal-close>
           <span class="search__thumb">${EVARYSTH.shapeSVG(p.shape)}</span>
           <span><b>${esc(p.name)}</b><small>${esc(EVARYSTH.getUniverse(p.universe).name)}</small></span>
-          <span class="mono">dès ${EVARYSTH.fmt(p.price)}</span></a></li>`).join("")
+          <span class="mono">dès ${EVARYSTH.fmt(EVARYSTH.prixDes(p))}</span></a></li>`).join("")
         : `<li class="search__empty">Aucun résultat pour « ${esc(input.value)} ». Essayez « câble », « balcon » ou « tiroir ».</li>`);
     };
     input.addEventListener("input", render); render();

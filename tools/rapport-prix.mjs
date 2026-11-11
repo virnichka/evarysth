@@ -1,14 +1,13 @@
 #!/usr/bin/env node
-/* Evarysth — rapport des prix (docs/prix.md) : pour chaque produit sur-mesure, prix et coût des tailles standard, prix
-   sur-mesure aux cotes min / défaut / max et aux cotes de chaque taille, puis balayage de toutes les cotes (pas des
-   curseurs, au plus PAS_MAX valeurs par axe) qui compte les prix en baisse quand une cote augmente, les marches (hausse
-   ≥ MARCHE.euros et ≥ MARCHE.part en un cran), l'écart sur-mesure / taille aux mêmes cotes, et le minimum réel face au
-   « Dès » affiché. Lit le site tel quel (data.js, bareme.js, prix.js) : rien n'est recalculé ici.
+/* Evarysth — rapport des prix (docs/prix.md) : pour chaque produit, prix des tailles standard, prix aux cotes min / défaut /
+   max avec leur décomposition, « Dès », prix unitaire par quantité, puis balayage de toutes les cotes (pas des curseurs,
+   au plus PAS_MAX valeurs par axe) et invariants. Lit le site tel quel (data.js, bareme.js, prix.js) : rien n'est
+   recalculé ici.
 
      node tools/rapport-prix.mjs                   tableau Markdown
      node tools/rapport-prix.mjs --json            rapport complet (JSON)
-     node tools/rapport-prix.mjs --verifier        compare à la référence tools/references-prix.json (code 1 si écart)
-                                                   et affiche les invariants non tenus (avertissements)
+     node tools/rapport-prix.mjs --verifier        compare à la référence tools/references-prix.json et contrôle les
+                                                   invariants (code 1 si écart ou invariant non tenu)
      node tools/rapport-prix.mjs --mettre-a-jour   réécrit la référence (changement de prix VOULU seulement)
 
    Référence figée : un refactoring du calcul doit la laisser identique (test bloquant tools/test/prix.test.mjs). */
@@ -19,7 +18,10 @@ import { RACINE, SCRIPTS_PRIX, charger, avecBareme } from "./lib/bareme.mjs";
 
 export const REFERENCE = path.join(RACINE, "tools/references-prix.json");
 export const PAS_MAX = 60;
-export const MARCHE = { euros: 4, part: 0.15 };
+/* Hausse permise par cran de curseur : HAUSSE_MM € par mm, arrondie à l'euro supérieur (prix à l'euro) */
+export const HAUSSE_MM = 1;
+/* Quantités contrôlées (prix unitaire jamais plus haut pour n + 1 pièces que pour n) */
+export const QUANTITES = [1, 2, 3, 4, 5, 10];
 const EXEMPLES = 3;
 
 const decimales = x => (String(x).split(".")[1] || "").length;
@@ -32,17 +34,17 @@ export function valeursAxe(q) {
 }
 
 const centimes = x => Math.round(x * 100) / 100;
+const DETAIL = ["mat", "mach", "vm", "mo", "emballage", "fixes", "lancement", "prelevements"];
+const detail = d => ({ masse_g: Math.round(d.masse_g * 10) / 10, heures: centimes(d.heures),
+  ...Object.fromEntries(DETAIL.map(k => [k, centimes(d[k])])), prix: d.prix });
 
 function produit(E, p) {
-  const prm = p.custom.params, cles = prm.map(q => q.key);
-  const tailles = p.variants.options.map(o => {
-    const r = E.prixCalcule(p, o.values), surMesure = E.priceFor(p, "custom", o.values), prix = E.priceFor(p, "standard", o.values);
-    return { taille: o.label, cotes: o.values, prix, cout: r.cout, formule: r.formule, surMesure,
-      ecart: surMesure - prix, ecartPart: centimes((surMesure - prix) / prix) };
-  });
+  const prm = p.custom.params, cles = prm.map(q => q.key), m = E.matierePrix(p);
+  const tailles = p.variants.options.map(o => ({ taille: o.label, cotes: o.values, prix: E.priceFor(p, "standard", o.values),
+    surMesure: E.priceFor(p, "custom", o.values) }));
   const reperes = Object.fromEntries(["min", "def", "max"].map(k => {
-    const v = Object.fromEntries(prm.map(q => [q.key, q[k]])), r = E.prixCalcule(p, v);
-    return [k, { cotes: v, prix: E.priceFor(p, "custom", v), cout: r.cout, formule: r.formule, plancher: r.plancher, supplement: r.supplement }];
+    const v = Object.fromEntries(prm.map(q => [q.key, q[k]]));
+    return [k, { cotes: v, ...detail(E.prixDetail(p, v)), parQuantite: QUANTITES.map(n => E.priceFor(p, "custom", v, n)) }];
   }));
 
   /* Balayage : produit cartésien des axes, prix rangés par indice multiple (dernier axe le plus rapide) */
@@ -53,66 +55,76 @@ function produit(E, p) {
     for (let d = cles.length - 1; d >= 0; d--) { v[d] = axes[d][i % dims[d]]; i = Math.floor(i / dims[d]); }
     return Object.fromEntries(cles.map((k, d) => [k, v[d]]));
   };
-  let min = { prix: Infinity };
+  let min = { prix: Infinity }, max = { prix: -Infinity };
   for (let i = 0; i < total; i++) {
     const c = cotesDe(i);
     prix[i] = E.priceFor(p, "custom", c);
     if (prix[i] < min.prix) min = { prix: prix[i], cotes: c };
+    if (prix[i] > max.prix) max = { prix: prix[i], cotes: c };
   }
-  const baisses = { nombre: 0, exemples: [] }, marches = { nombre: 0, exemples: [] };
-  let pasAxe = 1;
+  const baisses = { nombre: 0, exemples: [] }, hausses = { nombre: 0, exemples: [] };
+  let pasAxe = 1, hausseMaxMm = 0;
   for (let d = cles.length - 1; d >= 0; d--) {
     for (let i = 0; i < total; i++) {
-      if (Math.floor(i / pasAxe) % dims[d] === dims[d] - 1) continue;
-      const a = prix[i], b = prix[i + pasAxe];
-      if (b < a) {
-        baisses.nombre++;
-        if (baisses.exemples.length < EXEMPLES) baisses.exemples.push({ axe: cles[d], de: cotesDe(i), a: axes[d][Math.floor(i / pasAxe) % dims[d] + 1], prix: [a, b] });
-      } else if (b - a >= MARCHE.euros && b - a >= MARCHE.part * a) {
-        marches.nombre++;
-        if (marches.exemples.length < EXEMPLES) marches.exemples.push({ axe: cles[d], de: cotesDe(i), a: axes[d][Math.floor(i / pasAxe) % dims[d] + 1], prix: [a, b] });
-      }
+      const k = Math.floor(i / pasAxe) % dims[d];
+      if (k === dims[d] - 1) continue;
+      const a = prix[i], b = prix[i + pasAxe], mm = axes[d][k + 1] - axes[d][k];
+      const ex = () => ({ axe: cles[d], de: cotesDe(i), a: axes[d][k + 1], prix: [a, b] });
+      hausseMaxMm = Math.max(hausseMaxMm, (b - a) / mm);
+      if (b < a) { baisses.nombre++; if (baisses.exemples.length < EXEMPLES) baisses.exemples.push(ex()); }
+      else if (b - a > Math.ceil(HAUSSE_MM * mm - 1e-9)) { hausses.nombre++; if (hausses.exemples.length < EXEMPLES) hausses.exemples.push(ex()); }
     }
     pasAxe *= dims[d];
   }
-  const minStandard = Math.min(...tailles.map(t => t.prix));
   return {
-    id: p.id, matiere: (p.impression && p.impression.matiere) || p.matiere, des: p.price, tailles, reperes,
-    balayage: { valeursParAxe: Object.fromEntries(cles.map((k, d) => [k, dims[d]])), points: total, baisses, marches,
-      ecartTailleMax: Math.max(...tailles.map(t => t.ecart)), ecartTailleMin: Math.min(...tailles.map(t => t.ecart)),
-      minSurMesure: min, minReel: Math.min(minStandard, min.prix), sousDes: Math.min(minStandard, min.prix) < p.price }
+    id: p.id, matiere: (p.impression && p.impression.matiere) || p.matiere, filiere: m.filiere,
+    provisoire: m.filiere === "externe", valeur: p.valeur || 1, des: E.prixDes(p), tailles, reperes,
+    balayage: { valeursParAxe: Object.fromEntries(cles.map((k, d) => [k, dims[d]])), points: total, baisses, hausses,
+      hausseMaxMm: centimes(hausseMaxMm), min, max }
   };
 }
 
 export function rapport(E = charger(SCRIPTS_PRIX)) {
-  return { pasMax: PAS_MAX, marche: MARCHE, produits: E.products.filter(avecBareme).map(p => produit(E, p)) };
+  return { pasMax: PAS_MAX, hausseMm: HAUSSE_MM, quantites: QUANTITES, produits: E.products.filter(avecBareme).map(p => produit(E, p)) };
 }
 
 const eur = n => `${Number.isInteger(n) ? n : n.toFixed(2).replace(".", ",")} €`;
 export function markdown(r) {
-  const l = ["| Produit | Matière | Tailles (prix ; coût ; sur-mesure aux mêmes cotes) | Sur-mesure min / défaut / max | Balayage (points) | Baisses | Marches | Min réel / « Dès » |",
-    "|---|---|---|---|---|---|---|---|"];
+  const l = ["| Produit | Matière | Tailles | Min / défaut / max | « Dès » | Défaut × 1 / 2 / 4 / 10 | Balayage (points ; hausse max / mm) |",
+    "|---|---|---|---|---|---|---|"];
   for (const p of r.produits) {
-    const b = p.balayage;
-    l.push(`| ${p.id} | ${p.matiere} | ${p.tailles.map(t => `${t.taille} ${eur(t.prix)} ; ${eur(t.cout)} ; ${eur(t.surMesure)}`).join(" <br>")}`
-      + ` | ${["min", "def", "max"].map(k => eur(p.reperes[k].prix)).join(" / ")} | ${b.points} | ${b.baisses.nombre} | ${b.marches.nombre}`
-      + ` | ${eur(b.minReel)} / ${eur(p.des)}${b.sousDes ? " ⚠" : ""} |`);
+    const b = p.balayage, q = n => p.reperes.def.parQuantite[r.quantites.indexOf(n)];
+    l.push(`| ${p.id} | ${p.matiere}${p.provisoire ? " (provisoire, devis à venir)" : ""} | ${p.tailles.map(t => `${t.taille} ${eur(t.prix)}`).join(" · ")}`
+      + ` | ${["min", "def", "max"].map(k => eur(p.reperes[k].prix)).join(" / ")} | ${eur(p.des)} | ${[1, 2, 4, 10].map(q).join(" / ")} €`
+      + ` | ${b.points} ; ${eur(b.hausseMaxMm)} |`);
   }
   return l.join("\n");
 }
 
-/* Invariants souhaités (avertissements seulement, jamais bloquants) : [{ id, regle, message }] */
+/* Invariants (bloquants) : [{ id, regle, message }] ; liste vide = tout est tenu */
+export const REGLES = {
+  baisse: "le prix ne baisse jamais quand une cote augmente",
+  hausse: `hausse d'au plus ${HAUSSE_MM} € par mm de curseur (arrondie à l'euro supérieur)`,
+  standard: "même prix en taille standard et en sur-mesure aux mêmes cotes",
+  des: "« Dès » = minimum réel du balayage",
+  minimum: "aucun prix sous le prix minimum",
+  quantite: "prix unitaire jamais plus haut pour n + 1 pièces que pour n"
+};
 export function invariants(r, E = charger(SCRIPTS_PRIX)) {
-  const sp = E.tarif.supplement, eurs = ([a, b]) => `${a} → ${b} €`, out = [];
+  const eurs = ([a, b]) => `${a} → ${b} €`, out = [];
   const cotes = c => Object.entries(c).map(([k, v]) => `${k} ${v}`).join(", ");
+  const ex = x => `ex. ${x.axe} → ${x.a} depuis ${cotes(x.de)} : ${eurs(x.prix)}`;
   for (const p of r.produits) {
     const b = p.balayage, w = (regle, message) => out.push({ id: p.id, regle, message });
-    if (b.baisses.nombre) w("baisse", `${b.baisses.nombre} cran(s) où le prix baisse quand une cote augmente (ex. ${b.baisses.exemples[0].axe} → ${b.baisses.exemples[0].a} depuis ${cotes(b.baisses.exemples[0].de)} : ${eurs(b.baisses.exemples[0].prix)})`);
-    if (b.marches.nombre) w("marche", `${b.marches.nombre} marche(s) ≥ ${r.marche.euros} € et ≥ ${r.marche.part * 100} % en un cran (ex. ${b.marches.exemples[0].axe} → ${b.marches.exemples[0].a} depuis ${cotes(b.marches.exemples[0].de)} : ${eurs(b.marches.exemples[0].prix)})`);
-    if (b.sousDes) w("des", `minimum réel ${b.minReel} € sous le « Dès ${p.des} € » (sur-mesure ${cotes(b.minSurMesure.cotes)})`);
-    for (const t of p.tailles) {
-      if (t.ecart < sp.min || t.ecart > sp.max) w("ecart", `${t.taille} : sur-mesure aux mêmes cotes ${t.surMesure} € pour ${t.prix} € (écart ${t.ecart} € hors ${sp.min}–${sp.max} €)`);
-      if (t.prix < t.cout) w("cout", `${t.taille} : prix ${t.prix} € sous le coût ${t.cout} €`);
+    if (b.baisses.nombre) w("baisse", `${b.baisses.nombre} cran(s) en baisse (${ex(b.baisses.exemples[0])})`);
+    if (b.hausses.nombre) w("hausse", `${b.hausses.nombre} cran(s) au-delà de ${r.hausseMm} €/mm (${ex(b.hausses.exemples[0])})`);
+    for (const t of p.tailles) if (t.surMesure !== t.prix) w("standard", `${t.taille} : ${t.prix} € en standard, ${t.surMesure} € en sur-mesure`);
+    if (b.min.prix !== p.des) w("des", `minimum réel ${b.min.prix} € (${cotes(b.min.cotes)}) pour « Dès ${p.des} € »`);
+    const plusBas = Math.min(b.min.prix, ...p.tailles.map(t => t.prix), ...["min", "def", "max"].flatMap(k => p.reperes[k].parQuantite));
+    if (plusBas < E.tarif.prixMinimum) w("minimum", `prix de ${plusBas} € sous ${E.tarif.prixMinimum} €`);
+    for (const k of ["min", "def", "max"]) {
+      const q = p.reperes[k].parQuantite;
+      q.slice(1).forEach((x, i) => { if (x > q[i]) w("quantite", `${k} : ${x} € pièce par ${r.quantites[i + 1]}, ${q[i]} € par ${r.quantites[i]}`); });
     }
   }
   return out;
@@ -125,10 +137,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2), r = rapport();
   if (args.includes("--mettre-a-jour")) { fs.writeFileSync(REFERENCE, texte(r)); console.log(`${path.relative(RACINE, REFERENCE)} écrit (${r.produits.length} produits)`); }
   else if (args.includes("--verifier")) {
-    const ok = texte(r) === texte(lireReference());
-    for (const a of invariants(r)) console.log(process.env.CI ? `::warning title=Prix · ${a.regle}::${a.id} · ${a.message}` : `Avertissement : ${a.id} · ${a.message}`);
+    const ok = texte(r) === texte(lireReference()), inv = invariants(r);
+    for (const a of inv) console.log(process.env.CI ? `::error title=Prix · ${a.regle}::${a.id} · ${a.message}` : `Erreur : ${a.id} · ${a.message}`);
     console.log(ok ? "Rapport des prix identique à la référence." : "Rapport des prix DIFFÉRENT de la référence (tools/references-prix.json).");
-    process.exit(ok ? 0 : 1);
+    console.log(inv.length ? `${inv.length} invariant(s) non tenu(s).` : "Invariants tenus.");
+    process.exit(ok && !inv.length ? 0 : 1);
   } else if (args.includes("--json")) process.stdout.write(texte(r));
   else console.log(markdown(r));
 }

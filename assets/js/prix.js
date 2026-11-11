@@ -1,19 +1,28 @@
-/* Evarysth — calcul des prix (règle : docs/prix.md ; historique : docs/chaine-fabrication.md § « Prix sur-mesure »).
-   Chargé après data.js (produits, matières) et bareme.js (masse et temps tranchés), dans le navigateur, les pages générées
-   et le Worker (worker/src/catalogue.js) : un seul code, donc prix affiché = prix payé.
-   Contrôle : node tools/rapport-prix.mjs --verifier (référence tools/references-prix.json, test bloquant). */
+/* Evarysth — calcul des prix (règle : docs/prix.md).
+   Chargé après data.js (produits, matières) et bareme.js (masse et temps tranchés, bruts), dans le navigateur, les pages
+   générées et le Worker (worker/src/catalogue.js) : un seul code, donc prix affiché = prix payé.
+   Un seul calcul pour les tailles standard et le sur-mesure : une taille n'est qu'un préréglage de cotes.
+   Contrôle : node tools/rapport-prix.mjs --verifier (référence tools/references-prix.json, invariants bloquants). */
 (function (E) {
   /* Frais de commande, communs au panier (cart.js) et au Worker (worker/src/commande.js), en euros TTC.
      promosDemo : codes de démonstration du panier hors paiement (sans ?checkout=test) ; en paiement, Stripe décide. */
   E.frais = { livraison: 4.9, cadeau: 3, messageCadeauMax: 200, promosDemo: { BIENVENUE10: 0.10 } };
 
-  /* Tarifs (10 nov. 2026), modifiables sans retrancher :
-     cout = (masse_kg × eurKg + temps_h × machineEurH) × (1 + echec de la matière) + forfait + emballage ;
-     formule = euro supérieur de (cout × coefficient + stripeFixe) / (1 − stripePct) ;
-     sur-mesure = base + supplément, base = max(formule, plancher), plancher = prix de la plus grande taille standard dont
-     toutes les cotes sont ≤ aux cotes demandées (0 si aucune), supplément = part × base à l'euro supérieur, entre min et max.
-     Standard : prix des tailles fixé dans data.js. */
-  E.tarif = { machineEurH: 1.5, forfait: 3, emballage: 0.5, coefficient: 2.5, stripePct: 0.015, stripeFixe: 0.25, supplement: { part: 0.1, min: 2, max: 8 } };
+  /* Tarifs (11 nov. 2026), en euros ; g = masse estimée (g), h = temps estimé (h), r = taux d'échec de la matière.
+     V (coût d'une pièce) = Mat + Mach + Vm + MO + emballage + fixes ;
+     prix unitaire pour n pièces identiques d'une ligne = max(prixMinimum, (n × V + lancement) / n / (1 − prelevements))
+     × coefficient valeur du produit (p.valeur, 1 par défaut), arrondi à l'euro supérieur. */
+  E.tarif = {
+    filamentCoef: 2,        // Mat = filamentCoef × g/1000 × €/kg × (1 + r) : filament (pertes, purges, stock compris)
+    usureEurH: 0.6,         // Mach = h × usureEurH × (1 + r) : électricité, usure, pièces d'imprimante
+    occupation: { eurH: 1, seuil: 8, eurHApres: 0.4 },  // Vm = min(h, 8) × 1 + max(0, h − 8) × 0,40 : plateau occupé
+    mainOeuvre: { eurMin: 0.4, minutes: 6, gParMinute: 50 },  // MO = 0,40 × (6 + g/50) : préparation, finition, contrôle
+    emballage: 0.3,         // carton, calage, étiquette
+    fixes: 4,               // part des frais fixes (site, logiciels, assurance, échantillons)
+    lancement: 2,           // une fois par ligne de commande (préparation du fichier, réglage), réparti sur n pièces
+    prelevements: 0.149,    // Stripe 1,5 % + URSSAF 12,3 % + CFP 0,1 % + versement libératoire 1 %
+    prixMinimum: 9          // aucune pièce vendue sous ce prix
+  };
 
   /* Matière de prix : celle de la fiche d'impression, sinon celle du produit ; jamais de valeur par défaut */
   E.matierePrix = p => {
@@ -22,14 +31,30 @@
     return m;
   };
 
-  /* Taille standard dont les cotes sont exactement celles données (null sinon) */
-  E.taillePour = (p, values) => ((p.variants && p.variants.options) || [])
-    .find(o => values && Object.keys(o.values).every(k => o.values[k] === values[k])) || null;
-
-  /* Masse et temps estimés : interpolation multilinéaire dans le barème tranché. null si le barème n'est pas chargé ou ne
-     connaît pas le produit. */
-  E.estimation = (p, values) => {
+  /* Barème lissé (copie ; bareme.js reste brut) : sur chaque axe, masse et temps remplacés par leur maximum cumulé, pour
+     qu'aucune estimation ne baisse quand une cote augmente (le tranchage n'est pas monotone à quelques % près).
+     Calculé une fois par jeu de points. */
+  const lisses = new WeakMap();
+  E.baremeLisse = p => {
     const b = E.bareme && E.bareme.produits[p.id];
+    if (!b) return null;
+    if (!lisses.has(b.points)) {
+      const dims = Object.keys(b.axes).map(k => b.axes[k].length), pts = b.points.map(x => x.slice());
+      let pas = 1;
+      for (let d = dims.length - 1; d >= 0; d--) {
+        for (let i = 0; i < pts.length; i++)
+          if (Math.floor(i / pas) % dims[d]) pts[i] = pts[i].map((v, c) => Math.max(v, pts[i - pas][c]));
+        pas *= dims[d];
+      }
+      lisses.set(b.points, { ...b, points: pts });
+    }
+    return lisses.get(b.points);
+  };
+
+  /* Masse et temps estimés : interpolation multilinéaire dans le barème lissé ; cotes hors grille ramenées aux bornes.
+     null si le barème n'est pas chargé ou ne connaît pas le produit. */
+  E.estimation = (p, values) => {
+    const b = E.baremeLisse(p);
     if (!b) return null;
     const cles = Object.keys(b.axes), pos = cles.map(k => {
       const ax = b.axes[k], v = Math.min(ax[ax.length - 1], Math.max(ax[0], Number(values[k])));
@@ -50,31 +75,37 @@
     return { cm3, masse_g: cm3 * E.matierePrix(p).densite, temps_min: s / 60 };
   };
 
-  /* Coût, formule et prix sur-mesure d'une configuration (null si le barème ne connaît pas le produit) */
-  E.prixCalcule = (p, values) => {
+  /* Décomposition du prix unitaire d'une configuration commandée en n exemplaires (null si barème absent) */
+  E.prixDetail = (p, values, n = 1) => {
     const e = E.estimation(p, values);
     if (!e) return null;
-    const t = E.tarif, m = E.matierePrix(p);
-    const cout = (e.masse_g / 1000 * m.eurKg + e.temps_min / 60 * t.machineEurH) * (1 + (m.echec || 0)) + t.forfait + t.emballage;
-    const formule = Math.ceil((cout * t.coefficient + t.stripeFixe) / (1 - t.stripePct) - 1e-9);
-    const tailles = (p.variants && p.variants.options) || [];
-    const dessous = tailles.filter(o => p.custom.params.every(q => o.values[q.key] <= values[q.key]))
-      .sort((x, y) => (x.price ?? p.price) - (y.price ?? p.price)).pop();
-    const plancher = dessous ? (dessous.price ?? p.price) : 0;
-    const base = Math.max(formule, plancher), sp = t.supplement;
-    const supplement = Math.min(sp.max, Math.max(sp.min, Math.ceil(base * sp.part - 1e-9)));
-    return { ...e, cout: Math.round(cout * 100) / 100, formule, plancher, taille: dessous ? dessous.label : null,
-      supplement, prix: base + supplement };
+    const t = E.tarif, m = E.matierePrix(p), r = m.echec || 0, g = e.masse_g, h = e.temps_min / 60, oc = t.occupation;
+    n = Math.max(1, Math.floor(n) || 1);
+    const d = {
+      mat: t.filamentCoef * g / 1000 * m.eurKg * (1 + r),
+      mach: h * t.usureEurH * (1 + r),
+      vm: Math.min(h, oc.seuil) * oc.eurH + Math.max(0, h - oc.seuil) * oc.eurHApres,
+      mo: t.mainOeuvre.eurMin * (t.mainOeuvre.minutes + g / t.mainOeuvre.gParMinute),
+      emballage: t.emballage, fixes: t.fixes
+    };
+    const V = d.mat + d.mach + d.vm + d.mo + d.emballage + d.fixes, lancement = t.lancement / n;
+    const brut = (V + lancement) / (1 - t.prelevements), valeur = p.valeur || 1;
+    const prix = Math.ceil(Math.max(t.prixMinimum, brut) * valeur - 1e-9);
+    return { ...e, heures: h, n, filiere: m.filiere, ...d, V, lancement, prelevements: brut - V - lancement, valeur, prix };
   };
 
-  /* Prix d'une configuration : standard = prix de la taille (data.js) ; sur-mesure = prix calculé */
-  E.priceFor = (p, mode, values) => {
-    if (mode !== "custom") {
-      const o = E.taillePour(p, values);
-      return o && o.price != null ? o.price : p.price;
-    }
-    const r = E.prixCalcule(p, values);
-    if (!r) throw new Error(`Prix sur-mesure indisponible pour ${p.id} (barème absent)`);
+  /* Prix unitaire d'une configuration (mode gardé pour compatibilité : standard et sur-mesure ont le même calcul) */
+  E.priceFor = (p, mode, values, n = 1) => {
+    const r = E.prixDetail(p, values, n);
+    if (!r) throw new Error(`Prix indisponible pour ${p.id} (barème absent)`);
     return r.prix;
+  };
+
+  /* « Dès » : prix aux cotes minimales des curseurs (le prix ne baisse jamais quand une cote augmente) ; sans sur-mesure,
+     plus petit prix des tailles standard */
+  E.prixDes = p => {
+    const prm = p.custom && p.custom.params;
+    if (prm && prm.length) return E.priceFor(p, "custom", Object.fromEntries(prm.map(q => [q.key, q.min])));
+    return Math.min(...p.variants.options.map(o => E.priceFor(p, "standard", o.values)));
   };
 })(window.EVARYSTH);

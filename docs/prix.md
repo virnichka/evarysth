@@ -1,14 +1,16 @@
-# Prix — règle en vigueur (telle que codée dans `assets/js/prix.js`)
-- **Où** : `assets/js/prix.js`, chargé après `data.js` (produits, matières, prix des tailles) et `bareme.js` (généré), sur le site, les pages générées et le Worker : prix affiché = prix payé. Historique et décisions : `docs/chaine-fabrication.md` § « Prix sur-mesure ».
-- **Taille standard** : le prix de la taille (`price` de l'option dans `data.js`), fixé à la main ; « Dès » = `price` du produit = la plus petite taille.
-- **Matière** : celle de la fiche d'impression du produit (sinon `matiere`) ; inconnue ou absente → erreur, aucun prix.
-- **Estimation** : masse (cm³ du barème × densité de la matière) et temps, par interpolation multilinéaire du barème tranché ; cotes hors grille ramenées aux bornes.
-- **Coût** = (masse_kg × €/kg + temps_h × 1,5 €/h) × (1 + taux d'échec) + 3 € de forfait + 0,50 € d'emballage.
-- **Formule** = euro supérieur de (coût × 2,5 + 0,25) / (1 − 0,015).
-- **Plancher** = prix de la plus grande taille standard dont toutes les cotes sont ≤ aux cotes demandées ; 0 si aucune.
-- **Sur-mesure** = max(formule, plancher) + supplément ; supplément = 10 % de cette base, à l'euro supérieur, entre 2 et 8 €.
-- Aucun plafond : les bornes des curseurs limitent la taille. Barème absent pour un produit → pas de prix, commande refusée.
-- **Frais** (`EVARYSTH.frais`, communs au panier et au Worker) : livraison 4,90 € par commande ; emballage cadeau 3 €, message ≤ 200 caractères ; code de démonstration `BIENVENUE10` (−10 %) hors paiement, Stripe décide des codes en paiement.
-- Remise : sur les articles et l'emballage, pas sur la livraison.
-- **Contrôle** : `node tools/rapport-prix.mjs` (tableau ; `--json`) ; la référence `tools/references-prix.json` fige tous les prix (test bloquant, `--mettre-a-jour` si changement voulu).
-- Invariants souhaités, en avertissement seulement : pas de baisse quand une cote augmente, pas de marche ≥ 4 € et ≥ 15 % en un cran, rien sous le « Dès », sur-mesure aux cotes d'une taille = taille + supplément, aucune taille sous son coût.
+# Prix — règle en vigueur (11 nov. 2026, telle que codée dans `assets/js/prix.js`)
+- **Où** : `assets/js/prix.js` (tarifs commentés dans `EVARYSTH.tarif`), chargé après `data.js` et `bareme.js` (généré) sur le site, les pages générées et le Worker : prix affiché = prix payé. Aucun prix saisi à la main.
+- **Un seul calcul** pour tailles standard et sur-mesure : une taille n'est qu'un préréglage de cotes. API : `priceFor(p, mode, values, n = 1)` (mode sans effet), `prixDetail(p, values, n)` (décomposition, rapport et /admin), `prixDes(p)` (« Dès » = prix aux cotes minimales).
+- **Estimation** : g = masse (cm³ du barème × densité), h = heures, par interpolation multilinéaire du barème **lissé** (copie : sur chaque axe, masse et temps remplacés par leur maximum cumulé ; `bareme.js` reste brut). Cotes hors grille ramenées aux bornes ; barème absent → pas de prix, commande refusée.
+- **Matière** : celle de la fiche d'impression (sinon `matiere`), r = taux d'échec (5 % PLA/PETG, 15 % ASA/PA12/PA-CF). `filiere` : « atelier » (PLA, PETG) ou « externe » (ASA, PA12, PA-CF) ; externe = même calcul, prix **provisoire (devis à venir)** dans le rapport et /admin.
+- **Coût d'une pièce** V = Mat + Mach + Vm + MO + emballage + fixes :
+  - Mat = 2 × g/1000 × €/kg × (1 + r) ; Mach = h × 0,60 × (1 + r) ;
+  - Vm (occupation machine) = min(h, 8) × 1,00 + max(0, h − 8) × 0,40 ; MO = 0,40 × (6 + g/50) ;
+  - emballage 0,30 ; fixes 4,00.
+- **Prix unitaire** pour n pièces identiques d'une ligne = euro supérieur de max(9, (n × V + 2,00) / n / (1 − 0,149)) × `valeur`.
+  - 2,00 € de lancement par ligne ; 0,149 = Stripe 1,5 % + URSSAF 12,3 % + CFP 0,1 % + versement libératoire 1 %.
+  - `valeur` : coefficient facultatif du produit dans `data.js`, 1 par défaut, appliqué avant l'arrondi.
+- **Frais** (`EVARYSTH.frais`, communs au panier et au Worker) : livraison 4,90 € par commande ; emballage cadeau 3 €, message ≤ 200 caractères ; code de démonstration `BIENVENUE10` (−10 %) hors paiement, Stripe décide des codes en paiement. Remise : sur les articles et l'emballage, pas sur la livraison.
+- **Panier** : pour l'instant n = 1 par ligne (quantités au prix d'une pièce) ; effet volume et livraison au poids : session B2.
+- **Contrôle** : `node tools/rapport-prix.mjs` (tableau ; `--json`) ; référence figée `tools/references-prix.json` (`--mettre-a-jour` si changement voulu).
+- **Invariants bloquants** (`--verifier`, `tools/test/prix.test.mjs`) : aucune baisse quand une cote augmente ; hausse ≤ 1 € par mm de curseur (arrondie à l'euro supérieur) ; même prix en standard et en sur-mesure aux mêmes cotes ; « Dès » = minimum réel du balayage ; aucun prix sous 9 € ; prix unitaire jamais plus haut pour n + 1 pièces que pour n.

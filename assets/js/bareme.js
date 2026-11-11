@@ -1,7 +1,7 @@
 /* Evarysth — barème des prix sur-mesure. FICHIER GÉNÉRÉ par tools/generer-bareme.mjs (workflow « Barème »,
    bareme.yml) : ne pas modifier à la main. Par produit : empreinte des entrées (périmée → job geometrie rouge), matière,
    profil de tranchage, axes de la grille (mm) et points [cm³ de filament, temps estimé en s], premier axe = rang le plus
-   lent. Lu par EVARYSTH.estimation et EVARYSTH.prixCalcule (data.js). */
+   lent. Lu par EVARYSTH.estimation (prix.js), qui le lisse sans le modifier. */
 window.EVARYSTH = window.EVARYSTH || {};
 EVARYSTH.bareme = {
   version: 1,

@@ -1,5 +1,4 @@
-/* Prix calculés (Fabrication · phase 5) : prix affiché au curseur = prix payé, prix par taille standard, plancher et
-   supplément sur-mesure, case « sur-mesure » exigée au paiement */
+/* Prix calculés (docs/prix.md) : prix affiché = prix payé, même calcul pour les tailles standard et le sur-mesure */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -26,7 +25,6 @@ const hasard = (graine => () => {
 
 test("prix du curseur = prix payé : 100 configurations sur-mesure tirées au hasard (sur la grille des pas)", () => {
   const produits = EVARYSTH.products.filter(p => p.custom && p.custom.params.length);
-  let planchers = 0;
   for (let i = 0; i < 100; i++) {
     const p = produits[Math.floor(hasard() * produits.length)];
     const values = Object.fromEntries(p.custom.params.map(q => {
@@ -36,22 +34,18 @@ test("prix du curseur = prix payé : 100 configurations sur-mesure tirées au ha
     const [l] = lirePanier({ items: [{ id: p.id, mode: "custom", values, color: p.colors[0].id, qty: 1 }] });
     const affiche = site.priceFor(site.getProduct(p.id), "custom", values);
     assert.equal(l.unitCents, Math.round(affiche * 100), `${p.id} ${JSON.stringify(values)}`);
-    assert.ok(Number.isInteger(affiche), "prix à l'euro");
-    const r = EVARYSTH.prixCalcule(p, values);
-    assert.equal(affiche, Math.max(r.formule, r.plancher) + r.supplement, `${p.id} : formule ou taille standard plus petite, + supplément`);
-    assert.ok(r.supplement >= 2 && r.supplement <= 8);
-    if (r.formule < r.plancher) planchers++;
+    assert.ok(Number.isInteger(affiche) && affiche >= EVARYSTH.tarif.prixMinimum, "prix à l'euro, jamais sous le minimum");
+    assert.equal(affiche, EVARYSTH.prixDetail(p, values).prix);
   }
-  assert.ok(planchers > 0, "le tirage couvre des prix au plancher");
 });
 
-test("tailles standard : prix de la taille payé tel quel ; sur-mesure aux mêmes cotes ≥ taille + supplément", () => {
+test("tailles standard : même calcul que le sur-mesure aux mêmes cotes, payé tel quel", () => {
   for (const p of EVARYSTH.products.filter(q => q.custom)) {
     p.variants.options.forEach((o, i) => {
       const [l] = lirePanier({ items: [{ id: p.id, mode: "standard", variant: i, color: p.colors[0].id, qty: 1 }] });
-      assert.equal(l.unitCents, Math.round(o.price * 100), `${p.id} ${o.label}`);
-      assert.equal(site.priceFor(site.getProduct(p.id), "standard", o.values), o.price);
-      assert.ok(EVARYSTH.priceFor(p, "custom", o.values) >= o.price + EVARYSTH.tarif.supplement.min, `${p.id} ${o.label} : sur-mesure ≥ taille + supplément`);
+      const prix = site.priceFor(site.getProduct(p.id), "custom", o.values);
+      assert.equal(l.unitCents, Math.round(prix * 100), `${p.id} ${o.label}`);
+      assert.equal(site.priceFor(site.getProduct(p.id), "standard", o.values), prix);
     });
   }
 });

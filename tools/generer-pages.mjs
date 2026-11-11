@@ -18,11 +18,11 @@ const SITE = "https://evarysth.fr";
 const CHECK = process.argv.includes("--check");
 const read = f => fs.readFileSync(path.join(ROOT, f), "utf8");
 
-/* Catalogue : data.js exécuté dans un bac à sable avec un faux `window` */
+/* Catalogue et prix : data.js, bareme.js puis prix.js (même ordre que index.html) dans un bac à sable avec un faux `window` */
 const sandbox = {};
 sandbox.window = sandbox; /* comme dans un navigateur : window.EVARYSTH = EVARYSTH global */
 vm.createContext(sandbox);
-vm.runInContext(read("assets/js/data.js"), sandbox);
+for (const f of ["assets/js/data.js", "assets/js/bareme.js", "assets/js/prix.js"]) vm.runInContext(read(f), sandbox);
 const E = sandbox.window.EVARYSTH;
 
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -45,11 +45,13 @@ function page({ base, bodyAttr, head, main }) {
   return s.replace("<!DOCTYPE html>\n", "<!DOCTYPE html>\n" + BANNER);
 }
 
+const prixTailles = p => p.variants.options.map(o => E.priceFor(p, "standard", o.values));
+
 function productPage(p) {
   const u = E.getUniverse(p.universe);
   const url = `${SITE}/produits/${p.id}/`;
   const title = `${p.name} sur-mesure — Evarysth`;
-  const tail = ` Dès ${fmt(p.price)}, en taille standard ou à vos cotes.`;
+  const tail = ` Dès ${fmt(E.prixDes(p))}, en taille standard ou à vos cotes.`;
   const long = `${p.tagline} ${p.desc}${tail}`; /* ~160 caractères visibles dans les résultats */
   const desc = long.length <= 170 ? long : p.tagline + tail;
   const img = ogImage(p.id);
@@ -58,9 +60,9 @@ function productPage(p) {
     name: p.name, description: `${p.tagline} ${p.desc}`, sku: p.id, category: u.name,
     image: [img, ...(p.photos || []).map(x => `${SITE}/${x.src}`)],
     brand: { "@type": "Brand", name: "Evarysth" },
-    /* Une offre par taille standard (prix fixes) ; le sur-mesure, calculé, n'y figure pas */
+    /* Une offre par taille standard (prix calculé à ses cotes, prix.js) ; le sur-mesure n'y figure pas */
     offers: { "@type": "AggregateOffer", url, priceCurrency: "EUR", offerCount: p.variants.options.length,
-      lowPrice: Math.min(...p.variants.options.map(o => o.price)).toFixed(2), highPrice: Math.max(...p.variants.options.map(o => o.price)).toFixed(2) }
+      lowPrice: Math.min(...prixTailles(p)).toFixed(2), highPrice: Math.max(...prixTailles(p)).toFixed(2) }
   }, {
     "@context": "https://schema.org", "@type": "BreadcrumbList",
     itemListElement: [
@@ -76,13 +78,13 @@ function productPage(p) {
   <meta property="og:site_name" content="Evarysth">
   <meta property="og:locale" content="fr_FR">
   <meta property="og:title" content="${esc(p.name)} — Evarysth">
-  <meta property="og:description" content="${esc(p.tagline)} Dès ${esc(fmt(p.price))}, sur-mesure possible.">
+  <meta property="og:description" content="${esc(p.tagline)} Dès ${esc(fmt(E.prixDes(p)))}, sur-mesure possible.">
   <meta property="og:url" content="${url}">
   <meta property="og:image" content="${img}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="${esc(p.name)}">
-  <meta property="product:price:amount" content="${p.price.toFixed(2)}">
+  <meta property="product:price:amount" content="${E.prixDes(p).toFixed(2)}">
   <meta property="product:price:currency" content="EUR">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">${JSON.stringify(ld).replace(/</g, "\\u003c")}</script>
@@ -96,7 +98,7 @@ function productPage(p) {
       <h1>${esc(p.name)}</h1>
       <p>${esc(p.tagline)}</p>
       <p>${esc(p.desc)}</p>
-      <p>Dès ${esc(fmt(p.price))} en taille standard (${esc(p.variants.label.toLowerCase())} : ${p.variants.options.map(o => `${esc(o.label)} ${esc(o.hint)}`).join(", ")}), ou sur-mesure à vos cotes.</p>
+      <p>Dès ${esc(fmt(E.prixDes(p)))}. En taille standard (${esc(p.variants.label.toLowerCase())} : ${p.variants.options.map(o => `${esc(o.label)} ${esc(o.hint)}`).join(", ")}), ou sur-mesure à vos cotes.</p>
       ${photo ? `<img src="${esc(photo.src)}" alt="${esc(photo.alt)}" width="800" loading="lazy">` : ""}
       <noscript><p>Activez JavaScript pour voir la pièce en 3D, régler vos cotes et commander.</p></noscript>
     </article>
@@ -130,7 +132,7 @@ const itemList = list => ({ "@type": "ItemList", itemListElement: list.map((p, i
   ({ "@type": "ListItem", position: i + 1, url: `${SITE}/produits/${p.id}/`, name: p.name })) });
 /* Liste lisible sans JavaScript ; app.js la remplace par les cartes */
 const staticList = list => `<ul class="list-static">${list.map(p =>
-  `<li><a href="produits/${p.id}/">${esc(p.name)}</a> — ${esc(p.tagline)} <span>Dès ${esc(fmt(p.price))}</span></li>`).join("")}</ul>`;
+  `<li><a href="produits/${p.id}/">${esc(p.name)}</a> — ${esc(p.tagline)} <span>Dès ${esc(fmt(E.prixDes(p)))}</span></li>`).join("")}</ul>`;
 
 function cataloguePage() {
   const url = `${SITE}/catalogue/`;
@@ -160,7 +162,7 @@ function universePage(u) {
   const url = `${SITE}/univers/${u.id}/`, list = inU(u);
   const head = listHead({
     title: `${u.name} : ${nHacks(list.length)} sur-mesure | Evarysth`,
-    desc: `${u.pitch} ${list.slice(0, 4).map(p => p.name).join(", ")}… Dès ${fmt(Math.min(...list.map(p => p.price)))}, standard ou à vos cotes.`,
+    desc: `${u.pitch} ${list.slice(0, 4).map(p => p.name).join(", ")}… Dès ${fmt(Math.min(...list.map(E.prixDes)))}, standard ou à vos cotes.`,
     url, ogTitle: `${u.name} — Evarysth`,
     ld: [{ "@context": "https://schema.org", "@type": "CollectionPage", name: u.name, url, mainEntity: itemList(list) },
       { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
