@@ -333,15 +333,15 @@ EVARYSTH.products = [
     id: "distributeur-oeufs", universe: "meubles", matiere: "petg", shape: "eggs", model: "distributeur-oeufs",
     name: "Distributeur d'œufs à deux étages",
     tagline: "Le plus ancien sort en premier, sans y penser.",
-    desc: "Posez les œufs couchés sur la rampe du haut : ils roulent, font demi-tour dans le tambour et redescendent par la rampe du bas jusqu'à la butée de sortie, où l'on prend le premier. Les rampes en V tiennent l'œuf par ses deux bouts et le gardent centré. Réglez la longueur de vos œufs (les flasques gardent 4 mm de marge) et la longueur du distributeur, qui fixe le nombre d'œufs.",
+    desc: "Posez les œufs couchés dans le bac du haut : ils roulent, font demi-tour dans la boucle et redescendent par le bac du bas jusqu'à son bout arrondi, où l'on prend le premier. Les bacs gardent 4 mm de marge autour de la longueur de vos œufs ; la longueur du distributeur fixe le nombre d'œufs.",
     variants: sizes("Longueur du distributeur", [["Court", "environ 5 œufs", { a: 60, b: 190 }], ["Standard", "environ 6 œufs", { a: 60, b: 220 }], ["Long", "environ 7 œufs", { a: 60, b: 250 }]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "coquille", label: "Coquille d'œuf", hex: "#ece3d2", roughness: 0.7 },
       { id: "sauge", label: "Vert sauge", hex: "#9cb5a6", roughness: 0.66 }
     ],
-    impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 3,
-      remarques: "Debout sur son plancher : dessous des rampes hautes et haut du tambour à 45°, sans support." },
+    impression: { matiere: "petg", orientation: POSE.debout, supports: true, parPlateau: 3,
+      remarques: "Debout sur son fond. Supports sous le bac du haut (en porte-à-faux) et dans le haut de la boucle, à retirer par les côtés ouverts." },
     custom: { params: [
       param("a", "Longueur de vos œufs", 50, 68, 60),
       param("b", "Longueur du distributeur", 180, 250, 220, 5)
