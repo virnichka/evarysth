@@ -124,8 +124,15 @@ export function createKit(THREE, wasm) {
   };
 
   /* Révolution d'un profil (points [rayon, hauteur], rayon ≥ 0) autour de l'axe Y : une pièce tournée d'un seul tenant,
-     sans booléen (bague, collerette, épaulement…). Segments : règle de corde sur le plus grand rayon. */
-  const rev = pts => solid(Manifold.revolve(section(pts).cs, segments(Math.max(...pts.map(q => q[0]))))).rotateX(-Math.PI / 2);
+     sans booléen (bague, collerette, épaulement…). Segments : règle de corde sur le plus grand rayon.
+     angle < 360 : révolution partielle (anneau fendu…), ouverture centrée sur +z, faces d'extrémité radiales. */
+  const rev = (pts, angle = 360) => {
+    const n = segments(Math.max(...pts.map(q => q[0])));
+    if (!(angle < 360)) return solid(Manifold.revolve(section(pts).cs, n)).rotateX(-Math.PI / 2);
+    /* De 0° à angle autour de Z (repère du profil), puis ouverture tournée de son milieu vers −y, qui devient +z */
+    const mf = own(Manifold.revolve(section(pts).cs, Math.max(4, Math.ceil(n * angle / 360)), angle));
+    return solid(mf.rotate([0, 0, 270 - (angle + 360) / 2])).rotateX(-Math.PI / 2);
+  };
 
   /* BufferGeometry → Manifold : sommets fusionnés par position (tolérance tol), triangles dégénérés retirés.
      Renvoie null si le maillage n'est pas étanche (arêtes ouvertes, faces en trop…). */

@@ -374,6 +374,32 @@ EVARYSTH.products = [
     ],
     photosNote: "Photos : prototype Ø 54 imprimé en gris, coloris de démonstration ; bombe non fournie"
   },
+  {
+    id: "support-accessoires-aspirateur", universe: "meubles", matiere: "petg", shape: "rack", model: "support-accessoires-aspirateur",
+    name: "Support mural d'accessoires d'aspirateur",
+    tagline: "Les embouts de l'aspirateur balai rangés au mur, prêts à être clipsés.",
+    desc: "Une tablette à claire-voie qui se visse au mur, à côté du socle de votre aspirateur balai. Trois anneaux reçoivent l'embout des accessoires (brosse, suceur, mini-turbo) ; une fente à l'avant de chaque anneau laisse passer le bouton de déverrouillage. Deux vis dans le dos, accessibles par l'avant. Réglez le diamètre de l'embout, la longueur du support et sa distance au mur pour les têtes les plus larges.",
+    variants: sizes("Format", [["Compact", "180 mm", { a: 35.8, b: 180, c: 55 }], ["Standard", "196 mm", { a: 35.8, b: 196, c: 60 }], ["Large", "240 mm", { a: 35.8, b: 240, c: 75 }]]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "gris", label: "Gris acier", hex: "#8f9399", roughness: 0.55 },
+      { id: "violet", label: "Violet prune", hex: "#6a4c93", roughness: 0.6 }
+    ],
+    impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 2,
+      remarques: "Debout, dessous contre le plateau : claire-voie ouverte, perçages du dos et des lisses en pont." },
+    custom: { params: [
+      param("a", "Diamètre extérieur de l'embout", 30, 45, 35.8, 0.1),
+      param("b", "Longueur du support", 180, 250, 196),
+      param("c", "Distance du mur à l'axe des anneaux", 50, 90, 60)
+    ] },
+    photos: [
+      { src: "assets/photos/support-accessoires-aspirateur/1.webp", alt: "Le support posé sur une table : claire-voie et trois anneaux" },
+      { src: "assets/photos/support-accessoires-aspirateur/2.webp", alt: "Support vissé au mur à côté d'un aspirateur balai, trois accessoires rangés dans les anneaux", pos: "50% 40%" },
+      { src: "assets/photos/support-accessoires-aspirateur/3.webp", alt: "Le support vu de face : nervures, perçages du dos et anneaux" },
+      { src: "assets/photos/support-accessoires-aspirateur/4.webp", alt: "Le support vu de trois quarts : fente avant des anneaux" }
+    ],
+    photosNote: "Photos : prototype d'origine, coloris de démonstration ; aspirateur et accessoires non fournis"
+  },
 
   /* ---------- 04 · Déco & Objets ---------- */
   {
