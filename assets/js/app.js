@@ -41,6 +41,9 @@
     headstand: `<path d="M26 104h68a4 4 0 0 0 4-4v-2H22v2a4 4 0 0 0 4 4z"/>
       <path d="M24 26Q60 10 96 26v6Q60 16 24 32z"/><path d="M26 32c16 12 26 20 26 32v34M94 32c-16 12-26 20-26 32v34"/>
       <path d="M44 38c4 4 8 4 12 0s8-4 12 0 8 4 12 0M54 56c2 3 4 3 6 0s4-3 6 0M54 72c2 3 4 3 6 0s4-3 6 0M54 86c2 3 4 3 6 0s4-3 6 0" class="ghost"/>`,
+    eggs: `<path d="M10 104h100" class="ghost"/><path d="M30 26a34 34 0 0 0 0 68" class="ghost"/>
+      <path d="M30 52 98 46v-12M30 94l76 6v-12"/><path d="M98 100v4M30 94v10"/>
+      <circle cx="50" cy="40" r="10"/><circle cx="72" cy="38" r="10"/><circle cx="56" cy="86" r="10"/><circle cx="78" cy="88" r="10"/>`,
     rack: `<rect x="10" y="40" width="100" height="14" rx="2" class="ghost"/><path d="M12 54h96" class="ghost"/>
       <path d="M30 60V20M60 60V30M90 60V24" class="ghost"/><path d="M24 20h12M54 30h12M84 24h12" class="ghost"/>
       <ellipse cx="30" cy="62" rx="13" ry="5"/><ellipse cx="60" cy="62" rx="13" ry="5"/><ellipse cx="90" cy="62" rx="13" ry="5"/>

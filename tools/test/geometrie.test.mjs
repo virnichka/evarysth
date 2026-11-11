@@ -14,8 +14,8 @@ import { piecesImpression, ecartPlateau, verifierFiche } from "../lib/impression
 const refs = JSON.parse(fs.readFileSync(path.join(RACINE, "tools/references-geometrie.json"), "utf8"));
 const liste = produits.filter(p => p.model);
 
-test("18 produits à modèle 3D, tous dans la référence figée, sans combinaison périmée", () => {
-  assert.equal(liste.length, 18);
+test("19 produits à modèle 3D, tous dans la référence figée, sans combinaison périmée", () => {
+  assert.equal(liste.length, 19);
   assert.deepEqual(Object.keys(refs).sort(), liste.map(p => p.id).sort());
   for (const p of liste) {
     const cles = combinaisons(p.custom.params).map(v => cleCombinaison(cotes(p, { valeurs: v })));
