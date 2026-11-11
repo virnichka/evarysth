@@ -48,11 +48,11 @@ test("prix recalculés depuis le catalogue (standard et sur-mesure calculé par 
     { id: "tablette-rambarde", mode: "standard", variant: 1, color: "blanc", qty: 1 },
     tablette
   ] });
-  assert.equal(std.unitCents, 3400, "prix de la taille Moyenne");
+  assert.equal(std.unitCents, 2700, "prix calculé aux cotes de la taille Moyenne");
   assert.deepEqual(std.values, { a: 50, b: 220 });
-  /* Barème : 106,6 cm³ d'ASA (114 g), 3 h 34 → coût (3,42 + 5,35) × 1,15 + 3 + 0,5 = 13,58 € → formule 35 € ;
-     plus grande taille ≤ 45 × 250 : Fine 34 € → max(35, 34) + 10 % (3,5 → 4 €) = 39 € */
-  assert.equal(sm.unitCents, 3900);
+  /* Barème : 106,6 cm³ d'ASA (114 g), 3 h 34 → Mat 7,87 + Mach 2,46 + Vm 3,56 + MO 3,31 + emballage 0,30 + fixes 4
+     = 21,51 € ; (21,51 + 2) / 0,851 = 27,62 → 28 € (docs/prix.md) */
+  assert.equal(sm.unitCents, 2800);
 });
 
 test("panier refusé : cotes hors bornes, hors pas, inconnues, produit/coloris/quantité invalides", () => {
@@ -75,7 +75,7 @@ test("panier refusé : cotes hors bornes, hors pas, inconnues, produit/coloris/q
 test("session Stripe : lignes, cotes en métadonnées, livraison, promo, retours", () => {
   const lignes = lirePanier({ items: [tablette] });
   const p = decode(encoder(parametresSession(lignes, { base: SITE + "/", retour: SITE + "/produits/tablette-rambarde/", ref: "EV-1", catalogue: "abc", environnement: "test" })));
-  assert.equal(p["line_items[0][price_data][unit_amount]"], "3900");
+  assert.equal(p["line_items[0][price_data][unit_amount]"], "2800");
   assert.equal(p["line_items[0][quantity]"], "2");
   assert.equal(p["line_items[0][price_data][product_data][metadata][cotes_mm]"], '{"a":45,"b":250}');
   assert.match(p["line_items[0][price_data][product_data][description]"], /A · .* : 45 mm · B · Largeur de la tablette : 250 mm · Matière : ASA · Coloris : Noir mat/);
@@ -96,7 +96,7 @@ test("POST /checkout : renvoie l'URL Stripe, ignore tout prix envoyé par le nav
   assert.equal(j.url, "https://checkout.stripe.com/c/pay/cs_test_abc");
   assert.match(j.ref, /^EV-\d{6}-[A-Z2-9]{4}$/);
   const p = decode(appels.at(-1).corps);
-  assert.equal(p["line_items[0][price_data][unit_amount]"], "3900");
+  assert.equal(p["line_items[0][price_data][unit_amount]"], "2800");
   assert.equal(p.cancel_url, SITE + "/?panier=annule", "retour vers un autre site refusé");
   assert.match(p["metadata[catalogue]"], /^[0-9a-f]{12}$/);
 });

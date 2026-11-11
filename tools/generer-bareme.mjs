@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Evarysth · barème des prix sur-mesure (Fabrication · phase 5, docs/chaine-fabrication.md § « Prix sur-mesure »).
    Tranche une grille de cotes par produit (tools/lib/bareme.mjs) et écrit assets/js/bareme.js : volume de filament (cm³)
-   et temps estimé (s) par point, lus par EVARYSTH.estimation / EVARYSTH.prixCalcule (prix.js) par interpolation.
+   et temps estimé (s) par point, lus par EVARYSTH.estimation (prix.js, barème lissé) par interpolation.
    Usage :
      node tools/generer-bareme.mjs [id…] [--tous] [--docker=<image>]     tranche les produits donnés (défaut : barèmes
                                                                           absents ou périmés) et met à jour bareme.js
@@ -74,7 +74,7 @@ function ecrire(E, nouveaux) {
   fs.writeFileSync(path.join(RACINE, FICHIER), `/* Evarysth — barème des prix sur-mesure. FICHIER GÉNÉRÉ par tools/generer-bareme.mjs (workflow « Barème »,
    bareme.yml) : ne pas modifier à la main. Par produit : empreinte des entrées (périmée → job geometrie rouge), matière,
    profil de tranchage, axes de la grille (mm) et points [cm³ de filament, temps estimé en s], premier axe = rang le plus
-   lent. Lu par EVARYSTH.estimation et EVARYSTH.prixCalcule (prix.js). */
+   lent. Lu par EVARYSTH.estimation (prix.js), qui le lisse sans le modifier. */
 window.EVARYSTH = window.EVARYSTH || {};
 EVARYSTH.bareme = {
   version: ${VERSION_GRILLE},
@@ -86,28 +86,19 @@ ${lignes.join(",\n")}
   console.log(`${FICHIER} : ${lignes.length} produits (${Object.keys(nouveaux).length} mis à jour)`);
 }
 
-/* Tableau des prix (Markdown) et alertes : prix d'une taille standard sous la formule (règle de prix) ou sous le coût */
+/* Tableau des prix (Markdown) : prix aux cotes min / défaut / max (masse, temps) et des tailles standard ;
+   invariants : node tools/rapport-prix.mjs --verifier */
 function tableau(E) {
-  const lignes = ["| Produit | Matière | Sur-mesure min / défaut / max | Tailles standard (prix ; formule ; coût) | Alertes |", "|---|---|---|---|---|"];
-  const alertes = [];
-  const eur = n => `${Math.round(n * 100) / 100} €`.replace(".", ",");
+  const lignes = ["| Produit | Matière | Min / défaut / max | Tailles standard |", "|---|---|---|---|"];
   for (const p of E.products.filter(avecBareme)) {
     const ext = ["min", "def", "max"].map(k => Object.fromEntries(p.custom.params.map(q => [q.key, q[k]])));
-    const r = ext.map(v => E.prixCalcule(p, v));
-    if (r.some(x => !x)) { lignes.push(`| ${p.id} | — | barème absent | | |`); continue; }
-    const std = (p.variants ? p.variants.options : []).map(o => ({ o, r: E.prixCalcule(p, o.values), prix: E.priceFor(p, "standard", o.values) }));
-    const a = [];
-    for (const s of std) {
-      if (s.prix < s.r.cout) a.push(`${s.o.label} : prix ${s.prix} € sous le coût ${eur(s.r.cout)}`);
-      else if (s.prix < s.r.formule) a.push(`${s.o.label} : prix ${s.prix} € sous la formule ${s.r.formule} €`);
-    }
-    for (const x of a) alertes.push(`${p.id} · ${x}`);
+    const r = ext.map(v => E.prixDetail(p, v));
+    if (r.some(x => !x)) { lignes.push(`| ${p.id} | — | barème absent | |`); continue; }
     lignes.push(`| ${p.id} | ${E.matieres[matiereImpression(p)].court} | ${r.map(x => `${x.prix} €`).join(" / ")}`
       + ` <br>(${r.map(x => `${Math.round(x.masse_g)} g, ${Math.round(x.temps_min)} min`).join(" / ")})`
-      + ` | ${std.map(s => `${s.o.label} ${s.prix} € ; ${s.r.formule} € ; ${eur(s.r.cout)}`).join(" <br>")}`
-      + ` | ${a.join(" ; ") || "—"} |`);
+      + ` | ${(p.variants ? p.variants.options : []).map(o => `${o.label} ${E.priceFor(p, "standard", o.values)} €`).join(" <br>")} |`);
   }
-  return { md: lignes.join("\n"), alertes };
+  return lignes.join("\n");
 }
 
 function principal() {
@@ -115,9 +106,7 @@ function principal() {
   const E = charger(SCRIPTS_PRIX);
   if (args.includes("--verifier")) {
     const p = perimes(E);
-    const { md, alertes } = tableau(E);
-    if (args.includes("--tableau")) console.log(md);
-    for (const a of alertes) console.log(CI ? `::warning title=Barème::${a}` : `Avertissement : ${a}`);
+    if (args.includes("--tableau")) console.log(tableau(E));
     if (p.length) {
       const m = `Barème périmé ou absent : ${p.join(", ")}. Lancer le workflow « Barème des prix sur-mesure » (bareme.yml) sur la branche, `
         + `ou localement node tools/generer-bareme.mjs ${p.join(" ")} (Bambu Studio requis).`;

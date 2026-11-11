@@ -269,6 +269,9 @@ test("Catalogue : STL présent / manquant par taille standard (une liste R2), sa
   assert.match(html, /produits\/crochet-balcon\//);
   assert.match(html, /<details><summary><span class="nom">Crochet de balcon<\/span><span class="badge manque">STL 1\/3<\/span><span class="resume">dès 13 €<\/span><\/summary>/, "une ligne repliée");
   assert.doesNotMatch(html, /<details open/);
+  /* Décomposition du prix (docs/prix.md) sous chaque taille ; ASA = filière externe, prix provisoire */
+  assert.match(html, /Crochet de balcon[\s\S]*?S <[\s\S]*?Mat 0,76 \+ Mach 0,38 \+ Vm 0,55 \+ MO 2,49 \+ emballage 0,30 \+ fixes 4,00 \+ lancement 2,00 \+ prélèvements 1,83 = 12,31 € → 13 € · provisoire \(devis à venir\)/);
+  assert.doesNotMatch(html, /supplément|plancher/);
   assert.match(await (await vue("catalogue")).text(), /Binding R2 « STL » absent/);
 });
 

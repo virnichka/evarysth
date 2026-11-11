@@ -15,7 +15,7 @@ dépendances : `cd tools && npm ci`) ; refonte close (historique et décisions :
 **Barème des prix** (`assets/js/bareme.js`, généré, jamais à la main) : périmé dès qu'une forme, une fiche d'impression,
 des bornes de cotes ou un profil change (`geometrie` rouge) → workflow « Barème des prix sur-mesure » (`bareme.yml`) sur la
 branche, ou `node tools/generer-bareme.mjs <id>` si Bambu Studio est installé ; tarifs : `EVARYSTH.tarif` de `assets/js/prix.js`.
-Il fixe le **prix sur-mesure** (site et Worker, `priceFor`) : nouveau produit = son barème avant la PR.
+Il fixe **tous les prix**, tailles standard comprises (site et Worker, `priceFor`) : nouveau produit = son barème avant la PR.
 **Prix** : tout le calcul dans `assets/js/prix.js` (après `bareme.js` ; `data.js` = données), règle dans `docs/prix.md`,
 livraison / cadeau / code de démo dans `EVARYSTH.frais`. Rapport : `node tools/rapport-prix.mjs` ; tout prix changé
 fait échouer `tools/test/prix.test.mjs` : si voulu, `--mettre-a-jour` (référence `tools/references-prix.json`, à committer).

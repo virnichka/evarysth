@@ -1,13 +1,21 @@
 {
  "pasMax": 60,
- "marche": {
-  "euros": 4,
-  "part": 0.15
- },
+ "hausseMm": 1,
+ "quantites": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  10
+ ],
  "produits": [
   {
    "id": "crochet-balcon",
    "matiere": "asa",
+   "filiere": "externe",
+   "provisoire": true,
+   "valeur": 1,
    "des": 13,
    "tailles": [
     {
@@ -16,11 +24,7 @@
       "a": 30
      },
      "prix": 13,
-     "cout": 4.83,
-     "formule": 13,
-     "surMesure": 15,
-     "ecart": 2,
-     "ecartPart": 0.15
+     "surMesure": 13
     },
     {
      "taille": "M",
@@ -28,11 +32,7 @@
       "a": 50
      },
      "prix": 13,
-     "cout": 4.87,
-     "formule": 13,
-     "surMesure": 15,
-     "ecart": 2,
-     "ecartPart": 0.15
+     "surMesure": 13
     },
     {
      "taille": "L",
@@ -40,11 +40,7 @@
       "a": 70
      },
      "prix": 13,
-     "cout": 4.93,
-     "formule": 13,
-     "surMesure": 15,
-     "ecart": 2,
-     "ecartPart": 0.15
+     "surMesure": 13
     }
    ],
    "reperes": {
@@ -52,31 +48,73 @@
      "cotes": {
       "a": 15
      },
-     "prix": 15,
-     "cout": 4.8,
-     "formule": 13,
-     "plancher": 0,
-     "supplement": 2
+     "masse_g": 10.4,
+     "heures": 0.54,
+     "mat": 0.72,
+     "mach": 0.38,
+     "vm": 0.54,
+     "mo": 2.48,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 1.83,
+     "prix": 13,
+     "parQuantite": [
+      13,
+      12,
+      11,
+      11,
+      11,
+      11
+     ]
     },
     "def": {
      "cotes": {
       "a": 42
      },
-     "prix": 15,
-     "cout": 4.85,
-     "formule": 13,
-     "plancher": 13,
-     "supplement": 2
+     "masse_g": 11.4,
+     "heures": 0.55,
+     "mat": 0.79,
+     "mach": 0.38,
+     "vm": 0.55,
+     "mo": 2.49,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 1.84,
+     "prix": 13,
+     "parQuantite": [
+      13,
+      12,
+      11,
+      11,
+      11,
+      11
+     ]
     },
     "max": {
      "cotes": {
       "a": 100
      },
-     "prix": 16,
-     "cout": 5.04,
-     "formule": 14,
-     "plancher": 13,
-     "supplement": 2
+     "masse_g": 14.6,
+     "heures": 0.6,
+     "mat": 1.01,
+     "mach": 0.42,
+     "vm": 0.6,
+     "mo": 2.52,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 1.9,
+     "prix": 13,
+     "parQuantite": [
+      13,
+      12,
+      12,
+      11,
+      11,
+      11
+     ]
     }
    },
    "balayage": {
@@ -88,26 +126,32 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 2,
-    "ecartTailleMin": 2,
-    "minSurMesure": {
-     "prix": 15,
+    "hausseMaxMm": 0,
+    "min": {
+     "prix": 13,
      "cotes": {
       "a": 15
      }
     },
-    "minReel": 13,
-    "sousDes": false
+    "max": {
+     "prix": 13,
+     "cotes": {
+      "a": 15
+     }
+    }
    }
   },
   {
    "id": "tablette-rambarde",
    "matiere": "asa",
-   "des": 34,
+   "filiere": "externe",
+   "provisoire": true,
+   "valeur": 1,
+   "des": 23,
    "tailles": [
     {
      "taille": "Fine",
@@ -115,12 +159,8 @@
       "a": 30,
       "b": 220
      },
-     "prix": 34,
-     "cout": 12.63,
-     "formule": 33,
-     "surMesure": 38,
-     "ecart": 4,
-     "ecartPart": 0.12
+     "prix": 26,
+     "surMesure": 26
     },
     {
      "taille": "Moyenne",
@@ -128,12 +168,8 @@
       "a": 50,
       "b": 220
      },
-     "prix": 34,
-     "cout": 12.7,
-     "formule": 33,
-     "surMesure": 38,
-     "ecart": 4,
-     "ecartPart": 0.12
+     "prix": 27,
+     "surMesure": 27
     },
     {
      "taille": "Large",
@@ -141,12 +177,8 @@
       "a": 70,
       "b": 220
      },
-     "prix": 34,
-     "cout": 12.79,
-     "formule": 33,
-     "surMesure": 38,
-     "ecart": 4,
-     "ecartPart": 0.12
+     "prix": 27,
+     "surMesure": 27
     }
    ],
    "reperes": {
@@ -155,33 +187,75 @@
       "a": 15,
       "b": 160
      },
-     "prix": 31,
-     "cout": 10.75,
-     "formule": 28,
-     "plancher": 0,
-     "supplement": 3
+     "masse_g": 78,
+     "heures": 2.64,
+     "mat": 5.38,
+     "mach": 1.82,
+     "vm": 2.64,
+     "mo": 3.02,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 3.36,
+     "prix": 23,
+     "parQuantite": [
+      23,
+      22,
+      21,
+      21,
+      21,
+      21
+     ]
     },
     "def": {
      "cotes": {
       "a": 45,
       "b": 220
      },
-     "prix": 38,
-     "cout": 12.67,
-     "formule": 33,
-     "plancher": 34,
-     "supplement": 4
+     "masse_g": 102.6,
+     "heures": 3.27,
+     "mat": 7.08,
+     "mach": 2.25,
+     "vm": 3.27,
+     "mo": 3.22,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 3.87,
+     "prix": 26,
+     "parQuantite": [
+      26,
+      25,
+      25,
+      25,
+      25,
+      24
+     ]
     },
     "max": {
      "cotes": {
       "a": 100,
       "b": 250
      },
-     "prix": 40,
-     "cout": 13.91,
-     "formule": 36,
-     "plancher": 34,
-     "supplement": 4
+     "masse_g": 118.2,
+     "heures": 3.67,
+     "mat": 8.16,
+     "mach": 2.53,
+     "vm": 3.67,
+     "mo": 3.35,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 4.2,
+     "prix": 29,
+     "parQuantite": [
+      29,
+      28,
+      27,
+      27,
+      27,
+      27
+     ]
     }
    },
    "balayage": {
@@ -194,63 +268,58 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 4,
-    "ecartTailleMin": 4,
-    "minSurMesure": {
-     "prix": 31,
+    "hausseMaxMm": 1,
+    "min": {
+     "prix": 23,
      "cotes": {
       "a": 15,
       "b": 160
      }
     },
-    "minReel": 31,
-    "sousDes": true
+    "max": {
+     "prix": 29,
+     "cotes": {
+      "a": 84,
+      "b": 250
+     }
+    }
    }
   },
   {
    "id": "support-casque",
    "matiere": "asa",
-   "des": 16,
+   "filiere": "externe",
+   "provisoire": true,
+   "valeur": 1,
+   "des": 13,
    "tailles": [
     {
      "taille": "18 mm",
      "cotes": {
       "a": 18
      },
-     "prix": 16,
-     "cout": 5.2,
-     "formule": 14,
-     "surMesure": 18,
-     "ecart": 2,
-     "ecartPart": 0.13
+     "prix": 13,
+     "surMesure": 13
     },
     {
      "taille": "25 mm",
      "cotes": {
       "a": 25
      },
-     "prix": 16,
-     "cout": 5.21,
-     "formule": 14,
-     "surMesure": 18,
-     "ecart": 2,
-     "ecartPart": 0.13
+     "prix": 13,
+     "surMesure": 13
     },
     {
      "taille": "40 mm",
      "cotes": {
       "a": 40
      },
-     "prix": 16,
-     "cout": 5.26,
-     "formule": 14,
-     "surMesure": 18,
-     "ecart": 2,
-     "ecartPart": 0.13
+     "prix": 14,
+     "surMesure": 14
     }
    ],
    "reperes": {
@@ -258,31 +327,73 @@
      "cotes": {
       "a": 12
      },
-     "prix": 16,
-     "cout": 5.16,
-     "formule": 14,
-     "plancher": 0,
-     "supplement": 2
+     "masse_g": 14.3,
+     "heures": 0.68,
+     "mat": 0.99,
+     "mach": 0.47,
+     "vm": 0.68,
+     "mo": 2.51,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 1.92,
+     "prix": 13,
+     "parQuantite": [
+      13,
+      12,
+      12,
+      12,
+      11,
+      11
+     ]
     },
     "def": {
      "cotes": {
       "a": 28
      },
-     "prix": 18,
-     "cout": 5.21,
-     "formule": 14,
-     "plancher": 16,
-     "supplement": 2
+     "masse_g": 15.2,
+     "heures": 0.69,
+     "mat": 1.05,
+     "mach": 0.47,
+     "vm": 0.69,
+     "mo": 2.52,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 1.93,
+     "prix": 13,
+     "parQuantite": [
+      13,
+      12,
+      12,
+      12,
+      12,
+      11
+     ]
     },
     "max": {
      "cotes": {
       "a": 60
      },
-     "prix": 18,
-     "cout": 5.33,
-     "formule": 14,
-     "plancher": 16,
-     "supplement": 2
+     "masse_g": 17.3,
+     "heures": 0.71,
+     "mat": 1.19,
+     "mach": 0.49,
+     "vm": 0.71,
+     "mo": 2.54,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 1.97,
+     "prix": 14,
+     "parQuantite": [
+      14,
+      13,
+      12,
+      12,
+      12,
+      12
+     ]
     }
    },
    "balayage": {
@@ -294,26 +405,32 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 2,
-    "ecartTailleMin": 2,
-    "minSurMesure": {
-     "prix": 16,
+    "hausseMaxMm": 1,
+    "min": {
+     "prix": 13,
      "cotes": {
       "a": 12
      }
     },
-    "minReel": 16,
-    "sousDes": false
+    "max": {
+     "prix": 14,
+     "cotes": {
+      "a": 33
+     }
+    }
    }
   },
   {
    "id": "passe-cable",
    "matiere": "pla",
-   "des": 13,
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 12,
    "tailles": [
     {
      "taille": "Ø 50",
@@ -321,35 +438,23 @@
       "a": 50
      },
      "prix": 13,
-     "cout": 4.85,
-     "formule": 13,
-     "surMesure": 15,
-     "ecart": 2,
-     "ecartPart": 0.15
+     "surMesure": 13
     },
     {
      "taille": "Ø 60",
      "cotes": {
       "a": 60
      },
-     "prix": 14,
-     "cout": 5.08,
-     "formule": 14,
-     "surMesure": 16,
-     "ecart": 2,
-     "ecartPart": 0.14
+     "prix": 13,
+     "surMesure": 13
     },
     {
      "taille": "Ø 80",
      "cotes": {
       "a": 80
      },
-     "prix": 15,
-     "cout": 5.68,
-     "formule": 15,
-     "surMesure": 17,
-     "ecart": 2,
-     "ecartPart": 0.13
+     "prix": 14,
+     "surMesure": 14
     }
    ],
    "reperes": {
@@ -357,31 +462,73 @@
      "cotes": {
       "a": 30
      },
-     "prix": 14,
-     "cout": 4.44,
-     "formule": 12,
-     "plancher": 0,
-     "supplement": 2
+     "masse_g": 7.8,
+     "heures": 0.47,
+     "mat": 0.41,
+     "mach": 0.3,
+     "vm": 0.47,
+     "mo": 2.46,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 1.74,
+     "prix": 12,
+     "parQuantite": [
+      12,
+      11,
+      11,
+      10,
+      10,
+      10
+     ]
     },
     "def": {
      "cotes": {
       "a": 60
      },
-     "prix": 16,
-     "cout": 5.08,
-     "formule": 14,
-     "plancher": 14,
-     "supplement": 2
+     "masse_g": 18.4,
+     "heures": 0.7,
+     "mat": 0.97,
+     "mach": 0.44,
+     "vm": 0.7,
+     "mo": 2.55,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 1.92,
+     "prix": 13,
+     "parQuantite": [
+      13,
+      12,
+      12,
+      12,
+      11,
+      11
+     ]
     },
     "max": {
      "cotes": {
       "a": 100
      },
-     "prix": 19,
-     "cout": 6.36,
-     "formule": 17,
-     "plancher": 15,
-     "supplement": 2
+     "masse_g": 38.1,
+     "heures": 1.18,
+     "mat": 2,
+     "mach": 0.74,
+     "vm": 1.18,
+     "mo": 2.7,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.26,
+     "prix": 16,
+     "parQuantite": [
+      16,
+      15,
+      14,
+      14,
+      14,
+      14
+     ]
     }
    },
    "balayage": {
@@ -393,26 +540,32 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 2,
-    "ecartTailleMin": 2,
-    "minSurMesure": {
-     "prix": 14,
+    "hausseMaxMm": 1,
+    "min": {
+     "prix": 12,
      "cotes": {
       "a": 30
      }
     },
-    "minReel": 13,
-    "sousDes": false
+    "max": {
+     "prix": 16,
+     "cotes": {
+      "a": 98
+     }
+    }
    }
   },
   {
    "id": "crochet-appui-tete",
    "matiere": "asa",
-   "des": 20,
+   "filiere": "externe",
+   "provisoire": true,
+   "valeur": 1,
+   "des": 17,
    "tailles": [
     {
      "taille": "Fine",
@@ -421,12 +574,8 @@
       "b": 9,
       "c": 35
      },
-     "prix": 20,
-     "cout": 7.69,
-     "formule": 20,
-     "surMesure": 22,
-     "ecart": 2,
-     "ecartPart": 0.1
+     "prix": 17,
+     "surMesure": 17
     },
     {
      "taille": "Standard",
@@ -435,12 +584,8 @@
       "b": 15,
       "c": 35
      },
-     "prix": 20,
-     "cout": 7.77,
-     "formule": 20,
-     "surMesure": 22,
-     "ecart": 2,
-     "ecartPart": 0.1
+     "prix": 17,
+     "surMesure": 17
     },
     {
      "taille": "Large",
@@ -449,12 +594,8 @@
       "b": 20,
       "c": 35
      },
-     "prix": 21,
-     "cout": 7.83,
-     "formule": 21,
-     "surMesure": 24,
-     "ecart": 3,
-     "ecartPart": 0.14
+     "prix": 17,
+     "surMesure": 17
     }
    ],
    "reperes": {
@@ -464,11 +605,25 @@
       "b": 6,
       "c": 25
      },
-     "prix": 22,
-     "cout": 7.6,
-     "formule": 20,
-     "plancher": 0,
-     "supplement": 2
+     "masse_g": 21,
+     "heures": 1.95,
+     "mat": 1.45,
+     "mach": 1.35,
+     "vm": 1.95,
+     "mo": 2.57,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.38,
+     "prix": 17,
+     "parQuantite": [
+      17,
+      15,
+      15,
+      15,
+      15,
+      14
+     ]
     },
     "def": {
      "cotes": {
@@ -476,11 +631,25 @@
       "b": 15,
       "c": 35
      },
-     "prix": 22,
-     "cout": 7.77,
-     "formule": 20,
-     "plancher": 20,
-     "supplement": 2
+     "masse_g": 22.9,
+     "heures": 2.02,
+     "mat": 1.58,
+     "mach": 1.4,
+     "vm": 2.02,
+     "mo": 2.58,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.43,
+     "prix": 17,
+     "parQuantite": [
+      17,
+      16,
+      15,
+      15,
+      15,
+      15
+     ]
     },
     "max": {
      "cotes": {
@@ -488,11 +657,25 @@
       "b": 22,
       "c": 55
      },
-     "prix": 24,
-     "cout": 8.04,
-     "formule": 21,
-     "plancher": 21,
-     "supplement": 3
+     "masse_g": 25.4,
+     "heures": 2.12,
+     "mat": 1.76,
+     "mach": 1.46,
+     "vm": 2.12,
+     "mo": 2.6,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.49,
+     "prix": 17,
+     "parQuantite": [
+      17,
+      16,
+      16,
+      15,
+      15,
+      15
+     ]
     }
    },
    "balayage": {
@@ -503,70 +686,38 @@
     },
     "points": 5797,
     "baisses": {
-     "nombre": 24,
-     "exemples": [
-      {
-       "axe": "a",
-       "de": {
-        "a": 10,
-        "b": 9,
-        "c": 50
-       },
-       "a": 11,
-       "prix": [
-        24,
-        22
-       ]
-      },
-      {
-       "axe": "a",
-       "de": {
-        "a": 10,
-        "b": 12,
-        "c": 43
-       },
-       "a": 11,
-       "prix": [
-        24,
-        22
-       ]
-      },
-      {
-       "axe": "a",
-       "de": {
-        "a": 10,
-        "b": 14,
-        "c": 38
-       },
-       "a": 11,
-       "prix": [
-        24,
-        22
-       ]
-      }
-     ]
-    },
-    "marches": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 3,
-    "ecartTailleMin": 2,
-    "minSurMesure": {
-     "prix": 22,
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausseMaxMm": 0,
+    "min": {
+     "prix": 17,
      "cotes": {
       "a": 10,
       "b": 6,
       "c": 25
      }
     },
-    "minReel": 20,
-    "sousDes": false
+    "max": {
+     "prix": 17,
+     "cotes": {
+      "a": 10,
+      "b": 6,
+      "c": 25
+     }
+    }
    }
   },
   {
    "id": "equerre-l",
    "matiere": "petg",
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
    "des": 12,
    "tailles": [
     {
@@ -577,11 +728,7 @@
       "c": 15
      },
      "prix": 12,
-     "cout": 4.32,
-     "formule": 12,
-     "surMesure": 14,
-     "ecart": 2,
-     "ecartPart": 0.17
+     "surMesure": 12
     },
     {
      "taille": "Moyenne",
@@ -591,11 +738,7 @@
       "c": 20
      },
      "prix": 13,
-     "cout": 4.74,
-     "formule": 13,
-     "surMesure": 15,
-     "ecart": 2,
-     "ecartPart": 0.15
+     "surMesure": 13
     },
     {
      "taille": "Grande",
@@ -605,11 +748,7 @@
       "c": 30
      },
      "prix": 15,
-     "cout": 5.72,
-     "formule": 15,
-     "surMesure": 17,
-     "ecart": 2,
-     "ecartPart": 0.13
+     "surMesure": 15
     }
    ],
    "reperes": {
@@ -619,11 +758,25 @@
       "b": 50,
       "c": 10
      },
-     "prix": 13,
-     "cout": 4.09,
-     "formule": 11,
-     "plancher": 0,
-     "supplement": 2
+     "masse_g": 3.5,
+     "heures": 0.32,
+     "mat": 0.19,
+     "mach": 0.2,
+     "vm": 0.32,
+     "mo": 2.43,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 1.65,
+     "prix": 12,
+     "parQuantite": [
+      12,
+      10,
+      10,
+      10,
+      10,
+      9
+     ]
     },
     "def": {
      "cotes": {
@@ -631,11 +784,25 @@
       "b": 100,
       "c": 20
      },
-     "prix": 15,
-     "cout": 4.74,
-     "formule": 13,
-     "plancher": 13,
-     "supplement": 2
+     "masse_g": 13.5,
+     "heures": 0.56,
+     "mat": 0.71,
+     "mach": 0.36,
+     "vm": 0.56,
+     "mo": 2.51,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 1.83,
+     "prix": 13,
+     "parQuantite": [
+      13,
+      12,
+      11,
+      11,
+      11,
+      11
+     ]
     },
     "max": {
      "cotes": {
@@ -643,11 +810,25 @@
       "b": 200,
       "c": 40
      },
-     "prix": 21,
-     "cout": 7.09,
-     "formule": 19,
-     "plancher": 15,
-     "supplement": 2
+     "masse_g": 51.2,
+     "heures": 1.43,
+     "mat": 2.69,
+     "mach": 0.9,
+     "vm": 1.43,
+     "mo": 2.81,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.47,
+     "prix": 17,
+     "parQuantite": [
+      17,
+      16,
+      16,
+      15,
+      15,
+      15
+     ]
     }
    },
    "balayage": {
@@ -661,28 +842,36 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 2,
-    "ecartTailleMin": 2,
-    "minSurMesure": {
-     "prix": 13,
+    "hausseMaxMm": 1,
+    "min": {
+     "prix": 12,
      "cotes": {
       "a": 50,
       "b": 50,
       "c": 10
      }
     },
-    "minReel": 12,
-    "sousDes": false
+    "max": {
+     "prix": 17,
+     "cotes": {
+      "a": 162,
+      "b": 200,
+      "c": 40
+     }
+    }
    }
   },
   {
    "id": "boite-rugged",
    "matiere": "petg",
-   "des": 34,
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 21,
    "tailles": [
     {
      "taille": "S",
@@ -691,12 +880,8 @@
       "b": 80,
       "c": 40
      },
-     "prix": 34,
-     "cout": 11.35,
-     "formule": 30,
-     "surMesure": 38,
-     "ecart": 4,
-     "ecartPart": 0.12
+     "prix": 24,
+     "surMesure": 24
     },
     {
      "taille": "M",
@@ -705,12 +890,8 @@
       "b": 100,
       "c": 50
      },
-     "prix": 39,
-     "cout": 14.72,
-     "formule": 38,
-     "surMesure": 43,
-     "ecart": 4,
-     "ecartPart": 0.1
+     "prix": 30,
+     "surMesure": 30
     },
     {
      "taille": "L",
@@ -719,12 +900,8 @@
       "b": 150,
       "c": 80
      },
-     "prix": 69,
-     "cout": 25.98,
-     "formule": 67,
-     "surMesure": 76,
-     "ecart": 7,
-     "ecartPart": 0.1
+     "prix": 50,
+     "surMesure": 50
     }
    ],
    "reperes": {
@@ -734,11 +911,25 @@
       "b": 60,
       "c": 35
      },
-     "prix": 28,
-     "cout": 9.68,
-     "formule": 25,
-     "plancher": 0,
-     "supplement": 3
+     "masse_g": 76.8,
+     "heures": 2.64,
+     "mat": 4.03,
+     "mach": 1.67,
+     "vm": 2.64,
+     "mo": 3.01,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 3.09,
+     "prix": 21,
+     "parQuantite": [
+      21,
+      20,
+      20,
+      19,
+      19,
+      19
+     ]
     },
     "def": {
      "cotes": {
@@ -746,11 +937,25 @@
       "b": 100,
       "c": 50
      },
-     "prix": 43,
-     "cout": 14.72,
-     "formule": 38,
-     "plancher": 39,
-     "supplement": 4
+     "masse_g": 150.6,
+     "heures": 4.61,
+     "mat": 7.91,
+     "mach": 2.91,
+     "vm": 4.61,
+     "mo": 3.6,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 4.44,
+     "prix": 30,
+     "parQuantite": [
+      30,
+      29,
+      29,
+      29,
+      28,
+      28
+     ]
     },
     "max": {
      "cotes": {
@@ -758,11 +963,25 @@
       "b": 230,
       "c": 150
      },
-     "prix": 129,
-     "cout": 47.28,
-     "formule": 121,
-     "plancher": 69,
-     "supplement": 8
+     "masse_g": 637.3,
+     "heures": 17.18,
+     "mat": 33.46,
+     "mach": 10.82,
+     "vm": 11.67,
+     "mo": 7.5,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 12.21,
+     "prix": 82,
+     "parQuantite": [
+      82,
+      81,
+      81,
+      81,
+      81,
+      80
+     ]
     }
    },
    "balayage": {
@@ -776,68 +995,36 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
-     "nombre": 21,
-     "exemples": [
-      {
-       "axe": "c",
-       "de": {
-        "a": 120,
-        "b": 80,
-        "c": 35
-       },
-       "a": 40,
-       "prix": [
-        31,
-        38
-       ]
-      },
-      {
-       "axe": "c",
-       "de": {
-        "a": 120,
-        "b": 85,
-        "c": 35
-       },
-       "a": 40,
-       "prix": [
-        32,
-        38
-       ]
-      },
-      {
-       "axe": "c",
-       "de": {
-        "a": 120,
-        "b": 90,
-        "c": 35
-       },
-       "a": 40,
-       "prix": [
-        33,
-        38
-       ]
-      }
-     ]
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
     },
-    "ecartTailleMax": 7,
-    "ecartTailleMin": 4,
-    "minSurMesure": {
-     "prix": 28,
+    "hausseMaxMm": 0.4,
+    "min": {
+     "prix": 21,
      "cotes": {
       "a": 110,
       "b": 60,
       "c": 35
      }
     },
-    "minReel": 28,
-    "sousDes": true
+    "max": {
+     "prix": 82,
+     "cotes": {
+      "a": 240,
+      "b": 230,
+      "c": 150
+     }
+    }
    }
   },
   {
    "id": "support-casque-gyroide",
    "matiere": "petg",
-   "des": 89,
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 42,
    "tailles": [
     {
      "taille": "Compact",
@@ -845,12 +1032,8 @@
       "a": 220,
       "b": 100
      },
-     "prix": 89,
-     "cout": 34.09,
-     "formule": 87,
-     "surMesure": 97,
-     "ecart": 8,
-     "ecartPart": 0.09
+     "prix": 49,
+     "surMesure": 49
     },
     {
      "taille": "Standard",
@@ -858,12 +1041,8 @@
       "a": 250,
       "b": 120
      },
-     "prix": 109,
-     "cout": 41.07,
-     "formule": 105,
-     "surMesure": 117,
-     "ecart": 8,
-     "ecartPart": 0.07
+     "prix": 56,
+     "surMesure": 56
     },
     {
      "taille": "Grand",
@@ -871,12 +1050,8 @@
       "a": 255,
       "b": 140
      },
-     "prix": 124,
-     "cout": 47.57,
-     "formule": 121,
-     "surMesure": 132,
-     "ecart": 8,
-     "ecartPart": 0.06
+     "prix": 63,
+     "surMesure": 63
     }
    ],
    "reperes": {
@@ -885,33 +1060,75 @@
       "a": 200,
       "b": 80
      },
-     "prix": 80,
-     "cout": 28.05,
-     "formule": 72,
-     "plancher": 0,
-     "supplement": 8
+     "masse_g": 138.6,
+     "heures": 13.28,
+     "mat": 7.28,
+     "mach": 8.36,
+     "vm": 10.11,
+     "mo": 3.51,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 6.23,
+     "prix": 42,
+     "parQuantite": [
+      42,
+      41,
+      41,
+      41,
+      40,
+      40
+     ]
     },
     "def": {
      "cotes": {
       "a": 250,
       "b": 120
      },
-     "prix": 117,
-     "cout": 41.07,
-     "formule": 105,
-     "plancher": 109,
-     "supplement": 8
+     "masse_g": 207.7,
+     "heures": 20.4,
+     "mat": 10.9,
+     "mach": 12.85,
+     "vm": 12.96,
+     "mo": 4.06,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 8.24,
+     "prix": 56,
+     "parQuantite": [
+      56,
+      55,
+      54,
+      54,
+      54,
+      54
+     ]
     },
     "max": {
      "cotes": {
       "a": 255,
       "b": 160
      },
-     "prix": 145,
-     "cout": 53.64,
-     "formule": 137,
-     "plancher": 124,
-     "supplement": 8
+     "masse_g": 276.6,
+     "heures": 27.22,
+     "mat": 14.52,
+     "mach": 17.15,
+     "vm": 15.69,
+     "mo": 4.61,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 10.2,
+     "prix": 69,
+     "parQuantite": [
+      69,
+      68,
+      67,
+      67,
+      67,
+      67
+     ]
     }
    },
    "balayage": {
@@ -924,27 +1141,34 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 8,
-    "ecartTailleMin": 8,
-    "minSurMesure": {
-     "prix": 80,
+    "hausseMaxMm": 0.4,
+    "min": {
+     "prix": 42,
      "cotes": {
       "a": 200,
       "b": 80
      }
     },
-    "minReel": 80,
-    "sousDes": true
+    "max": {
+     "prix": 69,
+     "cotes": {
+      "a": 250,
+      "b": 160
+     }
+    }
    }
   },
   {
    "id": "organiseur-tiroir",
    "matiere": "petg",
-   "des": 64,
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 26,
    "tailles": [
     {
      "taille": "Petit",
@@ -952,12 +1176,8 @@
       "a": 200,
       "b": 300
      },
-     "prix": 64,
-     "cout": 24.83,
-     "formule": 64,
-     "surMesure": 71,
-     "ecart": 7,
-     "ecartPart": 0.11
+     "prix": 49,
+     "surMesure": 49
     },
     {
      "taille": "Moyen",
@@ -965,12 +1185,8 @@
       "a": 300,
       "b": 400
      },
-     "prix": 124,
-     "cout": 47.19,
-     "formule": 121,
-     "surMesure": 132,
-     "ecart": 8,
-     "ecartPart": 0.06
+     "prix": 84,
+     "surMesure": 84
     },
     {
      "taille": "Grand",
@@ -978,12 +1194,8 @@
       "a": 400,
       "b": 500
      },
-     "prix": 189,
-     "cout": 72.79,
-     "formule": 185,
-     "surMesure": 197,
-     "ecart": 8,
-     "ecartPart": 0.04
+     "prix": 124,
+     "surMesure": 124
     }
    ],
    "reperes": {
@@ -992,33 +1204,75 @@
       "a": 120,
       "b": 150
      },
-     "prix": 35,
-     "cout": 11.86,
-     "formule": 31,
-     "plancher": 0,
-     "supplement": 4
+     "masse_g": 126.6,
+     "heures": 3.2,
+     "mat": 6.65,
+     "mach": 2.01,
+     "vm": 3.2,
+     "mo": 3.41,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 3.78,
+     "prix": 26,
+     "parQuantite": [
+      26,
+      25,
+      24,
+      24,
+      24,
+      24
+     ]
     },
     "def": {
      "cotes": {
       "a": 320,
       "b": 420
      },
-     "prix": 144,
-     "cout": 53.22,
-     "formule": 136,
-     "plancher": 124,
-     "supplement": 8
+     "masse_g": 752.2,
+     "heures": 19.03,
+     "mat": 39.49,
+     "mach": 11.99,
+     "vm": 12.41,
+     "mo": 8.42,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 13.76,
+     "prix": 93,
+     "parQuantite": [
+      93,
+      92,
+      91,
+      91,
+      91,
+      91
+     ]
     },
     "max": {
      "cotes": {
       "a": 560,
       "b": 560
      },
-     "prix": 298,
-     "cout": 114.08,
-     "formule": 290,
-     "plancher": 189,
-     "supplement": 8
+     "masse_g": 1706,
+     "heures": 41.77,
+     "mat": 89.56,
+     "mach": 26.32,
+     "vm": 21.51,
+     "mo": 16.05,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 27.97,
+     "prix": 188,
+     "parQuantite": [
+      188,
+      187,
+      187,
+      186,
+      186,
+      186
+     ]
     }
    },
    "balayage": {
@@ -1031,27 +1285,34 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 8,
-    "ecartTailleMin": 7,
-    "minSurMesure": {
-     "prix": 35,
+    "hausseMaxMm": 0.6,
+    "min": {
+     "prix": 26,
      "cotes": {
       "a": 120,
       "b": 150
      }
     },
-    "minReel": 35,
-    "sousDes": true
+    "max": {
+     "prix": 188,
+     "cotes": {
+      "a": 560,
+      "b": 560
+     }
+    }
    }
   },
   {
    "id": "vide-poche-cles",
    "matiere": "pla",
-   "des": 19,
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 15,
    "tailles": [
     {
      "taille": "Compact",
@@ -1060,12 +1321,8 @@
       "b": 60,
       "c": 110
      },
-     "prix": 19,
-     "cout": 6.25,
-     "formule": 17,
-     "surMesure": 21,
-     "ecart": 2,
-     "ecartPart": 0.11
+     "prix": 15,
+     "surMesure": 15
     },
     {
      "taille": "Standard",
@@ -1074,12 +1331,8 @@
       "b": 75,
       "c": 120
      },
-     "prix": 19,
-     "cout": 7.21,
-     "formule": 19,
-     "surMesure": 21,
-     "ecart": 2,
-     "ecartPart": 0.11
+     "prix": 17,
+     "surMesure": 17
     },
     {
      "taille": "Large",
@@ -1088,12 +1341,8 @@
       "b": 80,
       "c": 130
      },
-     "prix": 25,
-     "cout": 9.43,
-     "formule": 25,
-     "surMesure": 28,
-     "ecart": 3,
-     "ecartPart": 0.12
+     "prix": 21,
+     "surMesure": 21
     }
    ],
    "reperes": {
@@ -1103,11 +1352,25 @@
       "b": 55,
       "c": 100
      },
-     "prix": 18,
-     "cout": 6.13,
-     "formule": 16,
-     "plancher": 0,
-     "supplement": 2
+     "masse_g": 32.6,
+     "heures": 1.13,
+     "mat": 1.71,
+     "mach": 0.71,
+     "vm": 1.13,
+     "mo": 2.66,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.19,
+     "prix": 15,
+     "parQuantite": [
+      15,
+      14,
+      14,
+      13,
+      13,
+      13
+     ]
     },
     "def": {
      "cotes": {
@@ -1115,11 +1378,25 @@
       "b": 75,
       "c": 120
      },
-     "prix": 21,
-     "cout": 7.21,
-     "formule": 19,
-     "plancher": 19,
-     "supplement": 2
+     "masse_g": 49.6,
+     "heures": 1.53,
+     "mat": 2.6,
+     "mach": 0.96,
+     "vm": 1.53,
+     "mo": 2.8,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.49,
+     "prix": 17,
+     "parQuantite": [
+      17,
+      16,
+      16,
+      15,
+      15,
+      15
+     ]
     },
     "max": {
      "cotes": {
@@ -1127,11 +1404,25 @@
       "b": 120,
       "c": 180
      },
-     "prix": 44,
-     "cout": 15.27,
-     "formule": 40,
-     "plancher": 25,
-     "supplement": 4
+     "masse_g": 167.4,
+     "heures": 4.68,
+     "mat": 8.79,
+     "mach": 2.95,
+     "vm": 4.68,
+     "mo": 3.74,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 4.63,
+     "prix": 32,
+     "parQuantite": [
+      32,
+      30,
+      30,
+      30,
+      30,
+      29
+     ]
     }
    },
    "balayage": {
@@ -1145,28 +1436,36 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 3,
-    "ecartTailleMin": 2,
-    "minSurMesure": {
-     "prix": 18,
+    "hausseMaxMm": 0.2,
+    "min": {
+     "prix": 15,
      "cotes": {
       "a": 60,
       "b": 55,
       "c": 100
      }
     },
-    "minReel": 18,
-    "sousDes": true
+    "max": {
+     "prix": 32,
+     "cotes": {
+      "a": 180,
+      "b": 120,
+      "c": 180
+     }
+    }
    }
   },
   {
    "id": "distributeur-cotons",
    "matiere": "petg",
-   "des": 25,
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 19,
    "tailles": [
     {
      "taille": "Compact",
@@ -1175,12 +1474,8 @@
       "b": 110,
       "c": 45
      },
-     "prix": 25,
-     "cout": 9.67,
-     "formule": 25,
-     "surMesure": 28,
-     "ecart": 3,
-     "ecartPart": 0.12
+     "prix": 21,
+     "surMesure": 21
     },
     {
      "taille": "Standard",
@@ -1189,12 +1484,8 @@
       "b": 150,
       "c": 50
      },
-     "prix": 34,
-     "cout": 11.41,
-     "formule": 30,
-     "surMesure": 38,
-     "ecart": 4,
-     "ecartPart": 0.12
+     "prix": 24,
+     "surMesure": 24
     },
     {
      "taille": "Grand",
@@ -1203,12 +1494,8 @@
       "b": 190,
       "c": 55
      },
-     "prix": 39,
-     "cout": 13.32,
-     "formule": 35,
-     "surMesure": 43,
-     "ecart": 4,
-     "ecartPart": 0.1
+     "prix": 27,
+     "surMesure": 27
     }
    ],
    "reperes": {
@@ -1218,11 +1505,25 @@
       "b": 100,
       "c": 35
      },
-     "prix": 26,
-     "cout": 8.66,
-     "formule": 23,
-     "plancher": 0,
-     "supplement": 3
+     "masse_g": 55.8,
+     "heures": 2.35,
+     "mat": 2.93,
+     "mach": 1.48,
+     "vm": 2.35,
+     "mo": 2.85,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.78,
+     "prix": 19,
+     "parQuantite": [
+      19,
+      18,
+      18,
+      17,
+      17,
+      17
+     ]
     },
     "def": {
      "cotes": {
@@ -1230,11 +1531,25 @@
       "b": 150,
       "c": 50
      },
-     "prix": 38,
-     "cout": 11.41,
-     "formule": 30,
-     "plancher": 34,
-     "supplement": 4
+     "masse_g": 94.1,
+     "heures": 3.46,
+     "mat": 4.94,
+     "mach": 2.18,
+     "vm": 3.46,
+     "mo": 3.15,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 3.51,
+     "prix": 24,
+     "parQuantite": [
+      24,
+      23,
+      22,
+      22,
+      22,
+      22
+     ]
     },
     "max": {
      "cotes": {
@@ -1242,11 +1557,25 @@
       "b": 200,
       "c": 70
      },
-     "prix": 43,
-     "cout": 15.12,
-     "formule": 39,
-     "plancher": 39,
-     "supplement": 4
+     "masse_g": 150.1,
+     "heures": 4.88,
+     "mat": 7.88,
+     "mach": 3.07,
+     "vm": 4.88,
+     "mo": 3.6,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 4.5,
+     "prix": 31,
+     "parQuantite": [
+      31,
+      30,
+      29,
+      29,
+      29,
+      29
+     ]
     }
    },
    "balayage": {
@@ -1260,104 +1589,60 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
-     "nombre": 50,
-     "exemples": [
-      {
-       "axe": "c",
-       "de": {
-        "a": 58,
-        "b": 150,
-        "c": 45
-       },
-       "a": 50,
-       "prix": [
-        33,
-        38
-       ]
-      },
-      {
-       "axe": "c",
-       "de": {
-        "a": 58,
-        "b": 155,
-        "c": 45
-       },
-       "a": 50,
-       "prix": [
-        33,
-        38
-       ]
-      },
-      {
-       "axe": "c",
-       "de": {
-        "a": 59,
-        "b": 150,
-        "c": 45
-       },
-       "a": 50,
-       "prix": [
-        33,
-        38
-       ]
-      }
-     ]
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
     },
-    "ecartTailleMax": 4,
-    "ecartTailleMin": 3,
-    "minSurMesure": {
-     "prix": 26,
+    "hausseMaxMm": 1,
+    "min": {
+     "prix": 19,
      "cotes": {
       "a": 45,
       "b": 100,
       "c": 35
      }
     },
-    "minReel": 25,
-    "sousDes": false
+    "max": {
+     "prix": 31,
+     "cotes": {
+      "a": 74,
+      "b": 200,
+      "c": 70
+     }
+    }
    }
   },
   {
    "id": "cintre-sac",
    "matiere": "petg",
-   "des": 15,
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 14,
    "tailles": [
     {
      "taille": "Ø 19",
      "cotes": {
       "a": 19
      },
-     "prix": 15,
-     "cout": 5.7,
-     "formule": 15,
-     "surMesure": 17,
-     "ecart": 2,
-     "ecartPart": 0.13
+     "prix": 14,
+     "surMesure": 14
     },
     {
      "taille": "Ø 25",
      "cotes": {
       "a": 25
      },
-     "prix": 15,
-     "cout": 5.79,
-     "formule": 15,
-     "surMesure": 17,
-     "ecart": 2,
-     "ecartPart": 0.13
+     "prix": 14,
+     "surMesure": 14
     },
     {
      "taille": "Ø 32",
      "cotes": {
       "a": 32
      },
-     "prix": 16,
-     "cout": 5.85,
-     "formule": 16,
-     "surMesure": 18,
-     "ecart": 2,
-     "ecartPart": 0.13
+     "prix": 14,
+     "surMesure": 14
     }
    ],
    "reperes": {
@@ -1365,31 +1650,73 @@
      "cotes": {
       "a": 15
      },
-     "prix": 17,
-     "cout": 5.64,
-     "formule": 15,
-     "plancher": 0,
-     "supplement": 2
+     "masse_g": 17.9,
+     "heures": 1.06,
+     "mat": 0.94,
+     "mach": 0.67,
+     "vm": 1.06,
+     "mo": 2.54,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.02,
+     "prix": 14,
+     "parQuantite": [
+      14,
+      13,
+      12,
+      12,
+      12,
+      12
+     ]
     },
     "def": {
      "cotes": {
       "a": 25
      },
-     "prix": 17,
-     "cout": 5.79,
-     "formule": 15,
-     "plancher": 15,
-     "supplement": 2
+     "masse_g": 20.6,
+     "heures": 1.11,
+     "mat": 1.08,
+     "mach": 0.7,
+     "vm": 1.11,
+     "mo": 2.56,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.06,
+     "prix": 14,
+     "parQuantite": [
+      14,
+      13,
+      13,
+      13,
+      12,
+      12
+     ]
     },
     "max": {
      "cotes": {
       "a": 40
      },
-     "prix": 18,
-     "cout": 5.98,
-     "formule": 16,
-     "plancher": 16,
-     "supplement": 2
+     "masse_g": 24.9,
+     "heures": 1.16,
+     "mat": 1.31,
+     "mach": 0.73,
+     "vm": 1.16,
+     "mo": 2.6,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.12,
+     "prix": 15,
+     "parQuantite": [
+      15,
+      14,
+      13,
+      13,
+      13,
+      13
+     ]
     }
    },
    "balayage": {
@@ -1401,26 +1728,32 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 2,
-    "ecartTailleMin": 2,
-    "minSurMesure": {
-     "prix": 17,
+    "hausseMaxMm": 1,
+    "min": {
+     "prix": 14,
      "cotes": {
       "a": 15
      }
     },
-    "minReel": 15,
-    "sousDes": false
+    "max": {
+     "prix": 15,
+     "cotes": {
+      "a": 34
+     }
+    }
    }
   },
   {
    "id": "support-aerosol-skadis",
    "matiere": "asa",
-   "des": 18,
+   "filiere": "externe",
+   "provisoire": true,
+   "valeur": 1,
+   "des": 15,
    "tailles": [
     {
      "taille": "Ø 45",
@@ -1428,12 +1761,8 @@
       "a": 45,
       "b": 60
      },
-     "prix": 18,
-     "cout": 6.61,
-     "formule": 18,
-     "surMesure": 20,
-     "ecart": 2,
-     "ecartPart": 0.11
+     "prix": 15,
+     "surMesure": 15
     },
     {
      "taille": "Ø 54",
@@ -1441,12 +1770,8 @@
       "a": 54,
       "b": 60
      },
-     "prix": 18,
-     "cout": 6.88,
-     "formule": 18,
-     "surMesure": 20,
-     "ecart": 2,
-     "ecartPart": 0.11
+     "prix": 16,
+     "surMesure": 16
     },
     {
      "taille": "Ø 65",
@@ -1454,12 +1779,8 @@
       "a": 65,
       "b": 70
      },
-     "prix": 21,
-     "cout": 7.81,
-     "formule": 21,
-     "surMesure": 24,
-     "ecart": 3,
-     "ecartPart": 0.14
+     "prix": 18,
+     "surMesure": 18
     }
    ],
    "reperes": {
@@ -1468,33 +1789,75 @@
       "a": 40,
       "b": 60
      },
-     "prix": 19,
-     "cout": 6.46,
-     "formule": 17,
-     "plancher": 0,
-     "supplement": 2
+     "masse_g": 20.1,
+     "heures": 1.31,
+     "mat": 1.38,
+     "mach": 0.91,
+     "vm": 1.31,
+     "mo": 2.56,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.18,
+     "prix": 15,
+     "parQuantite": [
+      15,
+      14,
+      14,
+      13,
+      13,
+      13
+     ]
     },
     "def": {
      "cotes": {
       "a": 54,
       "b": 60
      },
-     "prix": 20,
-     "cout": 6.88,
-     "formule": 18,
-     "plancher": 18,
-     "supplement": 2
+     "masse_g": 27.8,
+     "heures": 1.41,
+     "mat": 1.92,
+     "mach": 0.97,
+     "vm": 1.41,
+     "mo": 2.62,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.31,
+     "prix": 16,
+     "parQuantite": [
+      16,
+      15,
+      14,
+      14,
+      14,
+      14
+     ]
     },
     "max": {
      "cotes": {
       "a": 80,
       "b": 110
      },
-     "prix": 31,
-     "cout": 10.63,
-     "formule": 28,
-     "plancher": 21,
-     "supplement": 3
+     "masse_g": 71.3,
+     "heures": 2.7,
+     "mat": 4.92,
+     "mach": 1.87,
+     "vm": 2.7,
+     "mo": 2.97,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 3.28,
+     "prix": 23,
+     "parQuantite": [
+      23,
+      21,
+      21,
+      21,
+      21,
+      20
+     ]
     }
    },
    "balayage": {
@@ -1507,63 +1870,58 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 3,
-    "ecartTailleMin": 2,
-    "minSurMesure": {
-     "prix": 19,
+    "hausseMaxMm": 1,
+    "min": {
+     "prix": 15,
      "cotes": {
       "a": 40,
       "b": 60
      }
     },
-    "minReel": 18,
-    "sousDes": false
+    "max": {
+     "prix": 23,
+     "cotes": {
+      "a": 80,
+      "b": 110
+     }
+    }
    }
   },
   {
    "id": "chat-lord",
    "matiere": "asa",
-   "des": 29,
+   "filiere": "externe",
+   "provisoire": true,
+   "valeur": 1,
+   "des": 16,
    "tailles": [
     {
      "taille": "S",
      "cotes": {
       "a": 100
      },
-     "prix": 29,
-     "cout": 8.85,
-     "formule": 23,
-     "surMesure": 32,
-     "ecart": 3,
-     "ecartPart": 0.1
+     "prix": 19,
+     "surMesure": 19
     },
     {
      "taille": "M",
      "cotes": {
       "a": 150
      },
-     "prix": 39,
-     "cout": 14.41,
-     "formule": 37,
-     "surMesure": 43,
-     "ecart": 4,
-     "ecartPart": 0.1
+     "prix": 28,
+     "surMesure": 28
     },
     {
      "taille": "L",
      "cotes": {
       "a": 200
      },
-     "prix": 64,
-     "cout": 24.6,
-     "formule": 63,
-     "surMesure": 71,
-     "ecart": 7,
-     "ecartPart": 0.11
+     "prix": 45,
+     "surMesure": 45
     }
    ],
    "reperes": {
@@ -1571,31 +1929,73 @@
      "cotes": {
       "a": 80
      },
-     "prix": 21,
-     "cout": 7.15,
-     "formule": 19,
-     "plancher": 0,
-     "supplement": 2
+     "masse_g": 18.7,
+     "heures": 1.74,
+     "mat": 1.29,
+     "mach": 1.2,
+     "vm": 1.74,
+     "mo": 2.55,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.29,
+     "prix": 16,
+     "parQuantite": [
+      16,
+      15,
+      14,
+      14,
+      14,
+      14
+     ]
     },
     "def": {
      "cotes": {
       "a": 150
      },
-     "prix": 43,
-     "cout": 14.41,
-     "formule": 37,
-     "plancher": 39,
-     "supplement": 4
+     "masse_g": 93.3,
+     "heures": 4.46,
+     "mat": 6.44,
+     "mach": 3.08,
+     "vm": 4.46,
+     "mo": 3.15,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 4.1,
+     "prix": 28,
+     "parQuantite": [
+      28,
+      27,
+      26,
+      26,
+      26,
+      26
+     ]
     },
     "max": {
      "cotes": {
       "a": 220
      },
-     "prix": 84,
-     "cout": 29.56,
-     "formule": 76,
-     "plancher": 64,
-     "supplement": 8
+     "masse_g": 256.8,
+     "heures": 9.97,
+     "mat": 17.72,
+     "mach": 6.88,
+     "vm": 8.79,
+     "mo": 4.45,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 7.73,
+     "prix": 52,
+     "parQuantite": [
+      52,
+      51,
+      51,
+      51,
+      50,
+      50
+     ]
     }
    },
    "balayage": {
@@ -1607,74 +2007,56 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
-     "nombre": 1,
-     "exemples": [
-      {
-       "axe": "a",
-       "de": {
-        "a": 95
-       },
-       "a": 100,
-       "prix": [
-        25,
-        32
-       ]
-      }
-     ]
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
     },
-    "ecartTailleMax": 7,
-    "ecartTailleMin": 3,
-    "minSurMesure": {
-     "prix": 21,
+    "hausseMaxMm": 0.4,
+    "min": {
+     "prix": 16,
      "cotes": {
       "a": 80
      }
     },
-    "minReel": 21,
-    "sousDes": true
+    "max": {
+     "prix": 52,
+     "cotes": {
+      "a": 220
+     }
+    }
    }
   },
   {
    "id": "carapuce",
    "matiere": "pa12",
-   "des": 23,
+   "filiere": "externe",
+   "provisoire": true,
+   "valeur": 1,
+   "des": 15,
    "tailles": [
     {
      "taille": "S",
      "cotes": {
       "a": 80
      },
-     "prix": 23,
-     "cout": 8.6,
-     "formule": 23,
-     "surMesure": 26,
-     "ecart": 3,
-     "ecartPart": 0.13
+     "prix": 19,
+     "surMesure": 19
     },
     {
      "taille": "M",
      "cotes": {
       "a": 120
      },
-     "prix": 39,
-     "cout": 14.65,
-     "formule": 38,
-     "surMesure": 43,
-     "ecart": 4,
-     "ecartPart": 0.1
+     "prix": 31,
+     "surMesure": 31
     },
     {
      "taille": "L",
      "cotes": {
       "a": 160
      },
-     "prix": 69,
-     "cout": 25.5,
-     "formule": 65,
-     "surMesure": 76,
-     "ecart": 7,
-     "ecartPart": 0.1
+     "prix": 51,
+     "surMesure": 51
     }
    ],
    "reperes": {
@@ -1682,31 +2064,73 @@
      "cotes": {
       "a": 60
      },
-     "prix": 19,
-     "cout": 6.6,
-     "formule": 17,
-     "plancher": 0,
-     "supplement": 2
+     "masse_g": 13,
+     "heures": 1.28,
+     "mat": 1.79,
+     "mach": 0.88,
+     "vm": 1.28,
+     "mo": 2.5,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.23,
+     "prix": 15,
+     "parQuantite": [
+      15,
+      14,
+      14,
+      14,
+      14,
+      13
+     ]
     },
     "def": {
      "cotes": {
       "a": 120
      },
-     "prix": 43,
-     "cout": 14.65,
-     "formule": 38,
-     "plancher": 39,
-     "supplement": 4
+     "masse_g": 76.6,
+     "heures": 3.4,
+     "mat": 10.58,
+     "mach": 2.35,
+     "vm": 3.4,
+     "mo": 3.01,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 4.49,
+     "prix": 31,
+     "parQuantite": [
+      31,
+      29,
+      29,
+      29,
+      29,
+      29
+     ]
     },
     "max": {
      "cotes": {
       "a": 200
      },
-     "prix": 116,
-     "cout": 42.45,
-     "formule": 108,
-     "plancher": 69,
-     "supplement": 8
+     "masse_g": 301.9,
+     "heures": 10.5,
+     "mat": 41.67,
+     "mach": 7.25,
+     "vm": 9,
+     "mo": 4.82,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 12.09,
+     "prix": 82,
+     "parQuantite": [
+      82,
+      80,
+      80,
+      80,
+      80,
+      80
+     ]
     }
    },
    "balayage": {
@@ -1718,62 +2142,56 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 7,
-    "ecartTailleMin": 3,
-    "minSurMesure": {
-     "prix": 19,
+    "hausseMaxMm": 0.8,
+    "min": {
+     "prix": 15,
      "cotes": {
       "a": 60
      }
     },
-    "minReel": 19,
-    "sousDes": true
+    "max": {
+     "prix": 82,
+     "cotes": {
+      "a": 200
+     }
+    }
    }
   },
   {
    "id": "voiture-voronoi",
    "matiere": "asa",
-   "des": 24,
+   "filiere": "externe",
+   "provisoire": true,
+   "valeur": 1,
+   "des": 16,
    "tailles": [
     {
      "taille": "S",
      "cotes": {
       "a": 100
      },
-     "prix": 24,
-     "cout": 7.25,
-     "formule": 19,
-     "surMesure": 27,
-     "ecart": 3,
-     "ecartPart": 0.13
+     "prix": 16,
+     "surMesure": 16
     },
     {
      "taille": "M",
      "cotes": {
       "a": 140
      },
-     "prix": 29,
-     "cout": 11.19,
-     "formule": 29,
-     "surMesure": 32,
-     "ecart": 3,
-     "ecartPart": 0.1
+     "prix": 21,
+     "surMesure": 21
     },
     {
      "taille": "L",
      "cotes": {
       "a": 200
      },
-     "prix": 54,
-     "cout": 20.31,
-     "formule": 52,
-     "surMesure": 60,
-     "ecart": 6,
-     "ecartPart": 0.11
+     "prix": 35,
+     "surMesure": 35
     }
    ],
    "reperes": {
@@ -1781,31 +2199,73 @@
      "cotes": {
       "a": 100
      },
-     "prix": 27,
-     "cout": 7.25,
-     "formule": 19,
-     "plancher": 24,
-     "supplement": 3
+     "masse_g": 14.5,
+     "heures": 1.88,
+     "mat": 1,
+     "mach": 1.3,
+     "vm": 1.88,
+     "mo": 2.52,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.28,
+     "prix": 16,
+     "parQuantite": [
+      16,
+      15,
+      14,
+      14,
+      14,
+      14
+     ]
     },
     "def": {
      "cotes": {
       "a": 140
      },
-     "prix": 32,
-     "cout": 11.19,
-     "formule": 29,
-     "plancher": 29,
-     "supplement": 3
+     "masse_g": 35.7,
+     "heures": 3.74,
+     "mat": 2.46,
+     "mach": 2.58,
+     "vm": 3.74,
+     "mo": 2.69,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 3.11,
+     "prix": 21,
+     "parQuantite": [
+      21,
+      20,
+      20,
+      20,
+      20,
+      19
+     ]
     },
     "max": {
      "cotes": {
       "a": 240
      },
-     "prix": 81,
-     "cout": 28.34,
-     "formule": 73,
-     "plancher": 54,
-     "supplement": 8
+     "masse_g": 143.8,
+     "heures": 11.53,
+     "mat": 9.92,
+     "mach": 7.95,
+     "vm": 9.41,
+     "mo": 3.55,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 6.5,
+     "prix": 44,
+     "parQuantite": [
+      44,
+      43,
+      43,
+      42,
+      42,
+      42
+     ]
     }
    },
    "balayage": {
@@ -1817,20 +2277,23 @@
      "nombre": 0,
      "exemples": []
     },
-    "marches": {
+    "hausses": {
      "nombre": 0,
      "exemples": []
     },
-    "ecartTailleMax": 6,
-    "ecartTailleMin": 3,
-    "minSurMesure": {
-     "prix": 27,
+    "hausseMaxMm": 0.4,
+    "min": {
+     "prix": 16,
      "cotes": {
       "a": 100
      }
     },
-    "minReel": 24,
-    "sousDes": false
+    "max": {
+     "prix": 44,
+     "cotes": {
+      "a": 240
+     }
+    }
    }
   }
  ]

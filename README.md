@@ -235,8 +235,8 @@ Il n'y a **pas de base de données** : tout le contenu est écrit directement da
 
 | Quoi | Où |
 |---|---|
-| Produits (nom, description, prix, tailles, curseurs sur-mesure), univers et leurs textes | `assets/js/data.js` |
-| Tarifs du prix sur-mesure (€/kg par matière, €/h machine, forfait, emballage, taux d’échec, coefficient, supplément sur-mesure) ; prix de chaque taille standard | `assets/js/prix.js` (`EVARYSTH.tarif`) et `assets/js/data.js` (matières, prix des tailles) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/chaine-fabrication.md`) |
+| Produits (nom, description, tailles, curseurs sur-mesure, coefficient `valeur` facultatif), univers et leurs textes | `assets/js/data.js` |
+| Tarifs de tous les prix, tailles standard comprises (filament, machine, main-d’œuvre, emballage, frais fixes, lancement, prélèvements, prix minimum ; règle : `docs/prix.md`) | `assets/js/prix.js` (`EVARYSTH.tarif`) et `assets/js/data.js` (matières : €/kg, densité, taux d’échec, filière) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/chaine-fabrication.md`) |
 | Livraison, emballage cadeau, code promo de démonstration | `assets/js/prix.js` (`EVARYSTH.frais`, lu par le panier et le Worker) |
 | Textes fixes de la page : accueil, étapes, FAQ, pied de page | `index.html` |
 | Textes de la fiche produit (boutons, libellés, livraison…) | `assets/js/app.js` |

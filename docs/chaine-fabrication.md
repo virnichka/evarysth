@@ -11,8 +11,8 @@
 > **Fabrication · phase 5 close (10 novembre 2026)** : 5a = barème tranché des 16 produits (`assets/js/bareme.js`),
 > workflow `bareme.yml`, empreinte contrôlée par `geometrie` ; 5b = **prix sur-mesure calculés** sur le site et dans le
 > Worker (même code, `assets/js/prix.js`) ; voir § « Résultats Fabrication · phases 5a et 5b ». La phase 5 est passée
-> avant la phase 4 (décision du 9 nov.). **Prix rendus cohérents le 10 nov.** (un prix par taille standard, supplément
-> sur-mesure de 10 % entre 2 et 8 €, sans plafond, 4 produits PA-CF → PETG) : règle en vigueur dans `docs/prix.md`.
+> avant la phase 4 (décision du 9 nov.). 4 produits PA-CF → PETG le 10 nov. ; **prix : un seul calcul
+> pour les tailles standard et le sur-mesure depuis le 11 nov.**, règle en vigueur dans `docs/prix.md`.
 > Fabrication · phase 1b à l'achat de la machine ; phase 4 (agent d'atelier) ensuite.
 > Chaque phase = une session, un commit, un compte rendu court, puis pause jusqu'au feu vert suivant.
 > Chantier précédent (clos) : `docs/refonte-geometrie.md`. Circuit de commande actuel : README « Paiement et commandes ».
@@ -49,7 +49,7 @@
   cette promesse.
 - **Prix sur-mesure** : calculé depuis masse et temps estimés, lus dans un **barème par produit** produit par la CI
   (tranchage d'une grille de cotes) et interpolé. **Un seul fichier** (`assets/js/bareme.js`), lu par le site (prix en
-  direct au curseur) et par le Worker (prix payé), comme `data.js`. Formule et valeurs : § « Prix sur-mesure ».
+  direct au curseur) et par le Worker (prix payé), comme `data.js`. Formule et valeurs : `docs/prix.md`.
 - **Ordre des phases** : faisabilité d'abord ; si le tranchage sans écran ou le MQTT en mode cloud échoue, on revoit
   l'architecture (OrcaSlicer, mode LAN) avant d'écrire le reste. Puis R2 + déclenchement, /admin, prix, agent.
   **Phase 5 avant phase 4** (propriétaire, 9 nov. 2026) : la phase 4 attend l'achat de la machine et la phase 1b.
@@ -93,42 +93,9 @@ plateaux (pièces, positions, masse g, temps min, filament, **mapping AMS** : co
 contrôles, statut.
 
 ## Prix sur-mesure
-Règle en vigueur depuis le 10 nov. 2026 (revue externe « tailles standard », puis audit ; le propriétaire a délégué les
-choix), résumée telle qu'elle est codée dans `docs/prix.md` ; calcul dans `assets/js/prix.js`, rapport et référence
-figée : `node tools/rapport-prix.mjs`. Historique : plafond « 2 × standard », prix standard unique (9-10 nov.) et
-supplément fixe de 4 € (10 nov., avant l'audit), tous retirés : les mentions dans les résultats de phase ci-dessous sont
-datées.
-- `cout = (masse_kg × €/kg(matière) + temps_h × €/h machine) × (1 + échec(matière)) + forfait + emballage`
-  (échec : pièces ratées à refaire, 5 % PLA/PETG, 15 % ASA/PA12/PA-CF ; forfait 3 € = préparation, retrait des supports,
-  contrôle, soit environ 10 min de travail ; emballage 0,50 €). Pas de temps humain en plus : il doublerait le prix des
-  petites pièces.
-- `formule = arrondi à l'euro supérieur de ((cout × coefficient + 0,25) / (1 − 0,015))` (frais Stripe ≈ 1,5 % + 0,25 €).
-- **Tailles standard** : un prix par taille (4e élément de `sizes(...)` dans `data.js`), fixé une fois par calcul puis
-  modifiable à la main : le plus haut entre la formule à ses cotes et le prix « valeur » d'avant (prix unique d'origine,
-  pour ne pas brader une figurine sur ses grammes), arrondi (euro supérieur sous 30 €, prix finissant par 4 ou 9 au-delà),
-  croissant de S à L. `price` du produit = la plus petite taille (« Dès … »). Test : chaque taille ≥ formule, croissance ;
-  la CI avertit si une taille passe sous la formule après un retranchage. Retour possible (14 jours, frais à la charge du
-  client).
-- **Sur-mesure** (corrigé après l'audit des prix du 10 nov.) : `base = max(formule, plancher)`, plancher = prix de la
-  **plus grande taille standard dont toutes les cotes sont ≤** aux cotes demandées (0 si aucune) ; `prix = base +
-  supplément`, supplément = 10 % de la base arrondi à l'euro supérieur, **entre 2 et 8 €** (vérification des cotes, pièce
-  ratée non revendable, pas de rétractation). L'ancien plancher « taille la plus proche » faisait payer une pièce plus
-  petite que S au prix de S (organiseur 120 × 150 : 68 € → 35 €) et créait 621 hausses de plus de 25 % en un cran. **Pas de plafond** : les bornes des curseurs
-  limitent la taille ; plus d'alerte « prix plafonné » dans /admin.
-- **Rétractation** : case à cocher obligatoire dans le panier dès qu'il contient du sur-mesure (« j'ai vérifié mes cotes… »),
-  revérifiée par le Worker (`surMesureAccepte: true`, sinon 400) ; CGV : tolérance ± 0,5 mm sur les cotes fonctionnelles.
-- **Matières** (10 nov. 2026) : les 4 produits en PA-CF (boîte, support gyroïde, organiseur, distributeur de cotons)
-  passent en **PETG**, imprimé à l'atelier à coût connu ; une option PA-CF payante pourra revenir plus tard. PA-CF, PA12 et
-  ASA partent chez un fabricant externe : leur prix réel sera ajusté par appels d'offres (propriétaire).
-- Tarifs (validés le 9 nov. 2026, modifiables) : PLA 25 €/kg, PETG 25, ASA 30, PA12 60, PA-CF 70 ; machine 1,5 €/h ;
-  coefficient 2,5. `EVARYSTH.tarif` dans `assets/js/prix.js` ; `densite`, `eurKg`, `echec` par matière dans `data.js`
-  (matière de la fiche d'impression du produit, erreur explicite si elle manque). Densités (g/cm³) :
-  PLA 1,24 et PETG 1,27 (profils de l'atelier), ASA 1,07, PA12 1,01, PA-CF 1,12.
-- Barème (`assets/js/bareme.js`, généré, jamais édité à la main) : par produit, grille de cotes (au moins min / défaut /
-  max par paramètre) → volume de filament et temps tranchés ; interpolation multilinéaire ; empreinte des entrées (modèle,
-  `geo.js`, profils, image) pour détecter un barème périmé. Matières hors atelier : profil PETG, seulement pour estimer.
-- Restent ouverts (propriétaire) : livraison (incluse ou facturée, transporteur, formats lettre / colis) ; mention TVA
-  des CGV ; option matière premium.
+Règle, tarifs et contrôles : **`docs/prix.md`** (depuis le 11 nov. 2026, un seul calcul pour les tailles standard et le
+sur-mesure). Les mentions de prix dans les résultats de phase ci-dessous (plancher, supplément, coefficient, prix fixés à
+la main) décrivent des règles retirées.
 
 ## Phases
 

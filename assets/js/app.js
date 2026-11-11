@@ -106,7 +106,7 @@
         <span class="card__u">${EVARYSTH.getUniverse(p.universe).short}</span>
         <h3>${p.name}</h3>
         <p>${p.tagline}</p>
-        <div class="card__foot"><span class="price"><small>dès</small> ${fmt(p.price)}</span><span class="arrow" aria-hidden="true">→</span></div>
+        <div class="card__foot"><span class="price"><small>dès</small> ${fmt(EVARYSTH.prixDes(p))}</span><span class="arrow" aria-hidden="true">→</span></div>
       </div>
     </article>`;
 
@@ -228,8 +228,8 @@
   }
 
   const SORTS = {
-    rec: l => l, asc: l => [...l].sort((a, b) => a.price - b.price),
-    desc: l => [...l].sort((a, b) => b.price - a.price), az: l => [...l].sort((a, b) => a.name.localeCompare(b.name, "fr"))
+    rec: l => l, asc: l => [...l].sort((a, b) => EVARYSTH.prixDes(a) - EVARYSTH.prixDes(b)),
+    desc: l => [...l].sort((a, b) => EVARYSTH.prixDes(b) - EVARYSTH.prixDes(a)), az: l => [...l].sort((a, b) => a.name.localeCompare(b.name, "fr"))
   };
   document.addEventListener("change", e => {
     if (e.target.id !== "sort") return;
@@ -694,7 +694,7 @@ ${colors.length ? `
     const range = $("#hero-range");
     if (range) {
       const sizes = [[30, "Fine", "20–40 mm"], [50, "Moyenne", "40–60 mm"], [70, "Large", "60–80 mm"]];
-      const notes = { standard: "3 tailles prêtes · prix affiché", custom: "Imprimé à vos cotes · de +2 à +10 €" };
+      const notes = { standard: "3 tailles prêtes · prix affiché", custom: "Imprimé à vos cotes · sans supplément" };
       const rail = $("#hv-rail"), part = $("#hv-part"), dim = $("#hv-dim"), svg = $("#hero-svg");
       let mode = "custom", shown = 47, target = 47, raf = 0;
       /* La rambarde s'agrandit vers la gauche et le haut ; le bord côté pot reste fixe */

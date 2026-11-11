@@ -648,6 +648,17 @@ async function vueTableau(env, email, etat, bandeau) {
 <h2>Alertes</h2><div class="carte">${alertes.join("") || '<p class="muted">Aucune alerte.</p>'}</div>`));
 }
 
+/* Décomposition du prix d'une pièce (EVARYSTH.prixDetail, docs/prix.md) : une ligne discrète sous chaque taille */
+const DETAIL = [["mat", "Mat"], ["mach", "Mach"], ["vm", "Vm"], ["mo", "MO"], ["emballage", "emballage"], ["fixes", "fixes"],
+  ["lancement", "lancement"], ["prelevements", "prélèvements"]];
+function decomposition(p, values) {
+  const d = EVARYSTH.prixDetail(p, values);
+  if (!d) return "";
+  const e = n => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `<p class="muted" style="margin:0 0 6px">${Math.round(d.masse_g)} g, ${e(d.heures)} h · ${DETAIL.map(([k, l]) => `${l} ${e(d[k])}`).join(" + ")}`
+    + ` = ${e(d.V + d.lancement + d.prelevements)} € → ${d.prix} €${d.filiere === "externe" ? " · provisoire (devis à venir)" : ""}</p>`;
+}
+
 /* Catalogue : produits de data.js ; pour chaque taille standard, fichier présent ou non dans R2 (une seule liste du bucket) */
 async function clesR2(env) {
   if (!env.STL || typeof env.STL.list !== "function") return null;
@@ -676,11 +687,13 @@ async function vueCatalogue(env, email, bandeau) {
           total++; if (!ok) manquants++; else presents++;
           etatStl = ok ? '<span class="badge present">STL présent</span>' : '<span class="badge manque">STL manquant</span>';
         }
-        return `<div class="ligne"><span>${esc(o.label)} <span class="muted">${esc(o.hint || "")}</span> · ${prix(o.price != null ? o.price : p.price)}</span>${etatStl}</div>`;
+        return `<div class="ligne"><span>${esc(o.label)} <span class="muted">${esc(o.hint || "")}</span> · ${prix(EVARYSTH.priceFor(p, "standard", o.values))}</span>${etatStl}</div>`
+          + decomposition(p, o.values);
       });
-      const sm = p.custom ? `Sur-mesure (prix calculé + ${Math.round(EVARYSTH.tarif.supplement.part * 100)} %, jamais sous une taille standard plus petite) : ${(p.custom.params || []).map(x => `${esc(x.label)} ${x.min}–${x.max} mm`).join(" ; ")}` : "";
+      const externe = EVARYSTH.matierePrix(p).filiere === "externe" ? " · provisoire (devis à venir)" : "";
+      const sm = p.custom ? `Sur-mesure, même calcul que les tailles${externe} : ${(p.custom.params || []).map(x => `${esc(x.label)} ${x.min}–${x.max} mm`).join(" ; ")}` : "";
       const stl = cles ? `<span class="badge ${presents === tailles.length ? "present" : "manque"}">STL ${presents}/${tailles.length}</span>` : "";
-      return `<details><summary><span class="nom">${esc(p.name)}</span>${stl}<span class="resume">dès ${prix(p.price)}</span></summary><div class="detail">
+      return `<details><summary><span class="nom">${esc(p.name)}</span>${stl}<span class="resume">dès ${prix(EVARYSTH.prixDes(p))}</span></summary><div class="detail">
 <p class="muted">${esc(p.id)} · <a href="${SITE}/produits/${encodeURIComponent(p.id)}/" target="_blank" rel="noopener noreferrer">fiche ↗</a></p>
 <p class="muted">${(p.colors || []).map(c => `<span class="pastille" style="background:${/^#[0-9a-f]{3,8}$/i.test(c.hex) ? c.hex : "#ccc"}"></span>${esc(c.label)}`).join(" · ")}</p>
 <p class="muted">${esc((p.variants || {}).label || "Tailles")}</p>${tailles.join("")}${sm ? `<p class="muted" style="margin-top:8px">${sm}</p>` : ""}</div></details>`;
