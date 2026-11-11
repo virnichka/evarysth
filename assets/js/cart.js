@@ -1,8 +1,8 @@
 /* Evarysth — panier latéral (localStorage) */
 (function () {
   const KEY = "evarysth.cart.v1";
-  /* Livraison, emballage cadeau, codes de démonstration : EVARYSTH.frais (assets/js/prix.js), partagé avec le Worker */
-  const SHIPPING = EVARYSTH.frais.livraison;
+  /* Livraison (au poids, EVARYSTH.livraison), emballage cadeau, codes de démonstration : EVARYSTH.frais
+     (assets/js/prix.js), partagé avec le Worker */
   const GIFT = EVARYSTH.frais.cadeau;
   const GIFT_MAX = EVARYSTH.frais.messageCadeauMax;
   const $ = s => document.querySelector(s);
@@ -98,7 +98,7 @@
           <div class="row"><span>Sous-total</span><span id="cart-sub">${EVARYSTH.fmt(0)}</span></div>
           <div class="row" id="cart-disc-row" hidden><span>Remise <span class="mono" id="cart-disc-code"></span></span><span id="cart-disc">${EVARYSTH.fmt(0)}</span></div>
           <div class="row" id="cart-gift-row" hidden><span>Emballage cadeau</span><span>${EVARYSTH.fmt(GIFT)}</span></div>
-          <div class="row muted"><span>Livraison</span><span id="cart-shipcost">—</span></div>
+          <div class="row muted"><span>Livraison en point relais</span><span id="cart-shipcost">—</span></div>
           <div class="row total"><span>Total</span><span id="cart-total">${EVARYSTH.fmt(0)}</span></div>
           <p class="cart-legal" id="cart-legal">En commandant, vous acceptez nos <a href="cgv/" data-cart-close>conditions générales de vente</a>.</p>
           <label class="cart-accept" id="cart-custom-note" hidden><input type="checkbox" id="custom-ok"> <span><b>Sur-mesure :</b> j'ai vérifié mes cotes. Ces pièces sont fabriquées à mes cotes : elles ne sont ni reprises ni échangées, sauf défaut de conformité (<a href="cgv/#retractation" data-cart-close>CGV</a>).</span></label>
@@ -196,16 +196,18 @@
 
   function renderGiftCount() { $("#gift-count").textContent = `${gift.message.length} / ${GIFT_MAX}`; }
 
-  /* Prix à jour de chaque article (le Worker le recalcule de toute façon au paiement) : un panier ancien n'affiche pas un
-     prix périmé. En cas d'impossibilité (produit retiré, barème absent), le prix enregistré reste affiché. */
+  /* Prix unitaire à jour de chaque article, dégressif selon la quantité de la ligne, et masse d'une pièce (livraison) ;
+     le Worker recalcule les deux au paiement. En cas d'impossibilité (produit retiré, barème absent), le prix enregistré
+     reste affiché. */
   function prixAJour() {
     for (const i of items) {
       try {
         const l = ligneCommande(i), p = EVARYSTH.getProduct(l.id);
         if (!p) continue;
         const v = l.mode === "custom" ? l.values : (p.variants.options[l.variant] || {}).values;
-        const prix = v && EVARYSTH.priceFor(p, l.mode, v);
+        const prix = v && EVARYSTH.priceFor(p, l.mode, v, i.qty), e = v && EVARYSTH.estimation(p, v);
         if (Number.isFinite(prix)) i.unitPrice = prix;
+        if (e) i.masse_g = e.masse_g;
       } catch { /* prix enregistré gardé */ }
     }
   }
@@ -214,14 +216,11 @@
     prixAJour();
     const fmt = EVARYSTH.fmt;
     const count = items.reduce((s, i) => s + i.qty, 0);
-    const sub = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
-    const giftCost = items.length && gift.on ? GIFT : 0;
     const r = remiseActive();
     const rate = r ? r.rate : 0;
-    /* Comme Stripe : la remise porte sur les articles et l'emballage, pas sur la livraison */
-    const base = sub + giftCost;
-    const disc = r ? Math.min(base, Math.round((base * r.rate + r.amount) * 100) / 100) : 0;
-    const net = base - disc;
+    /* Totaux : EVARYSTH.totalPanier (prix.js), refait au centime par le Worker */
+    const t = EVARYSTH.totalPanier(items.map(i => ({ prix: i.unitPrice, masse_g: i.masse_g || 0, qty: i.qty })), { cadeau: gift.on, remise: r });
+    const giftCost = t.emballage, disc = t.remise;
     $("#cart-gift-row").hidden = !giftCost;
     $("#gift-box").hidden = !gift.on;
     $("#cart-gift").hidden = !items.length;
@@ -230,7 +229,6 @@
     $("#cart-custom-note").hidden = !surMesure;
     if (!surMesure) $("#custom-ok").checked = false;
     renderGiftCount();
-    const ship = !items.length ? 0 : SHIPPING;
     $("#cart-disc-row").hidden = !disc;
     $("#cart-disc").textContent = "− " + fmt(disc);
     $("#cart-disc-code").textContent = promo;
@@ -239,15 +237,16 @@
     pm.innerHTML = disc ? `Code <b>${esc(promo)}</b> appliqué (−${rate ? Math.round(rate * 100) + " %" : fmt(r.amount)}) · <button type="button" class="link" data-promo-remove>Retirer</button>` : "";
     document.querySelectorAll("[data-cart-count]").forEach(el => { el.textContent = count; el.hidden = !count; });
     $("#cart-count-label").textContent = `(${count})`;
-    $("#cart-sub").textContent = fmt(sub);
-    $("#cart-shipcost").textContent = !items.length ? "—" : fmt(ship);
-    $("#cart-total").textContent = fmt(net + ship);
+    $("#cart-sub").textContent = fmt(t.articles);
+    $("#cart-shipcost").textContent = !items.length ? "—" : fmt(t.livraison);
+    $("#cart-total").textContent = fmt(t.total);
     $("#cart-checkout").disabled = !items.length || (surMesure && !$("#custom-ok").checked);
     $("#cart-list").innerHTML = items.length ? items.map(i => `
       <li class="line">
         <div class="line__thumb">${EVARYSTH.shapeSVG(i.shape)}${vignette(i.id)}</div>
         <div class="line__body">
           <div class="line__top"><a href="produits/${encodeURIComponent(i.id)}/" data-cart-close>${esc(i.name)}</a><span>${fmt(i.unitPrice * i.qty)}</span></div>
+          ${i.qty > 1 ? `<p class="line__unit">${fmt(i.unitPrice)} l'unité · prix dégressif</p>` : ""}
           <span class="tag ${i.mode === "custom" ? "tag--accent" : ""}">${i.mode === "custom" ? "Sur-mesure" : "Standard"}</span>
           <ul class="line__opts">${i.details.map(d => `<li><span>${esc(d[0])}</span><span>${esc(d[1])}</span></li>`).join("")}</ul>
           <div class="line__actions">
