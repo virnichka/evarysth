@@ -353,7 +353,7 @@ Besoin : une commande peut mêler des articles qu'un même fabricant ne sait pas
    |--------|------|--------|
    | `STRIPE_SECRET_KEY` | API Stripe (sessions, lignes) | Stripe → Développeurs → Clés API (`sk_test_`/`rk_test_` en test) — déjà posé |
    | `STRIPE_WEBHOOK_SECRET` | signature du webhook | Stripe → Webhooks → endpoint `$W/webhook` (`checkout.session.completed`) → `whsec_…` — déjà posé |
-   | `BREVO_API_KEY` | envoi de tous les e-mails | Brevo → SMTP et API → Clés API (`xkeysib-…`) |
+   | `BREVO_API_KEY` | envoi de tous les e-mails | Brevo → SMTP et API → Clés API (`xkeysib-…`) ; clé « Restreint » : e-mails transactionnels + lecture du Compte (appel de maintien `GET /v3/account`, sinon HTTP 403) |
    | `ORDER_EMAIL` | destinataire fiche de fabrication + relances 48 h | votre adresse (plusieurs : séparées par des virgules) |
    | `GOOGLE_SA_EMAIL` | compte de service (Sheet) | JSON de clé, champ `client_email` (étapes 2-4) |
    | `GOOGLE_SA_KEY` | clé privée du compte de service | JSON, champ `private_key` (tout le bloc) |

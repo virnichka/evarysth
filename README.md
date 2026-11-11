@@ -117,7 +117,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
   lus chez Stripe (`finances.js`, repris par l'entretien s'ils manquent) ; `Commandes CF` : `Coût fabricant (€)` et
   `Frais d'envoi (€)` saisis dans /admin (pli « Coûts » d'un n° CF, un montant par CF) ; sommes et `Marge TTC (€)` = formules
   du Sheet ; la fiche /admin a un pli « Montants » (marge, ou ce qui manque pour la calculer).
-- Tâche planifiée → `entretien()` (`systeme.js`) : un appel de maintien par jour de la clé Brevo (elle expire après 90 jours
+- Tâche planifiée → `entretien()` (`systeme.js`) : un appel de maintien par jour de la clé Brevo (`GET /v3/account` : une clé « Restreint » doit pouvoir lire le Compte ; elle expire après 90 jours
   sans appel), **sauvegarde hebdomadaire du Sheet** dans R2 (`sauvegardes/evarysth-AAAA-MM-JJ.zip` : un CSV par onglet, formules
   d'en-têtes, manifeste ; 12 semaines gardées ; téléchargeable et « Sauvegarder maintenant » dans /admin → Système), frais Stripe manquants. États dans
   R2 (`systeme/*.json`) ; sans R2, tout est inactif.
