@@ -713,6 +713,159 @@
    }
   },
   {
+   "id": "crochet-appui-tete-double",
+   "matiere": "asa",
+   "filiere": "externe",
+   "provisoire": true,
+   "valeur": 1,
+   "des": 17,
+   "tailles": [
+    {
+     "taille": "Étroit",
+     "cotes": {
+      "a": 150,
+      "b": 15,
+      "c": 42
+     },
+     "prix": 18,
+     "surMesure": 18
+    },
+    {
+     "taille": "Standard",
+     "cotes": {
+      "a": 170,
+      "b": 15,
+      "c": 42
+     },
+     "prix": 18,
+     "surMesure": 18
+    },
+    {
+     "taille": "Large",
+     "cotes": {
+      "a": 200,
+      "b": 15,
+      "c": 42
+     },
+     "prix": 18,
+     "surMesure": 18
+    }
+   ],
+   "reperes": {
+    "min": {
+     "cotes": {
+      "a": 110,
+      "b": 6,
+      "c": 30
+     },
+     "masse_g": 25.5,
+     "heures": 2.12,
+     "mat": 1.76,
+     "mach": 1.46,
+     "vm": 2.12,
+     "mo": 2.6,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.49,
+     "prix": 17,
+     "parQuantite": [
+      17,
+      16,
+      16,
+      15,
+      15,
+      15
+     ]
+    },
+    "def": {
+     "cotes": {
+      "a": 170,
+      "b": 15,
+      "c": 42
+     },
+     "masse_g": 29.4,
+     "heures": 2.25,
+     "mat": 2.03,
+     "mach": 1.55,
+     "vm": 2.25,
+     "mo": 2.63,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.59,
+     "prix": 18,
+     "parQuantite": [
+      18,
+      17,
+      16,
+      16,
+      16,
+      16
+     ]
+    },
+    "max": {
+     "cotes": {
+      "a": 230,
+      "b": 22,
+      "c": 65
+     },
+     "masse_g": 33.6,
+     "heures": 2.39,
+     "mat": 2.32,
+     "mach": 1.65,
+     "vm": 2.39,
+     "mo": 2.67,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.68,
+     "prix": 19,
+     "parQuantite": [
+      19,
+      17,
+      17,
+      17,
+      17,
+      16
+     ]
+    }
+   },
+   "balayage": {
+    "valeursParAxe": {
+     "a": 60,
+     "b": 17,
+     "c": 36
+    },
+    "points": 36720,
+    "baisses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausseMaxMm": 1,
+    "min": {
+     "prix": 17,
+     "cotes": {
+      "a": 110,
+      "b": 6,
+      "c": 30
+     }
+    },
+    "max": {
+     "prix": 19,
+     "cotes": {
+      "a": 230,
+      "b": 22,
+      "c": 65
+     }
+    }
+   }
+  },
+  {
    "id": "equerre-l",
    "matiere": "petg",
    "filiere": "atelier",

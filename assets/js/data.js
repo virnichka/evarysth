@@ -156,6 +156,40 @@ EVARYSTH.products = [
     ],
     photosNote: "Photos d'illustration : modèle proche, la fixation et les détails diffèrent de la pièce livrée"
   },
+  {
+    id: "crochet-appui-tete-double", universe: "bureau", matiere: "asa", shape: "hook", model: "crochet-appui-tete-double",
+    name: "Crochet d'appui-tête à deux tiges",
+    tagline: "Se pose sur les deux tiges, sans sortir l'appui-tête.",
+    desc: "Une plaque fine qui pend contre le dos du siège avant, tenue par une barre posée sur le haut du dossier : ses deux extrémités relevées enserrent les deux tiges de l'appui-tête, sans rien démonter. Deux petits crochets reçoivent la tranche d'une tablette, deux grands crochets en bas portent un sac, un cabas ou une gourde à mousqueton. Réglez l'écartement des tiges, l'épaisseur de votre tablette et la distance entre les tiges et le dos du siège.",
+    variants: sizes("Écartement des tiges", [["Étroit", "tiges à 150 mm hors tout", { a: 150, b: 15, c: 42 }], ["Standard", "tiges à 170 mm hors tout", { a: 170, b: 15, c: 42 }], ["Large", "tiges à 200 mm hors tout", { a: 200, b: 15, c: 42 }]]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "gris", label: "Gris béton", hex: "#8a8c8e", roughness: 0.7 },
+      { id: "moka", label: "Moka", hex: "#5b4034", roughness: 0.6 }
+    ],
+    impression: { matiere: "asa", orientation: POSE.retourne, supports: true, parPlateau: 1,
+      remarques: "Tête en bas, barre à plat contre le plateau (fibres dans le sens de l'effort) ; supports sous les crochets." },
+    custom: {
+      astuce: "Un réglet gradué suffit : le guide explique chaque cote.",
+      outil: "Un réglet ou un mètre ruban gradué en millimètres.",
+      params: [
+        { ...param("a", "Écartement extérieur des tiges", 110, 230, 170), court: "tiges",
+          aide: "Mesurez à l'horizontale, au ras de l'appui-tête, du bord extérieur d'une tige au bord extérieur de l'autre (pas d'axe en axe). Ajoutez le diamètre d'une tige à l'écart entre leurs axes si vous ne mesurez que celui-ci.",
+          schema: `<svg viewBox="0 0 160 110"><rect x="10" y="10" width="140" height="22" rx="8"/><rect x="34" y="32" width="14" height="66"/><rect x="112" y="32" width="14" height="66"/><path class="cote" d="M34 70h92M39 66l-5 4 5 4M121 66l5 4-5 4"/><text x="76" y="64">A</text></svg>` },
+        { ...param("b", "Épaisseur de la tablette", 6, 22, 15), court: "tablette",
+          aide: "Mesurez la tablette telle que vous l'utiliserez, coque comprise, sur la tranche qui se pose dans les petits crochets : de la face avant à la face arrière, à l'endroit le plus épais de cette tranche.",
+          schema: `<svg viewBox="0 0 160 110"><rect x="10" y="44" width="116" height="20" rx="6"/><path class="ghost" d="M18 50h100"/><path class="cote" d="M126 44h20M126 64h20M140 28v16M140 80V64M137 39l3 5 3-5M137 69l3-5 3 5"/><text x="134" y="100">B</text></svg>` },
+        { ...param("c", "Distance dos du siège – tiges", 30, 65, 42), court: "distance",
+          aide: "Appui-tête en place, mesurez à l'horizontale, en haut du dossier : de la face arrière du dossier (celle que voient les passagers arrière) jusqu'au bord avant d'une tige, côté pare-brise. Une règle posée à plat sur le haut du dossier aide à viser.",
+          schema: `<svg viewBox="0 0 160 110"><rect x="30" y="6" width="56" height="24" rx="10"/><rect x="34" y="52" width="26" height="54" rx="6"/><circle cx="96" cy="40" r="9"/><path class="cote" d="M60 74h45M65 70l-5 4 5 4M100 70l5 4-5 4"/><text x="76" y="68">C</text></svg>` }
+      ]
+    },
+    photos: [
+      { src: "assets/photos/crochet-appui-tete/1.webp", alt: "Tablette posée sur les petits crochets derrière un siège avant, un sac et une gourde suspendus aux grands crochets" },
+      { src: "assets/photos/crochet-appui-tete/2.webp", alt: "Gros plan des grands crochets : sangle de sac et mousqueton de gourde", pos: "50% 40%" }
+    ],
+    photosNote: "Photos d'illustration : modèle proche, la fixation et les détails diffèrent de la pièce livrée"
+  },
 
   /* ---------- 03 · Meubles & Rangement ---------- */
   {
