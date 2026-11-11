@@ -616,7 +616,7 @@ async function alertesSysteme(env) {
   if (pause.active) out.push({ titre: "Ventes en pause", detail: `depuis le ${pause.depuis} · « ${pause.message} »`, badge: "Ventes" });
   if (env.BREVO_API_KEY && r2Disponible(env)) {
     const sb = await lireEtatR2(env, CLES.brevo);
-    if (sb && !sb.ok) out.push({ titre: "Clé Brevo refusée", detail: `${sb.detail || "appel de maintien en échec"} : aucun e-mail ne partirait`, badge: "Brevo", tonErr: true });
+    if (sb && !sb.ok) out.push({ titre: "Brevo refuse les appels", detail: `${sb.detail || "appel de maintien en échec"} : aucun e-mail ne partirait`, badge: "Brevo", tonErr: true });
   }
   if (googleConfigure(env) && r2Disponible(env)) {
     const ss = await lireEtatR2(env, CLES.sauvegarde);
@@ -715,7 +715,7 @@ const AIDE = {
   "Tâche planifiée": "Le programme automatique qui passe toutes les 10 minutes : e-mails d'expédition, relances 48 h, renvoi des e-mails ratés, nouvel essai des fichiers. Vert : passé il y a moins de 30 min. Orange : en retard ou avec erreurs ; « Lancer la tâche maintenant » ci-dessous.",
   "Fabrication automatique": "La fabrication des fichiers d'impression à chaque commande payée (GitHub les prépare en 1 minute environ, rangés dans R2). Vert : réglages présents. Orange : éteinte, les commandes arrivent sans fichiers et il faut coller un lien STL.",
   "Jeton GitHub": "La clé qui permet au site de demander la fabrication des fichiers à GitHub. Elle a une date d'expiration : orange 30 jours avant, il faut alors en créer une nouvelle et la coller dans Cloudflare (secret GH_ACTIONS_TOKEN, guide des réglages de fabrication, étape 6). Rouge : expirée ou refusée, plus aucun fichier n'est fabriqué.",
-  "Clé Brevo": "Un appel de maintien est fait chaque jour (sans envoyer d'e-mail) pour que la clé Brevo n'expire pas : elle expire après 90 jours sans aucun appel. Vert : appel réussi dans les 36 dernières heures. Rouge : Brevo refuse la clé, il faut en créer une nouvelle et la coller dans Cloudflare (secret BREVO_API_KEY).",
+  "Clé Brevo": "Un appel de maintien est fait chaque jour (sans envoyer d'e-mail) pour que la clé Brevo n'expire pas : elle expire après 90 jours sans aucun appel. Vert : appel réussi dans les 36 dernières heures. Rouge : Brevo refuse l'appel, lire son message. HTTP 401 (clé inconnue ou expirée) : créer une nouvelle clé API et la coller dans Cloudflare (secret BREVO_API_KEY). HTTP 403 (souvent IP non autorisée) : dans Brevo, Sécurité, IP autorisées, ne pas bloquer les IP inconnues pour l'API (le Worker Cloudflare change d'adresse IP).",
   "Sauvegarde du Sheet": "Une copie de tous les onglets du Sheet (fichiers CSV lisibles dans Excel ou Sheets) est rangée chaque semaine dans R2, 12 semaines gardées. Vert : copie de moins de 8 jours. Orange : en retard ou jamais faite. Rouge : la dernière tentative a échoué ; « Sauvegarder maintenant » pour réessayer.",
   "Ventes": "Interrupteur des ventes. En pause, le bouton Commander du site affiche votre message au lieu d'ouvrir le paiement ; un paiement déjà commencé est tout de même enregistré. Utile en vacances ou si un fabricant est indisponible.",
   "Dernière fabrication": "La fabrication de fichiers la plus récente, toutes commandes confondues (son n° d'article est affiché). Vert : elle a réussi. Rouge : elle a échoué ; ouvrir la commande concernée dans /admin (motif, « Relancer la génération ») ou le run sur GitHub. Les autres commandes ont leur propre état dans leur fiche."

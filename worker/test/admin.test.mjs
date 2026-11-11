@@ -423,7 +423,7 @@ test("Tableau de bord : échéance légale, hors délai (même atelier / envoi m
   try {
     html = await (await vue("tableau")).text();
     assert.match(html, /Ventes en pause<\/b><\/a><br><span class="muted">depuis le 2026-11-09 10:00 · « Vacances »/);
-    assert.match(html, /Clé Brevo refusée[\s\S]*clé refusée \(HTTP 401\) : aucun e-mail ne partirait/);
+    assert.match(html, /Brevo refuse les appels[\s\S]*clé refusée \(HTTP 401\) : aucun e-mail ne partirait/);
     assert.match(html, /Sauvegarde du Sheet en échec/);
     env.STL.m.set("systeme/sauvegarde.json", JSON.stringify({ t: Date.now(), ok: true, tOk: Date.now() - 20 * 86400_000 }));
     html = await (await vue("tableau")).text();
@@ -431,7 +431,7 @@ test("Tableau de bord : échéance légale, hors délai (même atelier / envoi m
     env.STL.m.set("systeme/sauvegarde.json", JSON.stringify({ t: Date.now(), ok: true, tOk: Date.now() - 3600_000 }));
     env.STL.m.delete("systeme/pause.json"); env.STL.m.delete("systeme/brevo.json");
     html = await (await vue("tableau")).text();
-    assert.doesNotMatch(html, /Ventes en pause|Clé Brevo refusée|Sauvegarde du Sheet/);
+    assert.doesNotMatch(html, /Ventes en pause|Brevo refuse les appels|Sauvegarde du Sheet/);
   } finally { delete env.STL; }
 });
 

@@ -126,7 +126,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 - **Tableau de bord** (aucun e-mail en plus) : à valider, à réexpédier, chez le fabricant, hors délai (délai du fabricant,
   y compris atelier / envoi manuel), expédiées ce mois, bloquées ; alertes : échéance légale de livraison (CGV, 30 jours :
   alerte dès le 21e jour), hors délai, à réexpédier, relances 48 h, fichiers en échec, sans fabricant depuis 24 h, coûts
-  fabricant à saisir, ventes en pause, clé Brevo refusée, sauvegarde en échec ou en retard.
+  fabricant à saisir, ventes en pause, appels Brevo refusés, sauvegarde en échec ou en retard.
 - **Passage en production** : partir d'une copie du Sheet vidée de ses lignes de test (garder en-têtes et formules de la
   ligne 1), nouveau `SHEET_ID` dans Cloudflare ; la colonne `Environnement` distingue test et live pendant la transition.
 

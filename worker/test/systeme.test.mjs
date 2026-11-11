@@ -30,7 +30,7 @@ beforeEach(() => {
 async function fauxFetch(url, init = {}) {
   const u = new URL(url), rep = (d, s = 200) => new Response(JSON.stringify(d), { status: s });
   appels.push(`${init.method || "GET"} ${u.host}${u.pathname}`);
-  if (u.host === "api.brevo.com") { assert.equal(init.headers["api-key"], "xkeysib-factice"); return rep({ email: "x" }, brevoStatut); }
+  if (u.host === "api.brevo.com") { assert.equal(init.headers["api-key"], "xkeysib-factice"); return brevoStatut === 403 ? rep({ code: "permission_denied", message: "Unauthorized IP address\n 1.2.3.4" }, 403) : rep({ email: "x" }, brevoStatut); }
   if (u.host === "oauth2.googleapis.com") return rep({ access_token: "ya29.test", expires_in: 3599 });
   if (u.host !== "sheets.googleapis.com") throw new Error("Appel réseau inattendu : " + url);
   if (panneSheets) return rep({ error: { message: "Backend Error" } }, 500);
@@ -71,6 +71,9 @@ test("Brevo : un appel de maintien par jour, nouvel essai toutes les heures apr�
   assert.deepEqual(await maintenirBrevo(env, t0 + PERIODE_BREVO_MS + 2000), { saute: true }, "échec : pas de nouvel essai avant 1 h");
   brevoStatut = 200;
   assert.equal((await maintenirBrevo(env, t0 + PERIODE_BREVO_MS + REESSAI_MS + 5000)).ok, true);
+  brevoStatut = 403;                                        /* 403 : le message de Brevo est gardé (IP non autorisée, droits…) */
+  const r403 = await silence(() => maintenirBrevo(env, t0 + 3 * PERIODE_BREVO_MS));
+  assert.equal(r403.detail, "appel refusé (HTTP 403) — Brevo : « Unauthorized IP address 1.2.3.4 »");
 });
 
 test("Sauvegarde : une archive (un CSV par onglet, formules d'en-tête, manifeste) ; une par semaine ; 12 semaines gardées", async () => {

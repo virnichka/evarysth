@@ -42,7 +42,12 @@ export async function maintenirBrevo(env, maintenant = Date.now()) {
   try {
     const r = await fetch("https://api.brevo.com/v3/account", { headers: { "api-key": env.BREVO_API_KEY, Accept: "application/json" } });
     ok = r.ok;
-    if (!ok) detail = r.status === 401 || r.status === 403 ? `clé refusée (HTTP ${r.status})` : `HTTP ${r.status}`;
+    if (!ok) {
+      /* Message de Brevo gardé : il distingue une clé invalide (401) d'un appel refusé (403 : IP non autorisée, droits…) */
+      const m = await r.json().then(j => String(j.message || j.code || ""), () => "");
+      detail = r.status === 401 ? "clé refusée (HTTP 401)" : r.status === 403 ? "appel refusé (HTTP 403)" : `HTTP ${r.status}`;
+      if (m) detail += ` — Brevo : « ${m.replace(/\s+/g, " ").slice(0, 200)} »`;
+    }
   } catch (x) { detail = "réseau injoignable"; }
   await ecrireEtatR2(env, CLES.brevo, { t: maintenant, ok, detail }).catch(x => console.warn("Brevo : état non noté", x.message));
   if (!ok) console.error("Brevo : appel de maintien en échec", detail);
