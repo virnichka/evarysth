@@ -18,7 +18,7 @@ const VIG = path.join(ROOT, "assets/vignettes");
 const PORT = 8765, BASE = `http://localhost:${PORT}/`;
 
 const sandbox = {}; sandbox.window = sandbox; vm.createContext(sandbox);
-vm.runInContext(fs.readFileSync(path.join(ROOT, "assets/js/data.js"), "utf8"), sandbox);
+for (const f of ["data.js", "bareme.js", "prix.js"]) vm.runInContext(fs.readFileSync(path.join(ROOT, "assets/js", f), "utf8"), sandbox);
 const E = sandbox.EVARYSTH;
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const fmt = n => E.fmt(n).replace(/ | /g, " ");
@@ -114,7 +114,7 @@ async function compose(page, html, file) {
       await compose(out, `<div class="vis" style="background:${vis[p.id]}"></div>
         <div class="txt"><div class="logo"><i></i>evarysth</div>
           <div><div class="u">${esc(u.name)}</div><h1>${esc(p.name)}</h1><p>${esc(p.tagline)}</p></div>
-          <div class="price"><small>dès</small> ${esc(fmt(p.price))} <small>· standard ou sur-mesure</small></div></div>`,
+          <div class="price"><small>dès</small> ${esc(fmt(E.prixDes(p)))} <small>· standard ou sur-mesure</small></div></div>`,
         path.join(OUT, `${p.id}.jpg`));
       console.log("  " + p.id);
     }
