@@ -2045,6 +2045,159 @@
    }
   },
   {
+   "id": "support-accessoires-aspirateur",
+   "matiere": "petg",
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 19,
+   "tailles": [
+    {
+     "taille": "Compact",
+     "cotes": {
+      "a": 35.8,
+      "b": 180,
+      "c": 55
+     },
+     "prix": 19,
+     "surMesure": 19
+    },
+    {
+     "taille": "Standard",
+     "cotes": {
+      "a": 35.8,
+      "b": 196,
+      "c": 60
+     },
+     "prix": 20,
+     "surMesure": 20
+    },
+    {
+     "taille": "Large",
+     "cotes": {
+      "a": 35.8,
+      "b": 240,
+      "c": 75
+     },
+     "prix": 22,
+     "surMesure": 22
+    }
+   ],
+   "reperes": {
+    "min": {
+     "cotes": {
+      "a": 30,
+      "b": 180,
+      "c": 50
+     },
+     "masse_g": 60.2,
+     "heures": 1.98,
+     "mat": 3.16,
+     "mach": 1.25,
+     "vm": 1.98,
+     "mo": 2.88,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.73,
+     "prix": 19,
+     "parQuantite": [
+      19,
+      18,
+      17,
+      17,
+      17,
+      17
+     ]
+    },
+    "def": {
+     "cotes": {
+      "a": 35.8,
+      "b": 196,
+      "c": 60
+     },
+     "masse_g": 69.2,
+     "heures": 2.23,
+     "mat": 3.63,
+     "mach": 1.41,
+     "vm": 2.23,
+     "mo": 2.95,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.89,
+     "prix": 20,
+     "parQuantite": [
+      20,
+      19,
+      18,
+      18,
+      18,
+      18
+     ]
+    },
+    "max": {
+     "cotes": {
+      "a": 45,
+      "b": 250,
+      "c": 90
+     },
+     "masse_g": 95.5,
+     "heures": 2.86,
+     "mat": 5.01,
+     "mach": 1.8,
+     "vm": 2.86,
+     "mo": 3.16,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 3.35,
+     "prix": 23,
+     "parQuantite": [
+      23,
+      22,
+      21,
+      21,
+      21,
+      21
+     ]
+    }
+   },
+   "balayage": {
+    "valeursParAxe": {
+     "a": 60,
+     "b": 60,
+     "c": 41
+    },
+    "points": 147600,
+    "baisses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausseMaxMm": 5,
+    "min": {
+     "prix": 19,
+     "cotes": {
+      "a": 30,
+      "b": 180,
+      "c": 50
+     }
+    },
+    "max": {
+     "prix": 23,
+     "cotes": {
+      "a": 36.9,
+      "b": 250,
+      "c": 90
+     }
+    }
+   }
+  },
+  {
    "id": "chat-lord",
    "matiere": "asa",
    "filiere": "externe",
