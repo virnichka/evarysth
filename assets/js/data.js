@@ -330,6 +330,24 @@ EVARYSTH.products = [
     photosNote: "Photos : rendus de démonstration, coloris crème ; disques et cotons-tiges non fournis"
   },
   {
+    id: "distributeur-oeufs", universe: "meubles", matiere: "petg", shape: "eggs", model: "distributeur-oeufs",
+    name: "Distributeur d'œufs à deux étages",
+    tagline: "Le plus ancien sort en premier, sans y penser.",
+    desc: "Posez les œufs couchés sur la rampe du haut : ils roulent, font demi-tour dans le tambour et redescendent par la rampe du bas jusqu'à la butée de sortie, où l'on prend le premier. Les rampes en V tiennent l'œuf par ses deux bouts et le gardent centré. Réglez la longueur de vos œufs (les flasques gardent 4 mm de marge) et la longueur du distributeur, qui fixe le nombre d'œufs.",
+    variants: sizes("Longueur du distributeur", [["Court", "environ 5 œufs", { a: 60, b: 190 }], ["Standard", "environ 6 œufs", { a: 60, b: 220 }], ["Long", "environ 7 œufs", { a: 60, b: 250 }]]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "coquille", label: "Coquille d'œuf", hex: "#e6dac4", roughness: 0.7 },
+      { id: "sauge", label: "Vert sauge", hex: "#8b9a7c", roughness: 0.66 }
+    ],
+    impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 3,
+      remarques: "Debout sur son plancher : dessous des rampes hautes et haut du tambour à 45°, sans support." },
+    custom: { params: [
+      param("a", "Longueur de vos œufs", 50, 68, 60),
+      param("b", "Longueur du distributeur", 180, 250, 220, 5)
+    ] }
+  },
+  {
     id: "cintre-sac", universe: "meubles", matiere: "petg", shape: "hook", model: "cintre-sac",
     name: "Cintre à sac pour tringle",
     tagline: "Le sac à dos rangé dans la penderie, comme une veste.",
