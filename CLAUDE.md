@@ -104,7 +104,7 @@ pas un gabarit de forme.
    ou l'assemblage paraît faux.
 7. **Fin** : commit + push sur la branche de travail. Réponse courte : par produit, la
    stratégie choisie, tableau des paramètres (min/défaut/max), coloris retenus, libertés de design prises,
-   points à vérifier (prix, licence du modèle d'origine).
+   points à vérifier (prix).
 
 ## Photos commerciales
 `assets/photos/<id-produit>/1.webp, 2.webp…` (≤ 1600 px de large, ~200 Ko). Dans `data.js` :

@@ -17,8 +17,8 @@ commande : README « Paiement et commandes » ; Sheet et /admin : `docs/commande
    │  POST /fabrication/retour (HMAC) { cf, sha, statut, masse, temps, plateaux, motif }
    ▼
  /admin ── fichiers prêts ? → « Valider et envoyer »
-   ├── fabricant externe : e-mail avec liens signés /fichier/<jeton> → STL, 3MF non tranché, fiche (14 jours)
-   └── fabricant « atelier » (PLA/PETG) : traité comme « manuel », fichier tranché P2S en plus
+   ├── fabricant « e-mail » : liens signés /fichier/<jeton> → STL, 3MF non tranché, fiche (14 jours)
+   └── fabricant « manuel » ou « atelier » (PLA/PETG) : fiche à transmettre ; « atelier » reçoit aussi le fichier tranché P2S
 ```
 
 ## Règles
@@ -36,8 +36,8 @@ commande : README « Paiement et commandes » ; Sheet et /admin : `docs/commande
   SHA actuel » dans /admin est une action explicite, tracée dans l'Historique.
 - **N° d'article** `CF-AAAA-NNNN-<n° d'article>` (et non le n° CF fournisseur, qui n'existe pas encore au paiement et
   change avec le fabricant).
-- **Matières** : la chaîne connaît les 5 matières (jeu, densité, €/kg) ; seuls **PLA et PETG** ont un profil de tranchage
-  (atelier). Les autres partent chez un fabricant externe (STL + 3MF non tranché + fiche).
+- **Matières** : la chaîne connaît les 5 matières (jeu, densité, €/kg) ; seuls **PLA et PETG** ont un profil de tranchage.
+  Pour les autres, le fabricant reçoit STL + 3MF non tranché + fiche.
 
 ## Ce qui est produit (`tools/fabriquer.mjs`)
 `node tools/fabriquer.mjs --cf=… --produit=… --cotes='{"a":60}' [--coloris=…] [--quantite=n] [--docker=<image>]`

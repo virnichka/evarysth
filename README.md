@@ -102,7 +102,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    valider dans /admin (« fabricant à changer »), note datée dans `Notes`, e-mail au propriétaire, anciens liens sans effet.
    Hors e-mail : fabricant `manuel` ou `atelier` (colonne `Envoi` de `Fabricants`) validé
    directement « acceptée », fiche à transmettre sur le pli, champ « Référence externe » (colonne facultative de
-   `Commandes CF`) ; `atelier` (l'imprimante d'Evarysth) : comme `manuel`, mais proposé et accepté seulement pour un
+   `Commandes CF`) ; `atelier` : comme `manuel` (fichier tranché en plus), mais proposé et accepté seulement pour un
    article en PLA ou PETG (matières tranchées pour la P2S), fichier tranché sur la fiche ; pour tout fabricant, « Marquer acceptée » / « Déclarer l'expédition » depuis /admin (e-mail client).
 5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas
    d'acceptation sous 48 h, renvoi des e-mails en échec, Journal. Statut client (`Commandes EV`) = formule du Sheet.
