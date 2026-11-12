@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Evarysth · barème des prix sur-mesure (Fabrication · phase 5, docs/chaine-fabrication.md § « Prix sur-mesure »).
+/* Evarysth · barème des prix sur-mesure (docs/fabrication.md, « Barème des prix »).
    Tranche une grille de cotes par produit (tools/lib/bareme.mjs) et écrit assets/js/bareme.js : volume de filament (cm³)
    et temps estimé (s) par point, lus par EVARYSTH.estimation (prix.js, barème lissé) par interpolation.
    Usage :

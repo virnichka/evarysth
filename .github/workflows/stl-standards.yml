@@ -44,7 +44,7 @@ jobs:
           [ -n "$R2_SECRET_ACCESS_KEY" ] || manque="$manque secret R2_SECRET_ACCESS_KEY,"
           [ -n "$R2_ACCOUNT_ID" ] || manque="$manque variable R2_ACCOUNT_ID,"
           if [ -n "$manque" ]; then
-            echo "::error title=R2 non configuré::Manquant :${manque%,}. Réglages : docs/guide-reglages-fabrication.md. Rien n'a été généré ni envoyé."
+            echo "::error title=R2 non configuré::Manquant :${manque%,}. Réglages : docs/fabrication.md, « Réglages ». Rien n'a été généré ni envoyé."
             exit 1
           fi
 

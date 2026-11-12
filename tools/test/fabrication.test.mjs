@@ -1,4 +1,4 @@
-/* Evarysth — chaîne de fabrication (Fabrication · phase 2a) : marge avant, quantité, manifeste, 3MF non tranché,
+/* Evarysth — chaîne de fabrication : marge avant, quantité, manifeste, 3MF non tranché,
    fiche d'impression, orchestrateur (sans Bambu Studio : le tranchage lui-même est éprouvé par fabrication.yml). */
 import test from "node:test";
 import assert from "node:assert/strict";

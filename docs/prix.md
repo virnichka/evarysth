@@ -2,7 +2,7 @@
 - **Où** : `assets/js/prix.js` (tarifs commentés dans `EVARYSTH.tarif`), chargé après `data.js` et `bareme.js` (généré) sur le site, les pages générées et le Worker : prix affiché = prix payé. Aucun prix saisi à la main.
 - **Un seul calcul** pour tailles standard et sur-mesure : une taille n'est qu'un préréglage de cotes. API : `priceFor(p, mode, values, n = 1)` (mode sans effet), `prixDetail(p, values, n)` (décomposition, rapport et /admin), `prixDes(p)` (« Dès » = prix aux cotes minimales).
 - **Estimation** : g = masse (cm³ du barème × densité), h = heures, par interpolation multilinéaire du barème **lissé** (copie : sur chaque axe, masse et temps remplacés par leur maximum cumulé ; `bareme.js` reste brut). Cotes hors grille ramenées aux bornes ; barème absent → pas de prix, commande refusée.
-- **Matière** : celle de la fiche d'impression (sinon `matiere`), r = taux d'échec (5 % PLA/PETG, 15 % ASA/PA12/PA-CF). `filiere` : « atelier » (PLA, PETG) ou « externe » (ASA, PA12, PA-CF) ; externe = même calcul, prix **provisoire (devis à venir)** dans le rapport et /admin.
+- **Matière** : celle de la fiche d'impression (sinon `matiere`), r = taux d'échec (5 % PLA/PETG, 15 % ASA/PA12/PA-CF). `filiere` : « atelier » (PLA, PETG, matières avec profil de tranchage) ou « externe » (ASA, PA12, PA-CF) ; même calcul, prix marqué « provisoire » pour « externe » dans le rapport et /admin.
 - **Coût d'une pièce** V = Mat + Mach + Vm + MO + emballage + fixes :
   - Mat = 2 × g/1000 × €/kg × (1 + r) ; Mach = h × 0,60 × (1 + r) ;
   - Vm (occupation machine) = min(h, 8) × 1,00 + max(0, h − 8) × 0,40 ; MO = 0,40 × (6 + g/50) ;

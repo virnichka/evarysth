@@ -1,4 +1,4 @@
-/* Evarysth — tests de géométrie des produits (refonte, phase 4) : cd tools && node --test
+/* Evarysth — tests de géométrie des produits : cd tools && node --test
    Pour chaque produit à modèle 3D et chaque combinaison min/défaut/max de ses cotes : maillage étanche, nombre de
    solides déclaré, cotes fonctionnelles (± 0,05 mm), paroi minimale, fiche d'impression (pièces dans le volume de la
    Bambu Lab, surface d'appui, pièces séparées), référence figée (tools/references-geometrie.json).

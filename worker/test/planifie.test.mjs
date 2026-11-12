@@ -1,4 +1,4 @@
-/* Tests de la tâche planifiée (bloc D, onglets Commandes EV / Commandes CF) : Google et Brevo simulés, aucun appel réel */
+/* Tests de la tâche planifiée ( onglets Commandes EV / Commandes CF) : Google et Brevo simulés, aucun appel réel */
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";

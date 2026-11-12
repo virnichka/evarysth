@@ -8,7 +8,7 @@ ces pages ont un `<base href>` vers la racine.
 Viewer 3D : moteur + briques communes dans `assets/js/viewer3d.js` ; un fichier par modèle dans
 `assets/js/modeles/<modèle>.js` (chargé à la demande, `EVARYSTH.viewer3d.define`) : n'ouvre que celui utile. Icônes line-art : objet `SHAPES` dans `assets/js/app.js`.
 Moteur géométrique unique : kit `assets/js/geo.js` (manifold-3d), dans le navigateur et sous Node (`tools/lib/moteur.mjs`,
-dépendances : `cd tools && npm ci`) ; refonte close (historique et décisions : `docs/refonte-geometrie.md`).
+dépendances : `cd tools && npm ci`).
 **Contrôles** : `cd tools && node --test` (< 1 min, workflow « Contrôles de géométrie » sur chaque PR) ; détail par produit :
 `node tools/verifier-geometrie.mjs [id…] [--detail]`. Changement de forme voulu : `--mettre-a-jour` (référence figée
 `tools/references-geometrie.json`, à committer). Jeu par matière : `jeu` des matières de `data.js`, reçu par le modèle.
@@ -21,11 +21,11 @@ livraison / cadeau / code de démo dans `EVARYSTH.frais`. Rapport : `node tools/
 fait échouer `tools/test/prix.test.mjs` : si voulu, `--mettre-a-jour` (référence `tools/references-prix.json`, à committer).
 
 Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js` et `prix.js`,
-tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Circuit des commandes (validation sur la page /admin) : README « Paiement et commandes ».
+tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Circuit des commandes (validation sur la page /admin) : README « Paiement et commandes », détail (Sheet, /admin) : `docs/commandes.md`.
 Fiche produit (`renderProduct`, `app.js`) : une information = un seul endroit. Même gabarit pour tous les produits (pas de cas par type d'objet ; pas de bloc « Comment mesurer ? », le guide
 reste dans `ui.js` si on le rebranche). Statut « boutique en préparation » : constante `BOUTIQUE_OUVERTE` en tête de `app.js`.
-Chantier en cours « chaîne de fabrication » (commande payée → fichier tranché, R2, agent d'atelier, prix calculé) :
-`docs/chaine-fabrication.md` (décisions, architecture, phases) : lire la phase demandée avant d'agir.
+Chaîne de fabrication (commande payée → fichiers d'impression dans R2, tranchage, barème) : `docs/fabrication.md`.
+**Docs** : décrire l'état actuel au présent ; pas de journal de chantier, de phases ni de plans dans le dépôt (git garde l'historique).
 
 ## Économie de tokens (toujours)
 - Ne lis jamais un fichier en entier : `grep -n` puis `sed -n a,bp` sur le passage utile.
@@ -104,7 +104,7 @@ pas un gabarit de forme.
    ou l'assemblage paraît faux.
 7. **Fin** : commit + push sur la branche de travail. Réponse courte : par produit, la
    stratégie choisie, tableau des paramètres (min/défaut/max), coloris retenus, libertés de design prises,
-   points à vérifier (prix, licence du modèle d'origine).
+   points à vérifier (prix).
 
 ## Photos commerciales
 `assets/photos/<id-produit>/1.webp, 2.webp…` (≤ 1600 px de large, ~200 Ko). Dans `data.js` :

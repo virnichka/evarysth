@@ -53,8 +53,8 @@ export function parisVersMs(s) {
 const COLS_FAB = ["Nom", "E-mail", "Délai (jours)", "Livre le client", "Envoi"];
 /* Colonne facultative « Envoi » de l'onglet Fabricants : « manuel » = commande transmise par le propriétaire (atelier
    interne, plateforme, téléphone…) : ni e-mail ni liens au fabricant, ni relance ; tout autre valeur (ou vide) = e-mail.
-   « atelier » = imprimante d'Evarysth (Fabrication · phase 3) : traité comme « manuel » en attendant l'agent d'atelier
-   (phase 4), proposé seulement pour un article dont la matière a un profil de tranchage (PLA, PETG). */
+   « atelier » = imprimante d'Evarysth : traité comme « manuel »,
+   proposé seulement pour un article dont la matière a un profil de tranchage (PLA, PETG). */
 export const estAtelier = v => /^\s*atelier/i.test(String(v || ""));
 export const estManuel = v => /^\s*manuel/i.test(String(v || "")) || estAtelier(v);
 const COLS_JOURNAL = ["Date", "Commande", "Ancien statut", "Nouveau statut", "Auteur"];
@@ -105,7 +105,7 @@ export function numerosCF(numeroEV, lignes, exclus = new Set()) {
 }
 
 /* Statut client d'une commande EV d'après les statuts de ses articles (null : aucun article).
-   Référence de la formule d'en-tête « Statut » de l'onglet Commandes EV (docs/traitement-commandes.md) : à garder identiques. */
+   Référence de la formule d'en-tête « Statut » de l'onglet Commandes EV (docs/commandes.md) : à garder identiques. */
 export function statutEV(statuts) {
   if (!statuts.length) return null;
   const s = statuts.filter(x => !["annulee", "remboursee"].includes(x));
@@ -121,7 +121,7 @@ export function statutEV(statuts) {
 
 /* Fichiers d'un groupe d'articles, par ordre de préférence : Lien STL saisi sur la ligne, sinon fichiers générés à la
    commande (Génération « prete » : STL, 3MF non tranché, fiche ; + fichier tranché si gcode), sinon fichier standard
-   de R2 (bloc E). Un seul lien → l'URL seule, sinon « produit taille : URL » par article. Renvoie { texte, manquants,
+   de R2. Un seul lien → l'URL seule, sinon « produit taille : URL » par article. Renvoie { texte, manquants,
    generes } : manquants = articles sans aucun lien (l'e-mail fabricant ne part jamais sans fichier) ; generes = au moins
    un article avec ses fichiers générés (texte sur plusieurs lignes « STL : … », « 3MF non tranché : … », « Fiche : … »). */
 export async function liensGroupe(env, lignes, base, { gcode = false } = {}) {

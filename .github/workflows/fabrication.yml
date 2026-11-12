@@ -1,7 +1,7 @@
 name: Fabrication (article payé)
 run-name: "Fabrication ${{ inputs.cf }}${{ inputs.essai && ' (essai)' || '' }}"
 
-# Chaîne de fabrication (docs/chaine-fabrication.md, Fabrication · phase 2a) : fichiers d'un article payé.
+# Chaîne de fabrication (docs/fabrication.md) : fichiers d'un article payé.
 # Déclenché par le Worker (webhook Stripe payé → workflow_dispatch, un run par article), ou à la main (essai).
 #   checkout du SHA du paiement → tools/fabriquer.mjs (generer-stl --impression --quantite --3mf, tranchage si PLA/PETG,
 #   fiche.html) → R2 commandes/<CF>/<SHA court>/ → rappel signé HMAC vers le Worker (POST /fabrication/retour).
@@ -10,7 +10,7 @@ run-name: "Fabrication ${{ inputs.cf }}${{ inputs.essai && ' (essai)' || '' }}"
 # Idempotent : manifeste.json déjà présent pour CF + SHA → sortie immédiate (le rappel est renvoyé, rien n'est refait).
 # Essai (essai = true) : génération + tranchage seulement, rien d'envoyé (ni R2, ni rappel), aucun secret requis.
 # Secrets (Settings › Secrets and variables › Actions) : R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, FABRICATION_HMAC ;
-# variable R2_ACCOUNT_ID. Absents → échec net avec un message (voir docs/guide-reglages-fabrication.md).
+# variable R2_ACCOUNT_ID. Absents → échec net avec un message (voir docs/fabrication.md, « Réglages »).
 on:
   workflow_dispatch:
     inputs:
@@ -101,7 +101,7 @@ jobs:
           [ -n "$R2_ACCOUNT_ID" ] || manque="$manque variable R2_ACCOUNT_ID,"
           [ -n "$FABRICATION_HMAC" ] || manque="$manque secret FABRICATION_HMAC,"
           if [ -n "$manque" ]; then
-            echo "::error title=Fabrication non configurée::Manquant :${manque%,}. Réglages : docs/guide-reglages-fabrication.md. Rien n'a été généré ni envoyé."
+            echo "::error title=Fabrication non configurée::Manquant :${manque%,}. Réglages : docs/fabrication.md, « Réglages ». Rien n'a été généré ni envoyé."
             exit 1
           fi
 

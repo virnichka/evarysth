@@ -29,8 +29,8 @@ EVARYSTH.matieres = {
   pacf: { label: "Nylon carbone (PA-CF)", court: "PA-CF", filiere: "externe", jeu: 0.25, densite: 1.12, eurKg: 70, echec: 0.15, perk: ["Très rigide", "Nylon + carbone"],
     desc: "Nylon chargé de fibres de carbone : très rigide et stable, avec un toucher mat légèrement minéral. Il supporte bien la chaleur et les chocs." }
 };
-/* densite (g/cm³), eurKg (€/kg de filament), echec (pièces ratées), filiere (« atelier » : imprimé chez nous ; « externe » :
-   sous-traité, même calcul pour l'instant, prix provisoire en attendant un devis) : prix (assets/js/prix.js, docs/prix.md) */
+/* densite (g/cm³), eurKg (€/kg de filament), echec (pièces ratées), filiere (« atelier » : matière
+   avec profil de tranchage ; « externe » : sans profil, même calcul, prix marqué « provisoire » dans le rapport et /admin) : prix (assets/js/prix.js, docs/prix.md) */
 /* Matière affichée du produit : erreur explicite si elle manque ou est inconnue (aucune matière par défaut) */
 EVARYSTH.matiere = p => {
   const m = p && EVARYSTH.matieres[p.matiere];

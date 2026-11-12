@@ -1,4 +1,4 @@
-/* Chaîne de fabrication (Fabrication · phase 2a) : déclenchement au paiement, idempotence, rappel signé HMAC,
+/* Chaîne de fabrication : déclenchement au paiement, idempotence, rappel signé HMAC,
    nouveaux essais par la tâche planifiée, absence de configuration. Stripe, Google Sheets, Brevo et GitHub simulés. */
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";

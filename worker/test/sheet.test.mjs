@@ -1,4 +1,4 @@
-/* Tests du back-office Google Sheet (bloc B) : Google, Stripe et Brevo simulés, aucun appel réel */
+/* Tests du back-office Google Sheet : Google, Stripe et Brevo simulés, aucun appel réel */
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";

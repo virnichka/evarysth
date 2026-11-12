@@ -2,15 +2,14 @@
 
 > Le site est désormais en ligne sur **[www.evarysth.fr](https://www.evarysth.fr)**.
 
-## Documentation (état au 9 novembre 2026)
-| Document | Contenu | État |
-|---|---|---|
-| `README.md` (ce fichier) | Fonctionnement du site, des commandes et des outils | à jour |
-| `CLAUDE.md` | Consignes pour Claude : ajout d'un produit 3D, contrôles, mise en ligne | à jour |
-| `docs/traitement-commandes.md` | Circuit des commandes : Sheet, e-mails, fabricants, page /admin | en service (blocs A à G faits) |
-| `docs/refonte-geometrie.md` | Moteur 3D unique (manifold-3d), 16 produits, contrôles automatiques | chantier clos |
-| `docs/chaine-fabrication.md` | Commande payée → fichiers d'impression automatiques (R2), puis atelier et prix calculé | en cours : phases 0 à 3 faites, phase 4 (agent d'atelier) à venir |
-| `docs/guide-reglages-fabrication.md` | Réglages des comptes Cloudflare, GitHub et Sheet pour la fabrication | fait |
+## Documentation
+| Document | Contenu |
+|---|---|
+| `README.md` (ce fichier) | Fonctionnement du site, des commandes et des outils |
+| `CLAUDE.md` | Consignes pour Claude : ajout d'un produit 3D, contrôles, mise en ligne |
+| `docs/commandes.md` | Circuit des commandes : Sheet (contrat avec le Worker), statuts, e-mails, fabricants, page /admin, secrets |
+| `docs/fabrication.md` | Fichiers d'impression générés à chaque commande payée (GitHub Actions, R2), image de tranchage, barème, réglages |
+| `docs/prix.md` | Règle de calcul des prix |
 
 ## 1. Vue d'ensemble
 Evarysth est une boutique en ligne de petites pièces d'intérieur imprimées en 3D (supports, clips, crochets…), présentées en 4 univers : Balcon, Bureau, Meubles, Déco.
@@ -33,7 +32,7 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `assets/js/app.js` | **Le chef d'orchestre.** Lit le type de page (`data-product-id`, `data-universe-id`, `data-page="catalogue"` sur le `<body>`, ou `#…` sur l'accueil), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
 | `assets/js/prix.js` | **Le calcul des prix** (règle : `docs/prix.md`), chargé après `data.js` et `bareme.js` sur le site et dans le Worker : tarifs, prix sur-mesure, prix d'une taille, frais de livraison et d'emballage cadeau, code de démonstration. Contrôle : `node tools/rapport-prix.mjs --verifier`. |
 | `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js et le moteur géométrique seulement quand une fiche en a besoin, affiche et fait tourner la pièce. Si la 3D ne peut pas s'afficher (WebGL absent, WASM bloqué), la fiche montre la 1re photo ou la vignette 3D avec un message court. |
-| `assets/js/geo.js` | **Moteur géométrique** (`docs/refonte-geometrie.md`), commun au navigateur et à Node : kit `ext`, `box`, `cyl`, `rev`, `join`, `tray`… sur **manifold-3d** (unions booléennes, maillage étanche). Seul moteur du site depuis la phase 4 (l'ancien kit three.js est retiré). |
+| `assets/js/geo.js` | **Moteur géométrique**, commun au navigateur et à Node : kit `ext`, `box`, `cyl`, `rev`, `join`, `tray`… sur **manifold-3d** (unions booléennes, maillage étanche). Seul moteur du site. |
 | `assets/vendor/manifold-3d/` | manifold-3d **3.5.4** (`manifold.js` + `manifold.wasm`, licence Apache-2.0), copié depuis `tools/node_modules` ; chargé à la demande par le viewer. Changer de version : `tools/package.json`, recopier les 2 fichiers, `MANIFOLD_VERSION` dans `geo.js`. |
 | `assets/js/modeles/` | **Un fichier par pièce 3D** : le « plan » qui transforme des cotes en mm en pièce 3D. Seul le fichier de la fiche ouverte est chargé. |
 | `assets/js/cart.js` | Le panier latéral : ajout, quantités, code promo de démo `BIENVENUE10` (codes Stripe en mode test), total, envoi au paiement ; mémorisé dans le navigateur. |
@@ -54,7 +53,7 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 ## Paiement et commandes (mode test)
 Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes ouvrent bientôt ». Tester :
 `https://www.evarysth.fr/?checkout=test` (désactiver : `?checkout=off`). Cartes : `4242 4242 4242 4242` (OK),
-`4000 0025 0000 3155` (3D Secure), `4000 0000 0000 9995` (refusée). Détails et historique : `docs/traitement-commandes.md`.
+`4000 0025 0000 3155` (3D Secure), `4000 0000 0000 9995` (refusée). Détails : `docs/commandes.md`.
 
 **Circuit d'une commande**
 1. Panier → Worker `evarysth-checkout` (`worker/`) → page Stripe → `commande/merci/`. Le navigateur n'envoie que produit,
@@ -62,19 +61,15 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
 2. Webhook Stripe payé → Sheet back-office : une ligne `Commandes EV` (n° client `EV-AAAA-NNNN`) et une ligne par article
    dans `Commandes CF` ; e-mail client « Commande reçue » et fiche « Nouvelle commande » au propriétaire (Brevo).
    Article en `a_valider` (STL standard présent dans R2) ou `lien_stl_a_indiquer`. **Rien ne part sans validation.**
-   **En parallèle, génération automatique des fichiers** (`docs/chaine-fabrication.md`) : pour chaque article, le Worker
+   **En parallèle, génération automatique des fichiers** (`docs/fabrication.md`) : pour chaque article, le Worker
    lance `.github/workflows/fabrication.yml` (n° d'article `CF-AAAA-NNNN-<n°>`, sans donnée client). En ~1 min, GitHub
    produit les STL aux cotes commandées, le fichier tranché pour la P2S (PLA/PETG), un 3MF non tranché et une fiche
    fabricant, les range dans R2 (`commandes/<n°>/<SHA>/`), puis rappelle le Worker (signature HMAC) qui remplit les
    colonnes `Génération` (`en_cours` → `prete` ou `echec`), `Masse g`, `Temps min`, `Plateaux` du Sheet. Échec de
    lancement : nouvel essai par la tâche planifiée. Rien n'est imprimé ni envoyé automatiquement : les fichiers sont
-   proposés dans /admin (ligne « Fichiers » sous chaque article de la fiche, Fabrication · phase 3) et partent avec l'e-mail
+   proposés dans /admin (ligne « Fichiers » sous chaque article de la fiche) et partent avec l'e-mail
    fabricant une fois l'article validé. Fichiers prêts → l'article passe de « Lien STL à indiquer » à « À valider ».
-   Chaîne de fabrication (`worker/src/fabrication.js`, éteinte tant que `GH_ACTIONS_TOKEN` et `FABRICATION_HMAC` manquent :
-   une ligne de Journal le note) : un run `.github/workflows/fabrication.yml` par article (n° `CF-AAAA-NNNN-<n° d'article>`,
-   SHA du site au paiement lu dans `version.json`) → STL, 3MF, `.gcode.3mf` (PLA/PETG) et fiche dans R2, rappel signé
-   `POST /fabrication/retour` → colonnes `Génération`, `SHA`, `Masse g`, `Temps min`, `Plateaux`, `Motif génération`
-   (facultatives). Réglages : `docs/guide-reglages-fabrication.md` ; architecture : `docs/chaine-fabrication.md`.
+   Chaîne éteinte tant que `GH_ACTIONS_TOKEN` et `FABRICATION_HMAC` manquent (une ligne de Journal le note).
 3. Le propriétaire gère les commandes sur la page d'administration `https://evarysth-admin.virnichka.workers.dev/admin`
    (téléphone, derrière Cloudflare Access). Onglet Commandes = liste des commandes client (n° EV) avec recherche (n° EV,
    n° CF ou nom) et filtres `?f=` : À traiter (défaut : à valider ou bloquées), Chez le fabricant, Expédiées, Bloquées,
@@ -107,7 +102,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    valider dans /admin (« fabricant à changer »), note datée dans `Notes`, e-mail au propriétaire, anciens liens sans effet.
    Hors e-mail : fabricant `manuel` ou `atelier` (colonne `Envoi` de `Fabricants`) validé
    directement « acceptée », fiche à transmettre sur le pli, champ « Référence externe » (colonne facultative de
-   `Commandes CF`) ; `atelier` (l'imprimante d'Evarysth) : comme `manuel`, mais proposé et accepté seulement pour un
+   `Commandes CF`) ; `atelier` : comme `manuel` (fichier tranché en plus), mais proposé et accepté seulement pour un
    article en PLA ou PETG (matières tranchées pour la P2S), fichier tranché sur la fiche ; pour tout fabricant, « Marquer acceptée » / « Déclarer l'expédition » depuis /admin (e-mail client).
 5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas
    d'acceptation sous 48 h, renvoi des e-mails en échec, Journal. Statut client (`Commandes EV`) = formule du Sheet.
@@ -178,7 +173,7 @@ solides obtenus et attendus, contrôles) :
   dans le manifeste ; `--quantite=n` (exemplaires répartis sur plusieurs plateaux, fichiers `-ex<k>`), `--coloris=<id>`,
   `--cf=<n°>`, `--3mf` (3MF non tranché par plateau, pour un fabricant externe).
 
-**Chaîne de fabrication** (`docs/chaine-fabrication.md`) : `node tools/fabriquer.mjs --cf=… --produit=… --cotes='{"a":60}'
+**Chaîne de fabrication** (`docs/fabrication.md`) : `node tools/fabriquer.mjs --cf=… --produit=… --cotes='{"a":60}'
 [--coloris=…] [--quantite=n] [--docker=<image>]` enchaîne `generer-stl` → `tools/trancher.mjs` (Bambu Studio dans l'image
 `fabrication/Dockerfile`, profils P2S PLA/PETG, couleur du coloris) → `tools/fiche-impression.mjs` (fiche.html pour le
 fabricant, sans donnée client) et range le tout dans `sortie-fabrication/` (manifeste.json, STL, plateau-<n>.3mf,
@@ -236,7 +231,7 @@ Il n'y a **pas de base de données** : tout le contenu est écrit directement da
 | Quoi | Où |
 |---|---|
 | Produits (nom, description, tailles, curseurs sur-mesure, coefficient `valeur` facultatif), univers et leurs textes | `assets/js/data.js` |
-| Tarifs de tous les prix, tailles standard comprises (filament, machine, main-d’œuvre, emballage, frais fixes, lancement, prélèvements, prix minimum ; règle : `docs/prix.md`) | `assets/js/prix.js` (`EVARYSTH.tarif`) et `assets/js/data.js` (matières : €/kg, densité, taux d’échec, filière) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/chaine-fabrication.md`) |
+| Tarifs de tous les prix, tailles standard comprises (filament, machine, main-d’œuvre, emballage, frais fixes, lancement, prélèvements, prix minimum ; règle : `docs/prix.md`) | `assets/js/prix.js` (`EVARYSTH.tarif`) et `assets/js/data.js` (matières : €/kg, densité, taux d’échec, filière) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/fabrication.md`) |
 | Livraison, emballage cadeau, code promo de démonstration | `assets/js/prix.js` (`EVARYSTH.frais`, lu par le panier et le Worker) |
 | Textes fixes de la page : accueil, étapes, FAQ, pied de page | `index.html` |
 | Textes de la fiche produit (boutons, libellés, livraison…) | `assets/js/app.js` |

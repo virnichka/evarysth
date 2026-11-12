@@ -2,7 +2,7 @@ name: Image de fabrication (GHCR)
 
 # Construit l'image de tranchage (fabrication/Dockerfile : Bambu Studio CLI + Node + profils) et la publie sur GHCR
 # (ghcr.io/virnichka/evarysth-fabrication), à chaque changement de fabrication/** sur main.
-# Construction reproductible (docs/chaine-fabrication.md, Fabrication · phase 1a) : même contenu → même empreinte.
+# Construction reproductible (docs/fabrication.md) : même contenu → même empreinte.
 # Empreinte : épinglée dans .github/workflows/fabrication.yml (IMAGE: …@sha256:…). GitHub interdit à un workflow de
 # modifier un autre fichier de workflow avec son jeton (GITHUB_TOKEN) : l'empreinte est donc calculée avant la fusion
 # (même construction, en local) et inscrite dans la PR ; ce workflow publie l'image et VÉRIFIE l'égalité. Écart →

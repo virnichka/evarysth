@@ -1,4 +1,4 @@
-/* Fabrication · phase 3 : fichiers générés dans /admin (état, liens, relance, régénération au SHA actuel), validation
+/* Fichiers générés dans /admin (état, liens, relance, régénération au SHA actuel), validation
    refusée tant que les fichiers ne sont pas prêts, e-mail fabricant avec 3 liens signés 14 jours, fabricant « atelier »
    selon la matière, archive zip virtuelle, Système (jeton GitHub, dernier run, R2), Tableau de bord.
    Google Sheets, Brevo, Access, Stripe, GitHub et R2 simulés. */

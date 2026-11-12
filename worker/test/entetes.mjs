@@ -1,4 +1,4 @@
-/* En-têtes des onglets du Sheet simulé (contrat : docs/traitement-commandes.md, « Structure du Sheet ») */
+/* En-têtes des onglets du Sheet simulé (contrat : docs/commandes.md, « Structure du Sheet ») */
 import { statutEV } from "../src/planifie.js";
 
 export const ENTETES_EV = ["Commande", "Date", "Statut", "Statut forcé", "Type", "Articles", "Client", "Commandes CF", "Cadeau / message",

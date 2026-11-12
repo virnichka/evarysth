@@ -1,4 +1,4 @@
-/* Back-office Google Sheet (contrat : docs/traitement-commandes.md, « Structure du Sheet ») :
+/* Back-office Google Sheet (contrat : docs/commandes.md, « Structure du Sheet ») :
    - onglet « Commandes EV » : une ligne par commande client, clé = Stripe session id, n° EV-AAAA-NNNN ;
    - onglet « Commandes CF » : une ligne par article de la commande (clé = Commande EV + Article n°), fabricant choisi
      par le propriétaire ; la tâche planifiée attribue le n° de commande fournisseur CF-AAAA-NNNN-X (planifie.js). */

@@ -33,7 +33,7 @@ export function egal(a, b) {
   return d === 0;
 }
 
-/* Création (utilisée par les e-mails fabricant, bloc D) */
+/* Création (utilisée par les e-mails fabricant) */
 export async function creerJeton(env, { commande, action, fabricant, maintenant = Date.now(), validiteJours = VALIDITE_JOURS }) {
   if (!jetonConfigure(env)) throw new ErreurJeton("HMAC_SECRET absent.", "config");
   if (!RE_COMMANDE.test(commande || "")) throw new ErreurJeton("N° de commande invalide.", "format");

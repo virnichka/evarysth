@@ -1,4 +1,4 @@
-/* Liens fournisseur (bloc C) : GET /f/<jeton> affiche une page avec un bouton, sans rien modifier
+/* Liens fournisseur : GET /f/<jeton> affiche une page avec un bouton, sans rien modifier
    (les robots de messagerie ouvrent les liens) ; POST /f/<jeton> revérifie le jeton et applique la seule transition prévue.
    Le jeton porte un n° de commande fournisseur (CF-AAAA-NNNN-X) : l'action s'applique à toutes les lignes de
    l'onglet « Commandes CF » qui portent ce n°, retrouvées par la colonne « Commande CF », jamais par leur position. */

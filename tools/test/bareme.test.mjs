@@ -1,4 +1,4 @@
-/* Evarysth — barème des prix (Fabrication · phase 5a) : à jour, cohérent, lissé ; formule de prix : tools/test/prix.test.mjs */
+/* Evarysth — barème des prix : à jour, cohérent, lissé ; formule de prix : tools/test/prix.test.mjs */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { charger, SCRIPTS_PRIX, avecBareme, matiereImpression, axes, grille, empreinte, perimes } from "../lib/bareme.mjs";

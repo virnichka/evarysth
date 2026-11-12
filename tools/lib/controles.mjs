@@ -1,4 +1,4 @@
-/* Evarysth — contrôles géométriques d'un produit, combinaison par combinaison (refonte, phase 4).
+/* Evarysth — contrôles géométriques d'un produit, combinaison par combinaison.
    Utilisé par tools/verifier-geometrie.mjs, tools/generer-stl.mjs et les tests (tools/test/).
    Pour chaque combinaison de cotes : maillage étanche, nombre de solides déclaré, cotes fonctionnelles par coupe,
    paroi minimale, fiche d'impression (pièces posées sur le plateau), écart à la référence figée.

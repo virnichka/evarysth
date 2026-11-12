@@ -13,7 +13,7 @@
      - --profil-filament=pla|petg : impose ce profil (estimation de masse et de temps pour le barème des prix) ;
      - --deux-fois : tranche deux fois et compare masse, temps et G-code (hors lignes d'horodatage).
    Profils : fabrication/profils/p2s (machine P2S 0,4, process 0,20 mm, PLA et PETG génériques), autonomes.
-   Voir docs/chaine-fabrication.md (Fabrication · phases 1a et 2a). */
+   Voir docs/fabrication.md. */
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
