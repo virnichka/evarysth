@@ -22,7 +22,7 @@
    la fiche à transmettre (pièces, STL, délai, adresse s'il livre le client) est affichée sur le pli de la CF.
    POST /admin/renvoyer   renvoie l'e-mail dû pour une CF (fabricant si envoyée/acceptée, client si expédiée), sans changer de statut
    POST /admin/tache      lance tout de suite la tâche planifiée (même code que le cron des 10 minutes)
-   POST /admin/generation fichiers d'un article pas encore envoyé (Fabrication · phase 3) : mode=relancer (même SHA,
+   POST /admin/generation fichiers d'un article pas encore envoyé : mode=relancer (même SHA,
                           génération en échec ou bloquée) ou mode=actuel (SHA actuel du site, case « Je confirme »,
                           ligne d'Historique) ; « Valider et envoyer » attend des fichiers « prets » (sauf lien STL saisi).
    Fabricant « atelier » (colonne Envoi) : comme « manuel », proposé seulement pour une matière tranchée à l'atelier.

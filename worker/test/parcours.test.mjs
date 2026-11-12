@@ -1,4 +1,4 @@
-/* Recette de bout en bout (bloc E) : webhook Stripe → choix du fabricant → n° CF → liens fournisseur → expédition.
+/* Recette de bout en bout : webhook Stripe → choix du fabricant → n° CF → liens fournisseur → expédition.
    Stripe (mode test), Google Sheets, Brevo et R2 simulés : aucun appel réel. */
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";

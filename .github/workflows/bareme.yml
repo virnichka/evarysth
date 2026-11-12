@@ -1,7 +1,7 @@
 name: Barème des prix sur-mesure
 run-name: "Barème ${{ inputs.branche }}${{ inputs.produits && format(' ({0})', inputs.produits) || '' }}"
 
-# Fabrication · phase 5 (docs/chaine-fabrication.md, § « Prix sur-mesure ») : tranche la grille de cotes de chaque produit
+# Barème des prix (docs/fabrication.md, « Barème des prix ») : tranche la grille de cotes de chaque produit
 # dans l'image de fabrication et committe assets/js/bareme.js sur la branche (jamais main : passer par une PR).
 # À lancer quand le job `geometrie` signale « Barème périmé » (modèle, geo.js, fiche d'impression, profils ou image changés).
 #   plan (produits au barème absent ou périmé, ou liste donnée) → trancher (matrice, un job par produit, fichier partiel)

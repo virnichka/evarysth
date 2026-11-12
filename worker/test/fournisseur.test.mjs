@@ -1,4 +1,4 @@
-/* Tests des liens fournisseur (bloc C) : Google simulé, aucun appel réel */
+/* Tests des liens fournisseur : Google simulé, aucun appel réel */
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";

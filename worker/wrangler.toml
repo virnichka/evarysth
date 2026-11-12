@@ -1,8 +1,8 @@
 # Worker de paiement Evarysth — déployé par .github/workflows/worker.yml (ou `npx wrangler deploy`)
 # Secrets (jamais ici) : `wrangler secret put STRIPE_SECRET_KEY` et `wrangler secret put STRIPE_WEBHOOK_SECRET`
-# Back-office (facultatif, inactif sans eux) : GOOGLE_SA_EMAIL, GOOGLE_SA_KEY, SHEET_ID, HMAC_SECRET — voir docs/traitement-commandes.md
+# Back-office (facultatif, inactif sans eux) : GOOGLE_SA_EMAIL, GOOGLE_SA_KEY, SHEET_ID, HMAC_SECRET — voir docs/commandes.md
 # Chaîne de fabrication (facultatif, éteinte sans eux, src/fabrication.js) : GH_ACTIONS_TOKEN (jeton GitHub fine-grained,
-# ce dépôt, Actions : écriture) et FABRICATION_HMAC (même valeur que le secret d'Actions) — docs/guide-reglages-fabrication.md
+# ce dépôt, Actions : écriture) et FABRICATION_HMAC (même valeur que le secret d'Actions) — docs/fabrication.md
 name = "evarysth-checkout"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
@@ -22,10 +22,10 @@ EMAIL_FROM = "commandes@evarysth.fr"
 # Reply-to quand le client n'a pas laissé d'e-mail (sinon : l'e-mail du client)
 REPLY_TO = "contact@evarysth.fr"
 
-# Liens fournisseur des e-mails fabricant (bloc D) : adresse publique de ce Worker
+# Liens fournisseur des e-mails fabricant : adresse publique de ce Worker
 WORKER_URL = "https://evarysth-checkout.virnichka.workers.dev"
 
-# Page d'administration (/admin, bloc G) : servie seulement pour les requêtes relayées par le Worker d'administration
+# Page d'administration (/admin) : servie seulement pour les requêtes relayées par le Worker d'administration
 # ci-dessous (adresse ADMIN_HOST), avec un jeton Cloudflare Access valide (revérifié par le code).
 # Tant que ACCESS_TEAM_DOMAIN et ACCESS_AUD sont vides, /admin répond 403 à tout le monde.
 ADMIN_HOST = "evarysth-admin.virnichka.workers.dev"
@@ -34,18 +34,18 @@ ACCESS_TEAM_DOMAIN = "lively-rice-95f4.cloudflareaccess.com"
 ACCESS_AUD = "10d2ba7ddcdbe83632614d649b8a7d9b1d83b40e4b0e12b91fcaecc723ebbae6"
 ADMIN_EMAILS = "evarysth@gmail.com"
 
-# Tâche planifiée (bloc D) : e-mails selon le statut du Sheet ; sans secrets Google, elle ne fait rien
+# Tâche planifiée : e-mails selon le statut du Sheet ; sans secrets Google, elle ne fait rien
 [triggers]
 crons = ["*/10 * * * *"]
 
 [observability]
 enabled = true
 
-# STL standards (bloc E), servis par GET /fichier/<jeton>. Bucket evarysth-stl (créé, accès public désactivé).
+# STL standards, servis par GET /fichier/<jeton>. Bucket evarysth-stl (créé, accès public désactivé).
 # Clés : <produit>/<taille>.stl (ex. boite-rugged/m.stl ; .zip si plusieurs pièces), remplies par
 # .github/workflows/stl-standards.yml à chaque push sur main ; fichiers des commandes (écrits par
 # .github/workflows/fabrication.yml) : commandes/<n° d'article>/<SHA court>/…
-# Activé en Fabrication · phase 2b. Sans ce binding : /fichier/ répond 503.
+# Sans ce binding : /fichier/ répond 503.
 [[r2_buckets]]
 binding = "STL"
 bucket_name = "evarysth-stl"

@@ -1,4 +1,4 @@
-/* Chaîne de fabrication (docs/chaine-fabrication.md, Fabrication · phase 2a) : génération des fichiers au paiement.
+/* Chaîne de fabrication (docs/fabrication.md) : génération des fichiers au paiement.
    - versionSite : SHA du site publié (version.json, écrit par pages.yml), noté dans les metadata Stripe au paiement ;
    - lancerFabrication : webhook payé → un workflow_dispatch de .github/workflows/fabrication.yml par article ;
    - routeRetour : POST /fabrication/retour, rappel du workflow signé HMAC (FABRICATION_HMAC) → colonnes du Sheet ;
@@ -229,7 +229,7 @@ export async function routeRetour(req, env, maintenant = Date.now() / 1000) {
   return json({ recu: true });
 }
 
-/* ─── Fabrication · phase 3 : fichiers générés vus depuis /admin, relance ─────────────────────────────────────── */
+/* ─── Fichiers générés vus depuis /admin, relance ─────────────────────────────────────── */
 /* Matières tranchées à l'atelier (profils fabrication/profils/p2s, tools/trancher.mjs PROFILS_FILAMENT) */
 export const MATIERES_ATELIER = ["pla", "petg"];
 /* Matière d'impression d'un article (« produit · … ») : fiche d'impression du catalogue, sinon matière du produit */

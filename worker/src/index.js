@@ -279,7 +279,7 @@ export default {
     /* Liens fournisseur (indépendants de Stripe : 503 propre sans HMAC_SECRET ou secrets Google) */
     const lienF = /^\/f\/([^/]+)$/.exec(url.pathname);
     if (lienF && (req.method === "GET" || req.method === "POST")) return routeFournisseur(req, env, lienF[1]);
-    /* STL standards (bloc E) : 503 propre sans binding R2 STL ou sans HMAC_SECRET */
+    /* STL standards : 503 propre sans binding R2 STL ou sans HMAC_SECRET */
     const lienFichier = /^\/fichier\/([^/]+)$/.exec(url.pathname);
     if (lienFichier) return routeFichier(req, env, lienFichier[1]);
 

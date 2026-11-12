@@ -1,11 +1,11 @@
-/* Fichiers STL standards (bloc E) : objets du bucket R2 (binding `STL`), servis par GET /fichier/<jeton>.
+/* Fichiers STL standards : objets du bucket R2 (binding `STL`), servis par GET /fichier/<jeton>.
    Jeton : fichier.<clé en base64url>.<expiration>.<signature>, HMAC-SHA256 (HMAC_SECRET) des 3 premiers champs,
    même mécanique que les liens fournisseur (jeton.js), rien à stocker. Le préfixe « fichier » empêche
    d'utiliser un lien fournisseur comme lien de fichier (et inversement : 4 champs au lieu de 5).
    Clés R2 : <produit>/<taille>.<stl|3mf|zip>, taille = libellé de la taille standard en minuscules sans accents
    (ex. boite-rugged/m.stl, support-velo/moyenne.stl, rampe/12.stl pour « Ø 12 »).
    Sans binding STL ou sans HMAC_SECRET : 503 propre, et la tâche planifiée ne propose aucun lien.
-   Fichiers générés à la commande (Fabrication · phase 3) : commandes/<n° d'article>/<SHA court>/<fichier>, fichier =
+   Fichiers générés à la commande : commandes/<n° d'article>/<SHA court>/<fichier>, fichier =
    STL, 3MF (non tranché ou .gcode.3mf) ou fiche.html (affichée dans le navigateur, sans script : CSP « sandbox »).
    Clés virtuelles stl.zip et 3mf.zip : archive des STL (ou des 3MF non tranchés) du dossier, faite à la demande. */
 import { b64Texte, egal, ErreurJeton, signature, texteB64, VALIDITE_JOURS } from "./jeton.js";

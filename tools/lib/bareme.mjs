@@ -1,4 +1,4 @@
-/* Evarysth · barème des prix sur-mesure (docs/chaine-fabrication.md, § « Prix sur-mesure », Fabrication · phase 5) :
+/* Evarysth · barème des prix sur-mesure (docs/fabrication.md, « Barème des prix ») :
    grille de cotes par produit et empreinte des entrées qui changent la masse ou le temps tranchés.
    Sans dépendance (ni three ni manifold) : le contrôle d'empreinte du job `geometrie` reste instantané. */
 import fs from "node:fs";

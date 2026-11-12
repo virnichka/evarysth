@@ -1,4 +1,4 @@
-/* Tests des STL standards (bloc E) : R2 simulé, aucun appel réel */
+/* Tests des STL standards : R2 simulé, aucun appel réel */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";

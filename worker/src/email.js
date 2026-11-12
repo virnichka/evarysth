@@ -152,7 +152,7 @@ export async function envoyerConfirmationClient(env, f, commande) {
   return true;
 }
 
-/* ——— Bloc D : e-mails envoyés par la tâche planifiée selon le statut (planifie.js) ——— */
+/* ——— E-mails envoyés par la tâche planifiée selon le statut (planifie.js) ——— */
 export const envoyerEmail = envoyerBrevo;
 const prefixe = test => (test ? "[TEST] " : "");
 /* Ligne de texte en HTML : « Libellé : https://… » devient un lien nommé par son libellé, une URL seule un lien explicite.
