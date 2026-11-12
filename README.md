@@ -6,7 +6,7 @@
 | Document | Contenu |
 |---|---|
 | `README.md` (ce fichier) | Fonctionnement du site, des commandes et des outils |
-| `CLAUDE.md` | Consignes pour Claude : ajout d'un produit 3D, contrôles, mise en ligne |
+| `CLAUDE.md` | Consignes pour Claude : contrôles, mise en ligne, économie de tokens |
 | `docs/commandes.md` | Circuit des commandes : Sheet (contrat avec le Worker), statuts, e-mails, fabricants, page /admin, secrets |
 | `docs/fabrication.md` | Fichiers d'impression générés à chaque commande payée (GitHub Actions, R2), image de tranchage, barème, réglages |
 | `docs/prix.md` | Règle de calcul des prix |
@@ -48,7 +48,7 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `.github/workflows/fabrication.yml` | **Génération des fichiers d'une commande** (lancée par le Worker au paiement, ou à la main avec la case « Essai ») : STL, fichier tranché, 3MF, fiche fabricant → R2. |
 | `.github/workflows/stl-standards.yml` | À chaque push sur `main` touchant le catalogue ou les modèles : regénère les STL des 3 tailles standard dans R2 (`<produit>/<taille>.stl`, `.zip` si plusieurs pièces). |
 | `.github/workflows/image-fabrication.yml` + `fabrication/` | Image Docker de tranchage (Bambu Studio en ligne de commande, profils P2S) publiée sur GHCR ; son empreinte est épinglée dans `fabrication.yml`. |
-| `CLAUDE.md` | Méthode pour ajouter un produit 3D à partir de fichiers STL. |
+| `docs/ajout-produit.md` | Méthode pour ajouter un produit 3D à partir de fichiers STL, photos. |
 
 ## Paiement et commandes (mode test)
 Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes ouvrent bientôt ». Tester :
