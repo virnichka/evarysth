@@ -22,7 +22,7 @@
   document.addEventListener("click", e => {
     const el = e.target.closest("[data-soon]"); if (!el) return;
     e.preventDefault();
-    EVARYSTH.toast(`${el.dataset.soon || "Cette fonction"} — pas encore disponible dans ce prototype.`, true);
+    EVARYSTH.toast(`${el.dataset.soon || "Cette fonction"} — bientôt disponible.`, true);
   });
 
   /* ---------- Modale ---------- */
@@ -197,13 +197,4 @@
     if (e.key === "/" && !/input|textarea|select/i.test(document.activeElement.tagName)) { e.preventDefault(); openSearch(); }
   });
 
-  /* ---------- Newsletter (démo) ---------- */
-  document.addEventListener("submit", e => {
-    if (e.target.id !== "newsletter") return;
-    e.preventDefault();
-    const v = $("#nl-email").value.trim();
-    if (!/^\S+@\S+\.\S+$/.test(v)) { EVARYSTH.toast("Entrez une adresse e-mail valide"); return; }
-    EVARYSTH.toast("Merci ! L'inscription sera activée au lancement du site.", true);
-    e.target.reset();
-  });
 })();

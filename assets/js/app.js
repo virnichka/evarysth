@@ -135,7 +135,7 @@
         <div class="u-card__text">
           <h3>${u.name}</h3>
           <p>${u.pitch}</p>
-          <ul class="u-card__list">${list.slice(0, 4).map(p => `<li>${p.name}</li>`).join("")}${list.length > 4 ? `<li>et ${list.length - 4} autres…</li>` : ""}</ul>
+          <ul class="u-card__list">${list.slice(0, 4).map(p => `<li>${p.name}</li>`).join("")}${list.length > 4 ? `<li class="u-card__more u-card__more--lg">et ${list.length - 4} autres…</li>` : ""}${list.length > 2 ? `<li class="u-card__more u-card__more--sm">et ${list.length - 2} autre${list.length > 3 ? "s" : ""}…</li>` : ""}</ul>
         </div>
         <span class="u-card__cta">Explorer <span class="arrow" aria-hidden="true">→</span></span>
       </a>`;
@@ -312,7 +312,7 @@
           <ul class="perks">
             <li><b>Sans outil</b><span>Se pose à la main</span></li>
             <li><b>${mat.perk[0]}</b><span>${mat.perk[1]}</span></li>
-            <li><b>Garanti 2 ans</b><span>Refait si ça ne va pas</span></li>
+            <li><b>Garantie 2 ans</b><span>Défaut couvert</span></li>
           </ul>
         </div>
 
@@ -657,8 +657,10 @@ ${colors.length ? `
   }
 
   function deliveryRange() {
-    const f = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }); };
-    return `entre le ${f(6)} et le ${f(9)}`;
+    /* 3 à 5 jours ouvrés de fabrication + 2 à 3 jours ouvrés d'acheminement : 5 à 8 jours ouvrés (hors week-end) */
+    const f = n => { const d = new Date(); while (n > 0) { d.setDate(d.getDate() + 1); if (d.getDay() % 6) n--; }
+      return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }); };
+    return `entre le ${f(5)} et le ${f(8)}`;
   }
 
   /* Routage par ancre sur l'accueil : #favoris, sinon accueil (et ses sections #faq, #etapes…).
@@ -681,7 +683,8 @@ ${colors.length ? `
     else {
       show("home-view"); document.title = HOME_TITLE;
       const target = h && document.getElementById(h);
-      if (target) { target.scrollIntoView(); top = false; }
+      if (target) { if (target.tagName === "DETAILS") target.open = true; /* question de la FAQ : ouverte */
+        target.scrollIntoView(); top = false; }
     }
     if (top) window.scrollTo({ top: 0, behavior: "instant" });
     EVARYSTH.syncFavs();
