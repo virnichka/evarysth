@@ -115,7 +115,7 @@ function ressource(nom) {
   return new Response(Uint8Array.from(atob(i.b64), c => c.charCodeAt(0)), { headers: { ...entetes, "Content-Type": i.type } });
 }
 function page(titre, corps, statut = 200) {
-  return new Response(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  return new Response(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow"><title>${esc(titre)} · Evarysth</title>
 ${TETE_ICONES}
 <style>
@@ -174,16 +174,51 @@ summary::-webkit-details-marker{display:none}summary::after{content:"";flex:none
 details[open]>summary::after{transform:rotate(45deg)}summary .nom{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}summary .resume{color:var(--muted);font-size:14px;white-space:nowrap}
 .detail{padding:0 0 14px}.ligne>span:last-child{text-align:right}.liste{padding-top:6px;padding-bottom:6px}
 .pastille{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid var(--line);vertical-align:-2px;margin-right:4px}.manque{color:var(--err);border-color:#f0c7c2}.present{color:var(--ok);border-color:#bfdcc8}a.badge{text-decoration:none}
-</style></head><body><main><div class="marque">Evarysth · back-office</div>${corps}</main></body></html>`, { status: statut, headers: ENTETES });
+/* Ergonomie téléphone : barre du haut (logo) et barre d'onglets en bas, à portée de pouce ; zones tactiles ≥ 44 px */
+html{-webkit-text-size-adjust:100%}main{overflow-wrap:anywhere}.ligne>span{min-width:0}body{-webkit-tap-highlight-color:transparent;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+.barre{position:sticky;top:0;z-index:20;background:rgba(244,241,234,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top)}
+.barre-in{max-width:640px;margin:0 auto;height:44px;display:flex;align-items:center;gap:8px;padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left))}
+.logo{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font:700 16px/1 "Bricolage Grotesque",Inter,sans-serif;letter-spacing:-.02em;color:var(--text)}
+.logo svg{width:20px;height:20px}.logo .a{fill:var(--accent)}.logo .b{fill:none;stroke:var(--text);stroke-width:2.5}
+.marque{flex:1;font-size:10px;padding-top:2px}
+.actualiser{position:fixed;z-index:21;top:env(safe-area-inset-top);right:max(4px,calc(50% - 320px + 4px),env(safe-area-inset-right));width:44px;height:44px;display:grid;place-items:center;color:var(--muted);border-radius:50%}
+.actualiser:active{background:var(--line)}
+main{padding-top:14px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}h1{margin-top:4px}
+nav.onglets{position:fixed;z-index:20;left:0;right:0;bottom:0;margin:0;padding:0 max(4px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(4px,env(safe-area-inset-left));display:flex;justify-content:center;gap:0;overflow:visible;background:rgba(255,255,255,.95);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-top:1px solid var(--line)}
+nav.onglets>a,nav.onglets>details>summary{flex:1 1 0;max-width:120px;min-height:60px;display:flex;flex-direction:column-reverse;align-items:center;justify-content:center;gap:3px;padding:6px 2px;border:0;border-radius:0;background:none;color:var(--muted);font-size:11px;font-weight:600;line-height:1.15;text-align:center;white-space:normal}
+nav.onglets>details{flex:1 1 0;max-width:120px;display:flex;border:0;position:static}nav.onglets>details>summary{flex:1;max-width:none;list-style:none}nav.onglets>details>summary::after{display:none}
+nav.onglets svg{width:22px;height:22px;flex:none}nav.onglets>a[aria-current],nav.onglets>details.ici>summary,nav.onglets>details[open]>summary{background:none;color:var(--text)}
+nav.onglets>a[aria-current] svg,nav.onglets>details.ici>summary svg{color:var(--accent)}
+.plus-menu{position:absolute;right:8px;bottom:calc(100% + 8px);min-width:200px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.14);padding:6px;display:grid}
+.plus-menu a{border:0;background:none;display:flex;align-items:center;min-height:46px;padding:0 14px;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px;color:var(--text)}.plus-menu a[aria-current]{background:var(--bg);color:var(--accent)}
+nav.filtres{position:static}nav.filtres a{min-height:36px;display:inline-flex;align-items:center;gap:6px;font-size:14px;padding:6px 12px}
+summary{min-height:44px}.cmd{padding:14px}.cmd:active{background:var(--bg)}button{min-height:48px}button.second,button.danger{min-height:44px}
+input,select,textarea{font-size:16px;min-height:44px}.recherche input,.recherche button{min-height:46px}
+table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}table>tbody{display:table;width:100%}
+@media (hover:none){button:hover{background:var(--accent)}button.second:hover,button.danger:hover{background:transparent}button:active{filter:brightness(.92)}}
+</style></head><body><header class="barre"><div class="barre-in"><a class="logo" href="/admin" aria-label="Evarysth, commandes"><svg viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="15" height="15" rx="4" class="a"/><rect x="11" y="11" width="15" height="15" rx="4" class="b"/></svg>evarysth</a><span class="marque">· admin</span></div></header><main>${corps}</main></body></html>`, { status: statut, headers: ENTETES });
 }
 const simple = (titre, texte, statut) => page(titre, `<h1>${esc(titre)}</h1><div class="carte"><p>${esc(texte)}</p></div>`, statut);
 
 /* Onglets : ?vue=… (Commandes par défaut) */
 const VUES = [["", "Commandes"], ["tableau", "Tableau de bord"], ["stats", "Statistiques"], ["catalogue", "Catalogue"], ["fabricants", "Fabricants"], ["systeme", "Système"], ["liens", "Liens"]];
+/* Barre du bas : les VUES_BARRE premières rubriques en onglets, les autres sous « Plus » */
+const VUES_BARRE = 3;
+const picto = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const PICTOS = {
+  "": picto('<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/>'),
+  tableau: picto('<rect x="3" y="3" width="7.5" height="9" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="5" rx="1.5"/><rect x="13.5" y="11" width="7.5" height="10" rx="1.5"/><rect x="3" y="15" width="7.5" height="6" rx="1.5"/>'),
+  stats: picto('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  plus: picto('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>')
+};
 const SITE = "https://www.evarysth.fr";
 const lienVue = v => (v ? `/admin?vue=${v}` : "/admin");
 function cadre(vue, email, { message = "", type = "ok" } = {}, corps, ici = lienVue(vue)) {
-  return `<nav aria-label="Rubriques">${VUES.map(([v, nom]) => `<a href="${lienVue(v)}"${v === vue ? ' aria-current="page"' : ""}>${nom}</a>`).join("")}</nav>
+  const lien = ([v, nom]) => `<a href="${lienVue(v)}"${v === vue ? ' aria-current="page"' : ""}>${nom}${PICTOS[v] || ""}</a>`;
+  const autres = VUES.slice(VUES_BARRE);
+  const ouvert = autres.some(([v]) => v === vue);
+  return `<a class="actualiser" href="${ici}" aria-label="Actualiser"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></a>
+<nav class="onglets" aria-label="Rubriques">${VUES.slice(0, VUES_BARRE).map(lien).join("")}<details${ouvert ? ' class="ici"' : ""}><summary>${ouvert ? esc(autres.find(([v]) => v === vue)[1]) : "Plus"}${PICTOS.plus}</summary><div class="plus-menu">${autres.map(([v, nom]) => `<a href="${lienVue(v)}"${v === vue ? ' aria-current="page"' : ""}>${nom}</a>`).join("")}</div></details></nav>
 ${message ? `<div class="bandeau ${type === "ok" ? "ok" : "err"}" role="status">${esc(message)}</div>` : ""}${corps}
 <p class="muted"><a href="${ici}">Actualiser</a> · connecté : ${esc(email)}</p>`;
 }
