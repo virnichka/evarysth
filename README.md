@@ -89,7 +89,7 @@ Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes
    `incident` ; articles à cocher un par un, puis « Annuler » (pas encore expédiés) ou « Marquer remboursés » après
    remboursement fait dans Stripe, case « Je confirme » obligatoire, aucun e-mail ; un geste commercial sans retour se fait
    seulement dans Stripe). Badge « En attente fabricant » (affichage seul, le Sheet garde `en_fabrication`) tant qu'aucun
-   envoi n'est accepté ; envoi non accepté signalé en jaune, en orange après 48 h sans réponse. Autres onglets : Tableau de bord (compteurs, alertes), Catalogue
+   envoi n'est accepté ; envoi non accepté signalé en jaune, en orange après 48 h sans réponse. Autres onglets : Tableau de bord (compteurs, alertes), Statistiques (visites lues dans Umami), Catalogue
    (STL présents dans R2), Fabricants (en cours / en retard), Système (voyants dont R2 lu pour de vrai, expiration du
    jeton GitHub avec alerte à J-30, dernier run de fabrication ; chaque voyant a un « ? » qui explique à quoi il sert ;
    « Lancer la tâche maintenant »), Liens. Tableau de bord :
@@ -138,7 +138,7 @@ pour l'adresse `ADMIN_HOST`) et `evarysth-admin` (`[env.admin]`, simple relais s
 
 **Secrets** (Cloudflare, Worker `evarysth-checkout`, jamais dans le dépôt public) : `STRIPE_SECRET_KEY`,
 `STRIPE_WEBHOOK_SECRET`, `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET` ;
-facultatifs (chaîne de fabrication) : `GH_ACTIONS_TOKEN`, `FABRICATION_HMAC`. Secrets d'Actions (GitHub) :
+facultatifs : `GH_ACTIONS_TOKEN`, `FABRICATION_HMAC` (chaîne de fabrication), `UMAMI_API_KEY` (onglet Statistiques). Secrets d'Actions (GitHub) :
 `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `FABRICATION_HMAC`, variable `R2_ACCOUNT_ID`.
 En mode test, une clé Stripe live est refusée.
 

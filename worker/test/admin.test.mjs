@@ -53,6 +53,7 @@ async function fauxFetch(url, init = {}) {
   if (u.host === "equipe.cloudflareaccess.com" && u.pathname === "/cdn-cgi/access/certs") return rep({ keys: [JWK] });
   if (u.host === "oauth2.googleapis.com") return rep({ access_token: "ya29.test", expires_in: 3599 });
   if (u.host === "api.brevo.com" && u.pathname === "/v3/account") return rep({ email: "x" });
+  if (u.host === "api.umami.is") return umami(u, init, rep);
   if (u.host === "api.brevo.com") { if (brevoEnPanne) return rep({ message: "panne" }, 500); emails.push(JSON.parse(init.body)); return rep({ messageId: "m" }, 201); }
   if (u.host !== "sheets.googleapis.com") throw new Error("Appel réseau inattendu : " + url);
   if (u.pathname === "/v4/spreadsheets/id-factice:batchUpdate") {
@@ -231,6 +232,27 @@ test("lienValide : https seulement", () => {
   assert.equal(lienValide("https://drive.google.com/a b"), "https://drive.google.com/a%20b");
   for (const x of ["http://drive.google.com/a", "javascript:alert(1)", "ftp://x.y/z", "https://localhost/x", "x".repeat(600)]) assert.equal(lienValide(x), null, x);
 });
+
+/* Umami simulé (format récent : valeurs seules, mesures { x, y }, type « path ») ; umamiPanne = statut renvoyé à tout appel */
+let umamiPanne = 0, umamiAppels = [];
+function umami(u, init, rep) {
+  umamiAppels.push(u.pathname + u.search);
+  if (init.headers["x-umami-api-key"] !== "cle-umami") return rep({ error: "Unauthorized" }, 401);
+  if (umamiPanne) return rep({ error: "panne" }, umamiPanne);
+  const p = u.pathname.replace(/^\/v1\/websites\/[^/]+/, ""), t = u.searchParams.get("type");
+  const ancien = Number(u.searchParams.get("endAt")) < Date.now() - 86400_000;
+  if (p === "/stats") return rep(ancien ? { pageviews: 100, visitors: 40, visits: 50, bounces: 25, totaltime: 3000 }
+    : { pageviews: 150, visitors: 60, visits: 75, bounces: 30, totaltime: 9000 });
+  if (p === "/pageviews") return rep({ pageviews: [{ x: "2026-11-10 00:00:00", y: 20 }], sessions: [{ x: "2026-11-10 00:00:00", y: 8 }] });
+  if (p === "/metrics" && t === "path") return rep([{ x: "/", y: 40 }, { x: "/produits/pince-sac-verseur/", y: 30 }, { x: "/produits/pince-sac-verseur/#vue", y: 5 }, { x: "/catalogue/", y: 12 }, { x: "/produits/cintre-sac/", y: 10 }]);
+  if (p === "/metrics" && t === "referrer") return rep([{ x: "www.google.com", y: 9 }, { x: "pinterest.fr", y: 3 }]);
+  if (p === "/metrics" && t === "device") return rep([{ x: "mobile", y: 50 }, { x: "desktop", y: 25 }]);
+  if (p === "/metrics" && t === "country") return rep([{ x: "FR", y: 70 }, { x: "BE", y: 5 }]);
+  if (p === "/metrics" && t === "event") return rep([{ x: "Ajout panier", y: 7 }]);
+  if (p === "/event-data/values") return rep([{ value: "pince-sac-verseur", total: 5 }, { value: "cintre-sac", total: 2 }]);
+  if (p === "/active") return rep({ visitors: 2 });
+  return rep({ error: "inconnu" }, 404);
+}
 
 const vue = async (v, e = env) => silence(async () => worker.fetch(new Request(`${ORIGINE}/admin?vue=${v}`, { headers: { "Cf-Access-Jwt-Assertion": await jwt() } }), e));
 
@@ -853,4 +875,43 @@ test("Refus sans colonne Notes : message de secours tiré du Journal", async () 
   sheet.Journal.push(["2026-11-08 12:00", "CF-2026-0010-A", "envoyee_fabricant", "refusee_fabricant", "fabricant"]);
   const html = await (await get("/admin?q=EV-2026-0010")).text();
   assert.match(html, /CF-2026-0010-A refusée par le fabricant le 8 nov\. 2026 : choisissez un autre fabricant/);
+});
+
+const envUmami = { ...env, UMAMI_API_KEY: "cle-umami" };
+test("Statistiques : sans clé Umami, explication du secret à ajouter ; aucun appel à Umami", async () => {
+  umamiAppels = [];
+  const r = await vue("stats"), html = await r.text();
+  assert.equal(r.status, 200);
+  assert.match(html, /aria-current="page">Statistiques/);
+  assert.match(html, /UMAMI_API_KEY/);
+  assert.equal(umamiAppels.length, 0);
+});
+
+test("Statistiques : totaux et écarts, produits (vues + ajouts au panier), sources, appareils, pays ; sans Google ni script", async () => {
+  const sans = { ...envUmami, GOOGLE_SA_KEY: "" };
+  const r = await vue("stats&p=7", sans), html = await r.text();
+  assert.equal(r.status, 200);
+  assert.doesNotMatch(html, /<script/i);
+  assert.match(html, /<div class="nombre">60<\/div><div class="muted">visiteurs<\/div><div style="margin-top:6px"><span class="badge t-ok">\+50 %/);
+  assert.match(html, /<div class="nombre">7<\/div><div class="muted">ajouts au panier/);
+  assert.match(html, /Pince à sac avec bec verseur<\/b><\/a><br><span class="muted">5 ajouts au panier · 14 %<\/span><\/span><span>35 vues/, "vues d'une fiche additionnées, ancre comprise");
+  assert.match(html, /2 min 00 s/);
+  assert.match(html, /Google<\/span><span>9/);
+  assert.match(html, /<span>Catalogue<\/span><span>12/);
+  assert.match(html, /Mobile<\/span><span>50/);
+  assert.match(html, /France<\/span>/);
+  assert.match(html, /En ce moment sur le site[\s\S]*2 visiteurs/);
+  assert.match(html, /aria-current="page">7 jours/);
+  assert.match(html, /<svg viewBox/);
+  assert.ok(umamiAppels.some(a => a.includes("/event-data/values") && a.includes("propertyName=produit")));
+});
+
+test("Statistiques : clé refusée → message clair, page servie", async () => {
+  const html = await (await vue("stats&p=90", { ...envUmami, UMAMI_API_KEY: "mauvaise" })).text();
+  assert.match(html, /Statistiques indisponibles[\s\S]*clé refusée/);
+});
+
+test("Statistiques : période inconnue → 30 jours", async () => {
+  const html = await (await vue("stats&p=12", envUmami)).text();
+  assert.match(html, /aria-current="page">30 jours/);
 });

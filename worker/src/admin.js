@@ -42,6 +42,7 @@ import { lireTransporteurs } from "./fournisseur.js";
 import { contenuRetrait, envoyerEmail } from "./email.js";
 import { EVARYSTH } from "./catalogue.js";
 import { ICONES } from "./icones.js";
+import { PERIODES, statistiques, umamiConfigure } from "./statistiques.js";
 import { CLES, derniereSauvegardeZip, entretien, lireEtatR2, lirePause, MESSAGE_PAUSE, r2Disponible, reglerPause, sauvegarderSheet } from "./systeme.js";
 
 const ENVOYE = "envoyee_fabricant", ACCEPTEE = "acceptee", INCIDENT = "incident";
@@ -178,7 +179,7 @@ details[open]>summary::after{transform:rotate(45deg)}summary .nom{flex:1;min-wid
 const simple = (titre, texte, statut) => page(titre, `<h1>${esc(titre)}</h1><div class="carte"><p>${esc(texte)}</p></div>`, statut);
 
 /* Onglets : ?vue=… (Commandes par défaut) */
-const VUES = [["", "Commandes"], ["tableau", "Tableau de bord"], ["catalogue", "Catalogue"], ["fabricants", "Fabricants"], ["systeme", "Système"], ["liens", "Liens"]];
+const VUES = [["", "Commandes"], ["tableau", "Tableau de bord"], ["stats", "Statistiques"], ["catalogue", "Catalogue"], ["fabricants", "Fabricants"], ["systeme", "Système"], ["liens", "Liens"]];
 const SITE = "https://www.evarysth.fr";
 const lienVue = v => (v ? `/admin?vue=${v}` : "/admin");
 function cadre(vue, email, { message = "", type = "ok" } = {}, corps, ici = lienVue(vue)) {
@@ -646,6 +647,91 @@ async function vueTableau(env, email, etat, bandeau) {
   return page("Tableau de bord", cadre("tableau", email, bandeau, `<h1>Tableau de bord</h1>
 <div class="grille">${tuile(c.aValider, "à valider", "/admin", true)}${tuile(c.aReexpedier.length, "à réexpédier", "/admin", true)}${tuile(c.chez, "chez le fabricant", "/admin?f=fabricant", retard > 0, plus)}${tuile(c.horsDelai.length, "hors délai", "/admin?f=fabricant", true)}${tuile(c.expediees, "expédiées ce mois", "/admin?f=expediees")}${tuile(c.bloquees, "bloquées", "/admin?f=bloquees", true)}</div>
 <h2>Alertes</h2><div class="carte">${alertes.join("") || '<p class="muted">Aucune alerte.</p>'}</div>`));
+}
+
+/* Statistiques : visites du site lues dans Umami (statistiques.js), sur 7, 30 ou 90 jours (?p=…) */
+const entier = n => Math.round(n).toLocaleString("fr-FR");
+const pourcent = (n, d = 0) => `${(n * 100).toLocaleString("fr-FR", { maximumFractionDigits: d })} %`;
+function ecart(a, b) {
+  if (a == null || b == null) return "";
+  if (!b) return a ? '<span class="badge t-ok">nouveau</span>' : "";
+  const v = (a - b) / b;
+  if (Math.abs(v) < 0.005) return '<span class="badge">=</span>';
+  return `<span class="badge ${v > 0 ? "t-ok" : "t-att"}">${v > 0 ? "+" : "−"}${pourcent(Math.abs(v))}</span>`;
+}
+const duree = s => (s == null ? "–" : s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, "0")} s`);
+const aide = (titre, valeur, texte) => `<details class="aide"><summary class="ligne"><span>${titre}<span class="q">?</span></span><span>${valeur}</span></summary><p class="aide-texte">${texte}</p></details>`;
+/* Visites par jour : barres en SVG (aucun script) ; la plus haute porte sa valeur */
+function courbe(serie) {
+  if (!serie || !serie.length) return "";
+  const max = Math.max(1, ...serie.map(j => j.visites)), n = serie.length, L = 600, H = 120, pas = L / n, larg = Math.max(1, pas * 0.72);
+  const barres = serie.map((j, i) => { const h = j.visites ? Math.max(2, (j.visites / max) * (H - 18)) : 0;
+    return h ? `<rect x="${(i * pas + (pas - larg) / 2).toFixed(1)}" y="${(H - h).toFixed(1)}" width="${larg.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5"><title>${dateCourte(j.date)} : ${pluriel(j.visites, "visite")}, ${pluriel(j.vues, "page vue").replace("page vues", "pages vues")}</title></rect>` : ""; }).join("");
+  return `<svg viewBox="0 0 ${L} ${H}" width="100%" role="img" aria-label="Visites par jour" style="display:block;color:var(--accent)" fill="currentColor">${barres}
+<line x1="0" y1="${H - 0.5}" x2="${L}" y2="${H - 0.5}" stroke="var(--line)"/></svg>
+<div class="tete muted" style="font-size:12px;margin-top:4px"><span>${esc(dateCourte(serie[0].date))}</span><span>pic : ${pluriel(max, "visite")}/jour</span><span>${esc(dateCourte(serie.at(-1).date))}</span></div>`;
+}
+const SOURCES_NOMS = [[/google\./, "Google"], [/bing\./, "Bing"], [/duckduckgo/, "DuckDuckGo"], [/pinterest\./, "Pinterest"], [/instagram\./, "Instagram"],
+  [/facebook\.|fb\.com/, "Facebook"], [/(^|\.)t\.co$|twitter\.|x\.com/, "X (Twitter)"], [/leboncoin/, "Leboncoin"], [/qwant/, "Qwant"], [/ecosia/, "Ecosia"]];
+const nomSource = x => (SOURCES_NOMS.find(([r]) => r.test(x)) || [null, x])[1];
+const APPAREILS = { desktop: "Ordinateur", laptop: "Portable", mobile: "Mobile", tablet: "Tablette" };
+const PAYS = typeof Intl !== "undefined" && Intl.DisplayNames ? new Intl.DisplayNames(["fr"], { type: "region" }) : null;
+const nomPays = c => { try { return (PAYS && /^[A-Z]{2}$/.test(c) && PAYS.of(c)) || c; } catch { return c; } };
+function repartition(items, nom, total) {
+  if (!items) return '<p class="muted">Indisponible.</p>';
+  if (!items.length) return '<p class="muted">Aucune donnée sur la période.</p>';
+  const somme = total || items.reduce((t, o) => t + o.y, 0) || 1;
+  return items.map(o => `<div class="ligne"><span>${esc(nom(o.x))}</span><span>${entier(o.y)} <span class="muted">· ${pourcent(o.y / somme)}</span></span></div>`).join("");
+}
+async function vueStatistiques(env, email, bandeau, p, frais) {
+  const jours = PERIODES.includes(p) ? p : 30;
+  const choix = `<nav class="filtres" aria-label="Période">${PERIODES.map(j => `<a href="/admin?vue=stats&amp;p=${j}"${j === jours ? ' aria-current="page"' : ""}>${j} jours</a>`).join("")}</nav>`;
+  const ici = `/admin?vue=stats&p=${jours}&frais`;
+  if (!umamiConfigure(env)) {
+    return page("Statistiques", cadre("stats", email, bandeau, `<h1>Statistiques</h1><div class="carte"><p><b>Statistiques non branchées.</b></p>
+<p class="muted">Ajoutez la clé d'API Umami Cloud au Worker, en secret nommé <code>UMAMI_API_KEY</code> (Cloudflare → Workers → ce Worker → Settings → Variables and Secrets). Les chiffres apparaîtront ici au prochain affichage.</p></div>`));
+  }
+  let s;
+  try { s = await statistiques(env, jours, { frais }); }
+  catch (e) { console.error("Statistiques", e.message); s = null; }
+  const erreurs = s ? Object.entries(s.erreurs || {}) : [];
+  if (!s || (!s.courant && !s.serie && !s.produits)) {
+    const motif = erreurs.length ? erreurs[0][1] : "Umami n'a pas répondu";
+    return page("Statistiques", cadre("stats", email, bandeau, `<h1>Statistiques</h1>${choix}<div class="carte"><p><b>Statistiques indisponibles.</b></p><p class="muted">${esc(motif)}. Réessayez dans quelques minutes ; si l'erreur parle de clé refusée, vérifiez le secret <code>UMAMI_API_KEY</code>.</p></div>`, ici));
+  }
+  const c = s.courant, pr = s.precedent || {};
+  const tuile = (n, texte, avant) => `<div class="carte"><div class="nombre">${n == null ? "–" : entier(n)}</div><div class="muted">${texte}</div>${n == null ? "" : `<div style="margin-top:6px">${ecart(n, avant)}</div>`}</div>`;
+  const vuesProduits = s.produits ? s.produits.reduce((t, x) => t + x.vues, 0) : 0;
+  const tauxGlobal = s.paniers != null && vuesProduits ? s.paniers / vuesProduits : null;
+
+  const blocs = [];
+  blocs.push(`<div class="grille">${tuile(c && c.visiteurs, "visiteurs", pr.visiteurs)}${tuile(c && c.visites, "visites", pr.visites)}${tuile(c && c.pagesVues, "pages vues", pr.pagesVues)}${tuile(s.paniers, "ajouts au panier", null)}</div>`);
+  blocs.push(`<div class="carte">${s.actifs != null ? `<div class="ligne"><span><span class="voyant${s.actifs ? " v-ok" : ""}"></span>En ce moment sur le site</span><span><b>${pluriel(s.actifs, "visiteur")}</b></span></div>` : ""}
+${c ? aide("Pages par visite", c.visites ? (c.pagesVues / c.visites).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) : "–", "Nombre moyen de pages consultées pendant une visite. Plus il est haut, plus les visiteurs explorent le catalogue.") : ""}
+${c ? aide("Durée moyenne d'une visite", duree(c.duree), "Temps passé sur le site par visite, en moyenne. Une visite d'une seule page compte pour 0 s : la moyenne est donc prudente.") : ""}
+${c && c.rebond != null ? aide("Taux de rebond", pourcent(c.rebond), "Part des visites qui s'arrêtent à la première page. Élevé sur une fiche produit : la page n'a pas donné envie d'aller plus loin (prix, photos, texte).") : ""}
+${tauxGlobal != null ? aide("Fiche vue → ajout au panier", pourcent(tauxGlobal, 1), "Ajouts au panier rapportés aux vues de fiches produit, tous produits confondus. C'est l'indicateur le plus proche de l'envie d'acheter.") : ""}
+<p class="muted" style="margin:10px 0 0">Comparaison avec les ${jours} jours précédents.</p></div>`);
+  if (s.serie) blocs.push(`<h2>Visites par jour</h2><div class="carte">${courbe(s.serie)}</div>`);
+  if (s.produits) {
+    const lignes = s.produits.filter(x => x.vues || x.paniers).map(x => {
+      const taux = x.paniers != null && x.vues ? ` · ${pourcent(x.paniers / x.vues)}` : "";
+      return `<div class="ligne"><span><a href="${SITE}/produits/${encodeURIComponent(x.id)}/" target="_blank" rel="noopener noreferrer"><b>${esc(x.nom)}</b></a><br><span class="muted">${x.paniers == null ? "ajouts au panier : indisponible" : `${pluriel(x.paniers, "ajout")} au panier${taux}`}</span></span><span>${pluriel(x.vues, "vue")}</span></div>`;
+    });
+    const jamais = s.produits.filter(x => !x.vues && !x.paniers);
+    const pied = jamais.length ? `<div class="ligne"><span><b>Jamais ouverts sur la période</b><br><span class="muted">${esc(jamais.map(x => x.nom).join(" · "))}</span></span><span>${jamais.length}</span></div>` : "";
+    blocs.push(`<h2>Produits</h2><div class="carte"><p class="muted">Vues de la fiche et ajouts au panier, du plus vu au moins vu.</p>${lignes.join("") || '<p class="muted">Aucune fiche ouverte sur la période.</p>'}${pied}</div>`);
+  }
+  if (s.sources) blocs.push(`<h2>D'où viennent les visiteurs</h2><div class="carte">${s.sources.length ? repartition(s.sources, nomSource) + '<p class="muted" style="margin:8px 0 0">Visites arrivées depuis un autre site. Les accès directs (adresse tapée, favori, application) n\'apparaissent pas ici.</p>' : '<p class="muted">Aucun site référent : visites directes uniquement.</p>'}</div>`);
+  const nomPage = c => { if (c === "/") return "Accueil"; if (/^\/catalogue\/?$/.test(c)) return "Catalogue";
+    const u = /^\/univers\/([a-z0-9-]+)/.exec(c), un = u && EVARYSTH.universes.find(x => x.id === u[1]); return un ? `Univers ${un.name}` : c; };
+  if (s.pages) blocs.push(`<h2>Autres pages vues</h2><div class="carte">${s.pages.length ? s.pages.map(x => `<div class="ligne"><span>${esc(nomPage(x.chemin))}</span><span>${entier(x.vues)}</span></div>`).join("") : '<p class="muted">Aucune.</p>'}</div>`);
+  blocs.push(`<h2>Appareils</h2><div class="carte">${repartition(s.appareils, x => APPAREILS[x] || x)}</div>`);
+  blocs.push(`<h2>Pays</h2><div class="carte">${repartition(s.pays, nomPays)}</div>`);
+  if (erreurs.length) blocs.push(`<p class="muted">Blocs indisponibles : ${esc(erreurs.map(([k, m]) => `${k} (${m})`).join(", "))}.</p>`);
+  const heure = s.lu ? new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }).format(new Date(s.lu)) : "";
+  blocs.push(`<p class="muted">Données Umami${heure ? ` relevées à ${heure}` : ""}, gardées 10 min. Seul le site en ligne est compté, sans cookie.</p>`);
+  return page("Statistiques", cadre("stats", email, bandeau, `<h1>Statistiques</h1>${choix}${blocs.join("\n")}`, ici));
 }
 
 /* Décomposition du prix d'une pièce (EVARYSTH.prixDetail, docs/prix.md) : une ligne discrète sous chaque taille */
@@ -1159,8 +1245,8 @@ export async function routeAdmin(req, env, url) {
   try { email = await verifierAcces(req, env); } catch (e) { console.error("Access", e.message); return simple("Erreur temporaire", "Vérification d'accès impossible. Réessayez.", 503); }
   if (!email) return simple("Accès refusé", "Connectez-vous avec le compte autorisé.", 403);
   const vue = req.method === "GET" ? VUES.map(x => x[0]).find(v => v && v === url.searchParams.get("vue")) || "" : "";
-  /* Catalogue, Système et Liens restent visibles sans secrets Google (diagnostic) ; HMAC_SECRET toujours requis (jeton CSRF) */
-  const sansSheet = (["catalogue", "systeme", "liens"].includes(vue) && !url.searchParams.get("q")) || url.pathname === "/admin/stl";
+  /* Catalogue, Statistiques, Système et Liens restent visibles sans secrets Google (diagnostic) ; HMAC_SECRET toujours requis (jeton CSRF) */
+  const sansSheet = (["catalogue", "systeme", "liens", "stats"].includes(vue) && !url.searchParams.get("q")) || url.pathname === "/admin/stl";
   if ((!sansSheet && !googleConfigure(env)) || !jetonConfigure(env)) return simple("Service indisponible", "Configuration incomplète (secrets Google ou HMAC_SECRET).", 503);
 
   try {
@@ -1176,6 +1262,7 @@ export async function routeAdmin(req, env, url) {
       const q = nettoyer(url.searchParams.get("q"), 80);
       const r = q ? await vueRecherche(env, email, await lireEtat(env), q, bandeau)
         : vue === "tableau" ? await vueTableau(env, email, await lireEtat(env), bandeau)
+        : vue === "stats" ? await vueStatistiques(env, email, bandeau, Number(url.searchParams.get("p")), url.searchParams.has("frais"))
         : vue === "catalogue" ? await vueCatalogue(env, email, bandeau)
         : vue === "fabricants" ? vueFabricants(email, await lireEtat(env), bandeau)
         : vue === "systeme" ? await vueSysteme(env, email, bandeau)

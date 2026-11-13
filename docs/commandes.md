@@ -148,7 +148,10 @@ chaque affichage, valeur hors liste refusée ; onglet illisible → liste de sec
   `envoyee_fabricant`, e-mail fabricant immédiat (en échec, la tâche planifiée le renvoie), Journal ; double clic →
   « déjà validée ». Aussi : bloquer / débloquer, retirer au fabricant, marquer acceptée, déclarer l'expédition, coûts.
 - Onglets (`?vue=`) : Commandes (recherche `?q=` par n° EV, n° CF ou nom ; filtres `?f=`), Tableau de bord (alertes
-  relance 48 h, commande sans fabricant depuis 24 h, génération en échec), Catalogue, Fabricants, Système (voyants des
+  relance 48 h, commande sans fabricant depuis 24 h, génération en échec), Statistiques (`?p=7|30|90` jours : visiteurs,
+  visites, pages vues et écart avec la période précédente, visites par jour, vues de chaque fiche et ajouts au panier,
+  sources, appareils, pays ; lues dans Umami par `worker/src/statistiques.js`, gardées 10 min, « Actualiser » relit),
+  Catalogue, Fabricants, Système (voyants des
   secrets et bindings, mode test/live, dernier passage de la tâche, « Lancer la tâche maintenant »), Liens. Bandeau après
   action signé, valable 2 min (cookie `admin_flash`). Icônes servies depuis `worker/src/icones.js` (généré par
   `tools/icones-admin.mjs`).
@@ -164,6 +167,7 @@ chaque affichage, valeur hors liste refusée ; onglet illisible → liste de sec
 | `SHEET_ID` | classeur des commandes | URL du Sheet, entre `/d/` et `/edit` |
 | `HMAC_SECRET` | liens fournisseur, `/fichier/`, /admin | `openssl rand -hex 32` (le changer invalide les liens envoyés) |
 | `GH_ACTIONS_TOKEN`, `FABRICATION_HMAC` | chaîne de fabrication | `docs/fabrication.md` |
+| `UMAMI_API_KEY` | onglet Statistiques (facultatif) | Umami Cloud → Settings → API keys ; `UMAMI_WEBSITE_ID` en `[vars]` seulement si le site change d'identifiant |
 
 - Compte de service : projet Google Cloud avec l'API Google Sheets activée, compte sans rôle, clé JSON (supprimée une fois
   les secrets posés), Sheet partagé en **Éditeur** avec son e-mail.
