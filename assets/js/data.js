@@ -5,8 +5,8 @@ window.EVARYSTH = window.EVARYSTH || {};
 EVARYSTH.universes = [
   { id: "balcon", code: "01", name: "Balcon & Extérieur", short: "Balcon", sub: "sans percer",
     pitch: "Tout se clipse sur votre garde-corps. Zéro trou, zéro souci avec le propriétaire." },
-  { id: "bureau", code: "02", name: "Bureau & Tech", short: "Bureau", sub: "invisible",
-    pitch: "Câbles, chargeurs, casques : tout disparaît sous le plateau." },
+  { id: "bureau", code: "02", name: "Bureau, Tech & Auto", short: "Bureau", sub: "bien rangés",
+    pitch: "Câbles, casques, affaires de voiture : chaque chose à sa place, à portée de main." },
   { id: "meubles", code: "03", name: "Meubles & Rangement", short: "Meubles", sub: "malins",
     pitch: "Les petites pièces qui manquaient à vos meubles du commerce." },
   { id: "deco", code: "04", name: "Déco & Objets", short: "Déco", sub: "à poser",
@@ -205,7 +205,7 @@ EVARYSTH.products = [
     photosNote: "Photos : coloris de démonstration, mousse et outils non fournis"
   },
   {
-    id: "support-casque-gyroide", universe: "meubles", matiere: "petg", shape: "headstand", model: "support-casque-gyroide",
+    id: "support-casque-gyroide", universe: "bureau", matiere: "petg", shape: "headstand", model: "support-casque-gyroide",
     name: "Support casque Gyroïde",
     tagline: "Un vrai présentoir pour votre casque, léger comme une dentelle.",
     desc: "Socle plein, colonne et tête en treillis gyroïde, appui bombé qui épouse l'arceau sans le marquer. Réglez la hauteur pour que les coussinets ne touchent pas le bureau, et la largeur de votre arceau, que l'appui déborde de 4 mm de chaque côté : le treillis garde la même maille, il gagne simplement des cellules.",

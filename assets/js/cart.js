@@ -84,11 +84,12 @@
         </header>
         <ul class="drawer__list" id="cart-list"></ul>
         <footer class="drawer__foot">
+          <details class="promo-pli" id="promo-pli"><summary>Vous avez un code promo ?</summary>
           <form class="promo" id="promo-form" novalidate>
-            <input id="promo-input" placeholder="Code promo" autocomplete="off" aria-label="Code promo">
+            <input id="promo-input" placeholder="Code promo" autocomplete="off" aria-label="Code promo" enterkeyhint="done">
             <button class="btn" type="submit">Appliquer</button>
           </form>
-          <p class="promo__msg" id="promo-msg" hidden></p>
+          <p class="promo__msg" id="promo-msg" hidden></p></details>
           <label class="gift" id="cart-gift"><input type="checkbox" id="gift-on"> Emballage cadeau <small class="muted">+ ${EVARYSTH.fmt(GIFT)} par commande</small></label>
           <div class="gift-msg" id="gift-box" hidden>
             <label for="gift-message">Message cadeau <small class="muted">(facultatif, joint au colis)</small></label>
@@ -118,6 +119,8 @@
     });
     document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
     $("#cart-list").addEventListener("error", e => { if (e.target.tagName === "IMG") e.target.remove(); }, true);
+    /* Code promo replié par défaut : le panier garde la place pour les articles sur téléphone */
+    $("#promo-pli").addEventListener("toggle", e => { if (e.target.open) $("#promo-input").focus(); });
     $("#promo-form").addEventListener("submit", e => {
       e.preventDefault();
       const code = $("#promo-input").value.trim().toUpperCase();
