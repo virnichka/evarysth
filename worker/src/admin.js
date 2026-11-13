@@ -42,7 +42,7 @@ import { lireTransporteurs } from "./fournisseur.js";
 import { contenuRetrait, envoyerEmail } from "./email.js";
 import { EVARYSTH } from "./catalogue.js";
 import { ICONES } from "./icones.js";
-import { PERIODES, statistiques, umamiConfigure } from "./statistiques.js";
+import { partageUmami, PERIODES, statistiques, umamiConfigure } from "./statistiques.js";
 import { CLES, derniereSauvegardeZip, entretien, lireEtatR2, lirePause, MESSAGE_PAUSE, r2Disponible, reglerPause, sauvegarderSheet } from "./systeme.js";
 
 const ENVOYE = "envoyee_fabricant", ACCEPTEE = "acceptee", INCIDENT = "incident";
@@ -671,7 +671,7 @@ function courbe(serie) {
 <line x1="0" y1="${H - 0.5}" x2="${L}" y2="${H - 0.5}" stroke="var(--line)"/></svg>
 <div class="tete muted" style="font-size:12px;margin-top:4px"><span>${esc(dateCourte(serie[0].date))}</span><span>pic : ${pluriel(max, "visite")}/jour</span><span>${esc(dateCourte(serie.at(-1).date))}</span></div>`;
 }
-const SOURCES_NOMS = [[/google\./, "Google"], [/bing\./, "Bing"], [/duckduckgo/, "DuckDuckGo"], [/pinterest\./, "Pinterest"], [/instagram\./, "Instagram"],
+const SOURCES_NOMS = [[/google\.|googlequicksearchbox/, "Google"], [/checkout\.stripe\.com/, "Retour du paiement Stripe"], [/(^|\.)evarysth\.fr$/, "Evarysth (navigation interne)"], [/bing\./, "Bing"], [/duckduckgo/, "DuckDuckGo"], [/pinterest\./, "Pinterest"], [/instagram\./, "Instagram"],
   [/facebook\.|fb\.com/, "Facebook"], [/(^|\.)t\.co$|twitter\.|x\.com/, "X (Twitter)"], [/leboncoin/, "Leboncoin"], [/qwant/, "Qwant"], [/ecosia/, "Ecosia"]];
 const nomSource = x => (SOURCES_NOMS.find(([r]) => r.test(x)) || [null, x])[1];
 const APPAREILS = { desktop: "Ordinateur", laptop: "Portable", mobile: "Mobile", tablet: "Tablette" };
@@ -683,31 +683,26 @@ function repartition(items, nom, total) {
   const somme = total || items.reduce((t, o) => t + o.y, 0) || 1;
   return items.map(o => `<div class="ligne"><span>${esc(nom(o.x))}</span><span>${entier(o.y)} <span class="muted">· ${pourcent(o.y / somme)}</span></span></div>`).join("");
 }
-/* Lien de partage Umami Cloud (secret UMAMI_SHARE_URL, offre gratuite) : seulement une adresse cloud.umami.is/share/… */
-function lienPartageUmami(env) {
-  const u = String(env.UMAMI_SHARE_URL || "").trim();
-  return /^https:\/\/cloud\.umami\.is\/share\/[\w-]+(\/[\w.-]*)?$/.test(u) ? u : "";
-}
+/* Lien de partage Umami Cloud (secret UMAMI_SHARE_URL, offre gratuite) : seulement une adresse cloud.umami.is/…share/… */
+const lienPartageUmami = env => (partageUmami(env) ? String(env.UMAMI_SHARE_URL).trim() : "");
 async function vueStatistiques(env, email, bandeau, p, frais) {
   const jours = PERIODES.includes(p) ? p : 30;
   const choix = `<nav class="filtres" aria-label="Période">${PERIODES.map(j => `<a href="/admin?vue=stats&amp;p=${j}"${j === jours ? ' aria-current="page"' : ""}>${j} jours</a>`).join("")}</nav>`;
   const ici = `/admin?vue=stats&p=${jours}&frais`;
   const partage = lienPartageUmami(env);
-  if (!umamiConfigure(env) && partage) {
-    return page("Statistiques", cadre("stats", email, bandeau, `<h1>Statistiques</h1><div class="carte"><p>Les statistiques du site (visites, pages, sources, appareils, pays, ajouts au panier, temps réel) s'affichent dans le tableau de bord Umami.</p>
-<p><a class="carte" href="${esc(partage)}" target="_blank" rel="noopener noreferrer"><b>Ouvrir les statistiques ↗</b></a></p></div>`));
-  }
+  const bouton = partage ? `<a class="carte" href="${esc(partage)}" target="_blank" rel="noopener noreferrer"><b>Ouvrir le tableau de bord Umami ↗</b><br><span class="muted">temps réel, événements, détail par navigateur, ville, écran…</span></a>` : "";
   if (!umamiConfigure(env)) {
     return page("Statistiques", cadre("stats", email, bandeau, `<h1>Statistiques</h1><div class="carte"><p><b>Statistiques non branchées.</b></p>
-<p class="muted">Ajoutez au Worker le lien de partage Umami (secret <code>UMAMI_SHARE_URL</code>, offre gratuite) ou la clé d'API Umami Cloud (secret <code>UMAMI_API_KEY</code>, offre payante) (Cloudflare → Workers → ce Worker → Settings → Variables and Secrets). Le lien ou les chiffres apparaîtront ici au prochain affichage.</p></div>`));
+<p class="muted">Ajoutez au Worker le lien de partage Umami (secret <code>UMAMI_SHARE_URL</code>, offre gratuite) ou la clé d'API Umami Cloud (secret <code>UMAMI_API_KEY</code>, offre payante) (Cloudflare → Workers → ce Worker → Settings → Variables and Secrets). Les chiffres apparaîtront ici au prochain affichage.</p></div>`));
   }
-  let s;
+  let s, motif = "Umami n'a pas répondu";
   try { s = await statistiques(env, jours, { frais }); }
-  catch (e) { console.error("Statistiques", e.message); s = null; }
+  catch (e) { console.error("Statistiques", e.message); s = null; motif = e.message; }
   const erreurs = s ? Object.entries(s.erreurs || {}) : [];
   if (!s || (!s.courant && !s.serie && !s.produits)) {
-    const motif = erreurs.length ? erreurs[0][1] : "Umami n'a pas répondu";
-    return page("Statistiques", cadre("stats", email, bandeau, `<h1>Statistiques</h1>${choix}<div class="carte"><p><b>Statistiques indisponibles.</b></p><p class="muted">${esc(motif)}. Réessayez dans quelques minutes ; si l'erreur parle de clé refusée, vérifiez le secret <code>UMAMI_API_KEY</code>.</p></div>`, ici));
+    if (erreurs.length) motif = erreurs[0][1];
+    const conseil = env.UMAMI_API_KEY ? "si l'erreur parle d'accès refusé, vérifiez le secret <code>UMAMI_API_KEY</code>" : "si l'erreur persiste, vérifiez que le partage est toujours actif dans Umami (site Evarysth → Settings → Share)";
+    return page("Statistiques", cadre("stats", email, bandeau, `<h1>Statistiques</h1>${choix}<div class="carte"><p><b>Chiffres indisponibles.</b></p><p class="muted">${esc(motif)}. Réessayez dans quelques minutes ; ${conseil}.</p></div>${bouton}`, ici));
   }
   const c = s.courant, pr = s.precedent || {};
   const tuile = (n, texte, avant) => `<div class="carte"><div class="nombre">${n == null ? "–" : entier(n)}</div><div class="muted">${texte}</div>${n == null ? "" : `<div style="margin-top:6px">${ecart(n, avant)}</div>`}</div>`;
@@ -740,6 +735,7 @@ ${tauxGlobal != null ? aide("Fiche vue → ajout au panier", pourcent(tauxGlobal
   blocs.push(`<h2>Pays</h2><div class="carte">${repartition(s.pays, nomPays)}</div>`);
   if (erreurs.length) blocs.push(`<p class="muted">Blocs indisponibles : ${esc(erreurs.map(([k, m]) => `${k} (${m})`).join(", "))}.</p>`);
   const heure = s.lu ? new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }).format(new Date(s.lu)) : "";
+  if (bouton) blocs.push(bouton);
   blocs.push(`<p class="muted">Données Umami${heure ? ` relevées à ${heure}` : ""}, gardées 10 min. Seul le site en ligne est compté, sans cookie.</p>`);
   return page("Statistiques", cadre("stats", email, bandeau, `<h1>Statistiques</h1>${choix}${blocs.join("\n")}`, ici));
 }
