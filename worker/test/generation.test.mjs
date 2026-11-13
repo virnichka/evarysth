@@ -209,7 +209,7 @@ test("Atelier : proposé seulement pour PLA/PETG, refusé pour un article en ASA
   const profils = fs.readFileSync(new URL("../../tools/trancher.mjs", import.meta.url), "utf8");
   for (const m of MATIERES_ATELIER) assert.match(profils, new RegExp(`${m}: "filament-${m}\\.json"`), "même liste que les profils de tranchage");
   assert.equal(atelierPossible("tablette-rambarde · M · ASA · Noir mat · ×1"), false);
-  assert.equal(atelierPossible("equerre-l · M · PETG · Noir mat · ×1"), true);
+  assert.equal(atelierPossible("cintre-sac · M · PETG · Noir mat · ×1"), true);
   const html = await fiche();
   const select = n => new RegExp(`<select id="fab-${EV}-${n}"[\\s\\S]*?</select>`).exec(html)[0];
   assert.match(select(1), /Atelier Evarysth \(atelier\)/);

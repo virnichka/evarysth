@@ -94,21 +94,6 @@ EVARYSTH.products = [
 
   /* ---------- 02 · Bureau & Tech ---------- */
   {
-    id: "support-casque", universe: "bureau", matiere: "asa", shape: "hook", model: "support-casque", popular: true,
-    name: "Support casque invisible",
-    tagline: "Le casque se range sous le bureau, hors de vue.",
-    desc: "Une pince discrète qui se serre sur le plateau. Le casque pend en dessous, le bureau reste dégagé.",
-    variants: sizes("Épaisseur du plateau", [["18 mm", "standard", { a: 18 }], ["25 mm", "massif", { a: 25 }], ["40 mm", "épais", { a: 40 }]]),
-    colors: [
-      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
-      { id: "marine", label: "Bleu nuit", hex: "#2e3e5c", roughness: 0.65 },
-      { id: "sable", label: "Sable", hex: "#d8c39a", roughness: 0.65 }
-    ],
-    impression: { matiere: "asa", orientation: POSE.aPlat, supports: false, parPlateau: 4,
-      remarques: "Couché sur le flanc, profil à plat." },
-    custom: { params: [param("a", "Épaisseur du plateau", 12, 60, 28)] }
-  },
-  {
     id: "passe-cable", universe: "bureau", matiere: "pla", shape: "ring", model: "passe-cable", popular: true,
     name: "Passe-câble de bureau",
     tagline: "Un trou propre pour faire passer les câbles.",
@@ -193,25 +178,6 @@ EVARYSTH.products = [
   },
 
   /* ---------- 03 · Meubles & Rangement ---------- */
-  {
-    id: "equerre-l", universe: "meubles", matiere: "petg", shape: "bracket", model: "equerre",
-    name: "Équerre en L sur-mesure",
-    tagline: "Renforce un angle ou soutient une étagère, à vos cotes.",
-    desc: "Une équerre pleine, avec un congé dans l'angle pour plus de rigidité. Réglez la longueur de chaque branche et la largeur, et faites tourner la pièce en 3D avant de commander.",
-    variants: sizes("Taille", [["Petite", "60 × 60 mm", { a: 60, b: 60, c: 15 }], ["Moyenne", "100 × 100 mm", { a: 100, b: 100, c: 20 }], ["Grande", "150 × 150 mm", { a: 150, b: 150, c: 30 }]]),
-    colors: [
-      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
-      { id: "orange", label: "Orange", hex: "#e2742b", roughness: 0.6 },
-      { id: "rose", label: "Rose poudré", hex: "#dca8a4", roughness: 0.62 }
-    ],
-    impression: { matiere: "petg", orientation: POSE.aPlat, supports: false, parPlateau: 4,
-      remarques: "Couchée sur une face : le profil en L est à plat." },
-    custom: { params: [
-      param("a", "Longueur de la 1re branche", 50, 200, 100, 1),
-      param("b", "Longueur de la 2e branche", 50, 200, 100, 1),
-      param("c", "Largeur de la pièce", 10, 40, 20, 1)
-    ] }
-  },
   {
     id: "boite-rugged", universe: "meubles", matiere: "petg", shape: "case", model: "boite-rugged", popular: true,
     name: "Boîte robuste à loquets",
