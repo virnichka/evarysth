@@ -138,7 +138,7 @@ pour l'adresse `ADMIN_HOST`) et `evarysth-admin` (`[env.admin]`, simple relais s
 
 **Secrets** (Cloudflare, Worker `evarysth-checkout`, jamais dans le dépôt public) : `STRIPE_SECRET_KEY`,
 `STRIPE_WEBHOOK_SECRET`, `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET` ;
-facultatifs : `GH_ACTIONS_TOKEN`, `FABRICATION_HMAC` (chaîne de fabrication), `UMAMI_API_KEY` (onglet Statistiques). Secrets d'Actions (GitHub) :
+facultatifs : `GH_ACTIONS_TOKEN`, `FABRICATION_HMAC` (chaîne de fabrication), `UMAMI_SHARE_URL` ou `UMAMI_API_KEY` (onglet Statistiques). Secrets d'Actions (GitHub) :
 `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `FABRICATION_HMAC`, variable `R2_ACCOUNT_ID`.
 En mode test, une clé Stripe live est refusée.
 

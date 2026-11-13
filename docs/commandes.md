@@ -167,7 +167,8 @@ chaque affichage, valeur hors liste refusée ; onglet illisible → liste de sec
 | `SHEET_ID` | classeur des commandes | URL du Sheet, entre `/d/` et `/edit` |
 | `HMAC_SECRET` | liens fournisseur, `/fichier/`, /admin | `openssl rand -hex 32` (le changer invalide les liens envoyés) |
 | `GH_ACTIONS_TOKEN`, `FABRICATION_HMAC` | chaîne de fabrication | `docs/fabrication.md` |
-| `UMAMI_API_KEY` | onglet Statistiques (facultatif) | Umami Cloud → Settings → API keys ; `UMAMI_WEBSITE_ID` en `[vars]` seulement si le site change d'identifiant |
+| `UMAMI_SHARE_URL` | onglet Statistiques (facultatif, offre gratuite) : bouton vers le tableau de bord Umami | Umami Cloud → site → Settings → Share → Add (vues Overview, Events, Realtime) ; adresse `https://cloud.umami.is/share/…` |
+| `UMAMI_API_KEY` | onglet Statistiques (facultatif) | chiffres affichés dans /admin (prioritaire sur `UMAMI_SHARE_URL`), offre payante | Umami Cloud → Settings → API keys ; `UMAMI_WEBSITE_ID` en `[vars]` seulement si le site change d'identifiant |
 
 - Compte de service : projet Google Cloud avec l'API Google Sheets activée, compte sans rôle, clé JSON (supprimée une fois
   les secrets posés), Sheet partagé en **Éditeur** avec son e-mail.
