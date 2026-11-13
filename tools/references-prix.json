@@ -1910,6 +1910,150 @@
    }
   },
   {
+   "id": "distributeur-oeufs-boucle",
+   "matiere": "petg",
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 27,
+   "tailles": [
+    {
+     "taille": "Compact",
+     "cotes": {
+      "a": 60,
+      "b": 214
+     },
+     "prix": 28,
+     "surMesure": 28
+    },
+    {
+     "taille": "Moyen",
+     "cotes": {
+      "a": 60,
+      "b": 244
+     },
+     "prix": 30,
+     "surMesure": 30
+    },
+    {
+     "taille": "Grand",
+     "cotes": {
+      "a": 60,
+      "b": 274
+     },
+     "prix": 32,
+     "surMesure": 32
+    }
+   ],
+   "reperes": {
+    "min": {
+     "cotes": {
+      "a": 50,
+      "b": 210
+     },
+     "masse_g": 113.6,
+     "heures": 4.07,
+     "mat": 5.96,
+     "mach": 2.57,
+     "vm": 4.07,
+     "mo": 3.31,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 3.89,
+     "prix": 27,
+     "parQuantite": [
+      27,
+      25,
+      25,
+      25,
+      25,
+      24
+     ]
+    },
+    "def": {
+     "cotes": {
+      "a": 60,
+      "b": 274
+     },
+     "masse_g": 157.4,
+     "heures": 5.46,
+     "mat": 8.26,
+     "mach": 3.44,
+     "vm": 5.46,
+     "mo": 3.66,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 4.75,
+     "prix": 32,
+     "parQuantite": [
+      32,
+      31,
+      31,
+      31,
+      30,
+      30
+     ]
+    },
+    "max": {
+     "cotes": {
+      "a": 68,
+      "b": 280
+     },
+     "masse_g": 165,
+     "heures": 5.71,
+     "mat": 8.66,
+     "mach": 3.6,
+     "vm": 5.71,
+     "mo": 3.72,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 4.9,
+     "prix": 33,
+     "parQuantite": [
+      33,
+      32,
+      32,
+      32,
+      32,
+      31
+     ]
+    }
+   },
+   "balayage": {
+    "valeursParAxe": {
+     "a": 19,
+     "b": 60
+    },
+    "points": 1140,
+    "baisses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausseMaxMm": 1,
+    "min": {
+     "prix": 27,
+     "cotes": {
+      "a": 50,
+      "b": 210
+     }
+    },
+    "max": {
+     "prix": 33,
+     "cotes": {
+      "a": 57,
+      "b": 280
+     }
+    }
+   }
+  },
+  {
    "id": "cintre-sac",
    "matiere": "petg",
    "filiere": "atelier",
