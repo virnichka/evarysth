@@ -2180,6 +2180,141 @@
    }
   },
   {
+   "id": "pince-sac-verseur",
+   "matiere": "petg",
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 15,
+   "tailles": [
+    {
+     "taille": "S",
+     "cotes": {
+      "a": 110
+     },
+     "prix": 15,
+     "surMesure": 15
+    },
+    {
+     "taille": "M",
+     "cotes": {
+      "a": 140
+     },
+     "prix": 16,
+     "surMesure": 16
+    },
+    {
+     "taille": "L",
+     "cotes": {
+      "a": 180
+     },
+     "prix": 16,
+     "surMesure": 16
+    }
+   ],
+   "reperes": {
+    "min": {
+     "cotes": {
+      "a": 110
+     },
+     "masse_g": 28.4,
+     "heures": 1.26,
+     "mat": 1.49,
+     "mach": 0.79,
+     "vm": 1.26,
+     "mo": 2.63,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.18,
+     "prix": 15,
+     "parQuantite": [
+      15,
+      14,
+      14,
+      13,
+      13,
+      13
+     ]
+    },
+    "def": {
+     "cotes": {
+      "a": 140
+     },
+     "masse_g": 31.7,
+     "heures": 1.35,
+     "mat": 1.66,
+     "mach": 0.85,
+     "vm": 1.35,
+     "mo": 2.65,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.24,
+     "prix": 16,
+     "parQuantite": [
+      16,
+      14,
+      14,
+      14,
+      14,
+      13
+     ]
+    },
+    "max": {
+     "cotes": {
+      "a": 230
+     },
+     "masse_g": 41.6,
+     "heures": 1.61,
+     "mat": 2.19,
+     "mach": 1.01,
+     "vm": 1.61,
+     "mo": 2.73,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.42,
+     "prix": 17,
+     "parQuantite": [
+      17,
+      16,
+      15,
+      15,
+      15,
+      15
+     ]
+    }
+   },
+   "balayage": {
+    "valeursParAxe": {
+     "a": 25
+    },
+    "points": 25,
+    "baisses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausseMaxMm": 0.2,
+    "min": {
+     "prix": 15,
+     "cotes": {
+      "a": 110
+     }
+    },
+    "max": {
+     "prix": 17,
+     "cotes": {
+      "a": 215
+     }
+    }
+   }
+  },
+  {
    "id": "support-aerosol-skadis",
    "matiere": "asa",
    "filiere": "externe",
