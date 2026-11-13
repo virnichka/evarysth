@@ -150,7 +150,10 @@ chaque affichage, valeur hors liste refusée ; onglet illisible → liste de sec
 - Onglets (`?vue=`) : Commandes (recherche `?q=` par n° EV, n° CF ou nom ; filtres `?f=`), Tableau de bord (alertes
   relance 48 h, commande sans fabricant depuis 24 h, génération en échec), Statistiques (`?p=7|30|90` jours : visiteurs,
   visites, pages vues et écart avec la période précédente, visites par jour, vues de chaque fiche et ajouts au panier,
-  sources, appareils, pays ; lues dans Umami par `worker/src/statistiques.js`, gardées 10 min, « Actualiser » relit),
+  sources, appareils, pays ; lues dans Umami par `worker/src/statistiques.js`, gardées 10 min, « Actualiser » relit ;
+  avec le lien de partage, le Worker en tire un jeton de lecture et interroge l'API du tableau de bord partagé, en-têtes
+  `x-umami-share-token` et `x-umami-share-context`, API non documentée par Umami : si elle change, l'onglet affiche
+  « Chiffres indisponibles » et garde le bouton vers le tableau de bord),
   Catalogue, Fabricants, Système (voyants des
   secrets et bindings, mode test/live, dernier passage de la tâche, « Lancer la tâche maintenant »), Liens. Bandeau après
   action signé, valable 2 min (cookie `admin_flash`). Icônes servies depuis `worker/src/icones.js` (généré par
@@ -167,7 +170,7 @@ chaque affichage, valeur hors liste refusée ; onglet illisible → liste de sec
 | `SHEET_ID` | classeur des commandes | URL du Sheet, entre `/d/` et `/edit` |
 | `HMAC_SECRET` | liens fournisseur, `/fichier/`, /admin | `openssl rand -hex 32` (le changer invalide les liens envoyés) |
 | `GH_ACTIONS_TOKEN`, `FABRICATION_HMAC` | chaîne de fabrication | `docs/fabrication.md` |
-| `UMAMI_SHARE_URL` | onglet Statistiques (facultatif, offre gratuite) : bouton vers le tableau de bord Umami | Umami Cloud → site → Settings → Share → Add (vues Overview, Events, Realtime) ; adresse `https://cloud.umami.is/share/…` |
+| `UMAMI_SHARE_URL` | onglet Statistiques (facultatif, offre gratuite) : chiffres dans /admin et bouton vers le tableau de bord Umami ; partage avec Overview, Events, Realtime et Breakdown | Umami Cloud → site → Settings → Share → Add (vues Overview, Events, Realtime) ; adresse `https://cloud.umami.is/share/…` |
 | `UMAMI_API_KEY` | onglet Statistiques (facultatif, offre payante) : chiffres affichés dans /admin, prioritaire sur `UMAMI_SHARE_URL` | Umami Cloud → Settings → API keys ; `UMAMI_WEBSITE_ID` en `[vars]` seulement si le site change d'identifiant |
 
 - Compte de service : projet Google Cloud avec l'API Google Sheets activée, compte sans rôle, clé JSON (supprimée une fois

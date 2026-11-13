@@ -1,7 +1,10 @@
-/* Statistiques du site (onglet Statistiques de /admin) : lues dans Umami Cloud par son API, côté Worker.
-   Secret UMAMI_API_KEY (clé d'API Umami Cloud, en-tête x-umami-api-key) ; UMAMI_WEBSITE_ID facultatif (sinon celui
-   d'index.html). Chaque bloc est demandé à part : un bloc en échec n'empêche pas les autres de s'afficher.
-   Résultat gardé 10 min dans le cache du Worker (une période = une entrée), pour ne pas solliciter l'API à chaque visite.
+/* Statistiques du site (onglet Statistiques de /admin) : lues dans Umami Cloud, côté Worker, par l'un des deux accès :
+   - lien de partage (offre gratuite) : secret UMAMI_SHARE_URL = https://cloud.umami.is/share/<id> ; le Worker en tire un
+     jeton de lecture (GET <région>/api/share/<id>) puis interroge l'API du tableau de bord partagé avec les en-têtes
+     x-umami-share-token et x-umami-share-context, comme la page de partage elle-même (API non documentée par Umami) ;
+   - clé d'API (offre payante) : secret UMAMI_API_KEY (en-tête x-umami-api-key), prioritaire ; UMAMI_WEBSITE_ID facultatif.
+   Chaque bloc est demandé à part : un bloc en échec n'empêche pas les autres de s'afficher.
+   Résultat gardé 10 min dans le cache du Worker (une période = une entrée), pour ne pas solliciter Umami à chaque visite.
    Lecture tolérante des réponses : les formats de l'API Umami ont varié d'une version à l'autre (valeur seule ou
    { value, prev }, chemins « path » ou « url », listes { x, y } ou { value, total }). */
 import { EVARYSTH } from "./catalogue.js";
@@ -12,7 +15,33 @@ export const PERIODES = [7, 30, 90];
 export const EVENEMENT_PANIER = "Ajout panier";
 const CACHE_S = 600, DELAI_MS = 8000, JOUR_MS = 86400_000, TZ = "Europe/Paris";
 
-export const umamiConfigure = env => Boolean(env.UMAMI_API_KEY);
+export const CLOUD_UMAMI = "https://cloud.umami.is";
+const AGENT = "Evarysth-admin/1.0";
+
+/* Lien de partage Umami Cloud valide → { id, region } (région lue dans l'adresse si elle y est), sinon null */
+export function partageUmami(env) {
+  const m = /^https:\/\/cloud\.umami\.is\/(?:analytics\/([a-z]{2,8})\/)?share\/([\w-]+)\/?$/.exec(String(env.UMAMI_SHARE_URL || "").trim());
+  return m ? { id: m[2], region: m[1] || null } : null;
+}
+export const umamiConfigure = env => Boolean(env.UMAMI_API_KEY || partageUmami(env));
+
+/* Accès à l'API : { base, entetes, site } ; par lien de partage, région donnée par la redirection de cloud.umami.is/share/… */
+export async function accesUmami(env, fetchFn = fetch) {
+  if (env.UMAMI_API_KEY) return { base: API_UMAMI, site: env.UMAMI_WEBSITE_ID || SITE_UMAMI, entetes: { "x-umami-api-key": env.UMAMI_API_KEY } };
+  const p = partageUmami(env);
+  if (!p) throw new Error("Umami non configuré");
+  let region = p.region;
+  if (!region) {
+    const r = await fetchFn(`${CLOUD_UMAMI}/share/${p.id}`, { redirect: "manual", headers: { "User-Agent": AGENT }, signal: AbortSignal.timeout(DELAI_MS) });
+    region = (/\/analytics\/([a-z]{2,8})\/share\//.exec(r.headers.get("location") || "") || [])[1] || "eu";
+  }
+  const base = `${CLOUD_UMAMI}/analytics/${region}/api`;
+  const r = await fetchFn(`${base}/share/${p.id}`, { headers: { Accept: "application/json", "User-Agent": AGENT }, signal: AbortSignal.timeout(DELAI_MS) });
+  if (!r.ok) throw new Error(`Umami ${r.status}${r.status === 404 ? " (lien de partage introuvable)" : ""}`);
+  const j = await r.json();
+  if (!j || !j.token || !j.websiteId) throw new Error("Umami : lien de partage sans jeton");
+  return { base, site: j.websiteId, entetes: { "x-umami-share-token": j.token, "x-umami-share-context": "1" } };
+}
 
 const nombre = v => { const n = Number(v && typeof v === "object" ? v.value : v); return Number.isFinite(n) ? n : 0; };
 /* Liste de mesures → [{ x, y }] quel que soit le format */
@@ -43,25 +72,25 @@ export function joursPeriode(debut, fin) {
   return jours;
 }
 
-async function appel(env, chemin, params, fetchFn) {
-  const id = env.UMAMI_WEBSITE_ID || SITE_UMAMI;
-  const u = new URL(`${API_UMAMI}/websites/${encodeURIComponent(id)}${chemin}`);
+async function appel(acces, chemin, params, fetchFn) {
+  const u = new URL(`${acces.base}/websites/${encodeURIComponent(acces.site)}${chemin}`);
   for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v));
-  const r = await fetchFn(u.toString(), { headers: { "x-umami-api-key": env.UMAMI_API_KEY, Accept: "application/json" },
+  const r = await fetchFn(u.toString(), { headers: { ...acces.entetes, Accept: "application/json", "User-Agent": AGENT },
     signal: AbortSignal.timeout(DELAI_MS) });
-  if (!r.ok) throw new Error(`Umami ${r.status}${r.status === 401 || r.status === 403 ? " (clé refusée)" : ""}`);
+  if (!r.ok) throw new Error(`Umami ${r.status}${r.status === 401 || r.status === 403 ? " (accès refusé)" : ""}`);
   return r.json();
 }
 
 /* Lecture brute des blocs d'une période → objet sérialisable (mis en cache) */
 export async function lireStatistiques(env, jours, { maintenant = Date.now(), fetchFn = fetch } = {}) {
   const fin = maintenant, debut = fin - jours * JOUR_MS, periode = { startAt: debut, endAt: fin };
-  const get = (chemin, p = {}) => appel(env, chemin, { ...periode, ...p }, fetchFn);
+  const acces = await accesUmami(env, fetchFn);
+  const get = (chemin, p = {}) => appel(acces, chemin, { ...periode, ...p }, fetchFn);
   /* Type de mesure des pages : « path » (API récente) puis « url » (API plus ancienne) */
   const pagesVues = () => get("/metrics", { type: "path", limit: 500 }).catch(() => get("/metrics", { type: "url", limit: 500 }));
   const blocs = {
     courant: () => get("/stats"),
-    precedent: () => appel(env, "/stats", { startAt: debut - jours * JOUR_MS, endAt: debut }, fetchFn),
+    precedent: () => appel(acces, "/stats", { startAt: debut - jours * JOUR_MS, endAt: debut }, fetchFn),
     serie: () => get("/pageviews", { unit: "day", timezone: TZ }),
     pages: pagesVues,
     sources: () => get("/metrics", { type: "referrer", limit: 10 }),
@@ -69,7 +98,7 @@ export async function lireStatistiques(env, jours, { maintenant = Date.now(), fe
     pays: () => get("/metrics", { type: "country", limit: 8 }),
     evenements: () => get("/metrics", { type: "event", limit: 20 }),
     paniers: () => get("/event-data/values", { event: EVENEMENT_PANIER, eventName: EVENEMENT_PANIER, propertyName: "produit" }),
-    actifs: () => appel(env, "/active", {}, fetchFn)
+    actifs: () => appel(acces, "/active", {}, fetchFn)
   };
   const noms = Object.keys(blocs), res = await Promise.allSettled(noms.map(n => blocs[n]()));
   const brut = {}, erreurs = {};
@@ -115,7 +144,8 @@ export function analyser({ jours, debut, fin, brut, erreurs }) {
 /* Lecture avec cache du Worker (10 min) ; frais = true pour forcer une nouvelle lecture */
 export async function statistiques(env, jours, { frais = false, maintenant = Date.now(), fetchFn = fetch } = {}) {
   const cache = typeof caches !== "undefined" && caches.default ? caches.default : null;
-  const cle = new Request(`https://cache.evarysth.invalid/statistiques/${env.UMAMI_WEBSITE_ID || SITE_UMAMI}/${jours}`);
+  const mode = env.UMAMI_API_KEY ? `cle/${env.UMAMI_WEBSITE_ID || SITE_UMAMI}` : `partage/${(partageUmami(env) || {}).id}`;
+  const cle = new Request(`https://cache.evarysth.invalid/statistiques/${mode}/${jours}`);
   if (cache && !frais) {
     try { const r = await cache.match(cle); if (r) { const j = await r.json(); return { ...analyser(j), lu: j.lu }; } } catch (e) { console.warn("Statistiques : cache illisible", e.message); }
   }

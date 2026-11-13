@@ -54,6 +54,7 @@ async function fauxFetch(url, init = {}) {
   if (u.host === "oauth2.googleapis.com") return rep({ access_token: "ya29.test", expires_in: 3599 });
   if (u.host === "api.brevo.com" && u.pathname === "/v3/account") return rep({ email: "x" });
   if (u.host === "api.umami.is") return umami(u, init, rep);
+  if (u.host === "cloud.umami.is") return umamiPartage(u, init, rep);
   if (u.host === "api.brevo.com") { if (brevoEnPanne) return rep({ message: "panne" }, 500); emails.push(JSON.parse(init.body)); return rep({ messageId: "m" }, 201); }
   if (u.host !== "sheets.googleapis.com") throw new Error("Appel réseau inattendu : " + url);
   if (u.pathname === "/v4/spreadsheets/id-factice:batchUpdate") {
@@ -237,9 +238,10 @@ test("lienValide : https seulement", () => {
 let umamiPanne = 0, umamiAppels = [];
 function umami(u, init, rep) {
   umamiAppels.push(u.pathname + u.search);
-  if (init.headers["x-umami-api-key"] !== "cle-umami") return rep({ error: "Unauthorized" }, 401);
+  const partage = init.headers["x-umami-share-token"] === "jeton-partage" && init.headers["x-umami-share-context"] === "1";
+  if (init.headers["x-umami-api-key"] !== "cle-umami" && !partage) return rep({ error: "Unauthorized" }, 401);
   if (umamiPanne) return rep({ error: "panne" }, umamiPanne);
-  const p = u.pathname.replace(/^\/v1\/websites\/[^/]+/, ""), t = u.searchParams.get("type");
+  const p = u.pathname.replace(/^(\/v1|\/analytics\/eu\/api)\/websites\/[^/]+/, ""), t = u.searchParams.get("type");
   const ancien = Number(u.searchParams.get("endAt")) < Date.now() - 86400_000;
   if (p === "/stats") return rep(ancien ? { pageviews: 100, visitors: 40, visits: 50, bounces: 25, totaltime: 3000 }
     : { pageviews: 150, visitors: 60, visits: 75, bounces: 30, totaltime: 9000 });
@@ -252,6 +254,17 @@ function umami(u, init, rep) {
   if (p === "/event-data/values") return rep([{ value: "pince-sac-verseur", total: 5 }, { value: "cintre-sac", total: 2 }]);
   if (p === "/active") return rep({ visitors: 2 });
   return rep({ error: "inconnu" }, 404);
+}
+
+/* Lien de partage Umami Cloud simulé : /share/<id> redirige vers la région, <région>/api/share/<id> donne le jeton */
+function umamiPartage(u, init, rep) {
+  umamiAppels.push(u.host + u.pathname);
+  const m = /^\/share\/([\w-]+)$/.exec(u.pathname);
+  if (m) return new Response(null, { status: 307, headers: { location: `https://cloud.umami.is/analytics/eu/share/${m[1]}` } });
+  const j = /^\/analytics\/eu\/api\/share\/([\w-]+)$/.exec(u.pathname);
+  if (j) return j[1] === "partageOK" ? rep({ shareId: "x", websiteId: "c4454d44-ccb5-4bbd-ba65-54fc78c61b5b", token: "jeton-partage" }) : new Response("<!doctype html>", { status: 404 });
+  if (u.pathname.startsWith("/analytics/eu/api/websites/")) return umami(u, init, rep);
+  return new Response("<!doctype html>", { status: 404 });
 }
 
 const vue = async (v, e = env) => silence(async () => worker.fetch(new Request(`${ORIGINE}/admin?vue=${v}`, { headers: { "Cf-Access-Jwt-Assertion": await jwt() } }), e));
@@ -887,14 +900,25 @@ test("Statistiques : sans clé Umami, explication du secret à ajouter ; aucun a
   assert.equal(umamiAppels.length, 0);
 });
 
-test("Statistiques : sans clé mais avec lien de partage Umami, bouton vers le tableau de bord ; aucun appel à Umami", async () => {
+test("Statistiques : lien de partage Umami (offre gratuite) → chiffres lus avec le jeton du partage, bouton vers le tableau de bord", async () => {
   umamiAppels = [];
-  const html = await (await vue("stats", { ...env, UMAMI_SHARE_URL: "https://cloud.umami.is/share/abcXYZ123" })).text();
-  assert.match(html, /href="https:\/\/cloud\.umami\.is\/share\/abcXYZ123" target="_blank" rel="noopener noreferrer"/);
-  assert.equal(umamiAppels.length, 0);
+  const html = await (await vue("stats&p=90", { ...env, UMAMI_SHARE_URL: "https://cloud.umami.is/share/partageOK" })).text();
+  assert.match(html, /<div class="nombre">60<\/div><div class="muted">visiteurs/);
+  assert.match(html, /Pince à sac avec bec verseur/);
+  assert.match(html, /href="https:\/\/cloud\.umami\.is\/share\/partageOK" target="_blank" rel="noopener noreferrer"><b>Ouvrir le tableau de bord Umami/);
+  assert.ok(umamiAppels.includes("cloud.umami.is/share/partageOK"), "région lue dans la redirection");
+  assert.ok(umamiAppels.some(a => a.startsWith("/analytics/eu/api/websites/c4454d44-ccb5-4bbd-ba65-54fc78c61b5b/stats")));
+});
+
+test("Statistiques : lien de partage introuvable → explication et bouton ; adresse hors cloud.umami.is ignorée, aucun appel", async () => {
+  const html = await (await vue("stats&p=30", { ...env, UMAMI_SHARE_URL: "https://cloud.umami.is/share/disparu" })).text();
+  assert.match(html, /Chiffres indisponibles[\s\S]*lien de partage introuvable[\s\S]*Settings → Share/);
+  assert.match(html, /Ouvrir le tableau de bord Umami/);
+  umamiAppels = [];
   const autre = await (await vue("stats", { ...env, UMAMI_SHARE_URL: "https://exemple.com/share/x" })).text();
   assert.doesNotMatch(autre, /exemple\.com/);
   assert.match(autre, /UMAMI_SHARE_URL/);
+  assert.equal(umamiAppels.length, 0);
 });
 
 test("Statistiques : totaux et écarts, produits (vues + ajouts au panier), sources, appareils, pays ; sans Google ni script", async () => {
@@ -918,7 +942,7 @@ test("Statistiques : totaux et écarts, produits (vues + ajouts au panier), sour
 
 test("Statistiques : clé refusée → message clair, page servie", async () => {
   const html = await (await vue("stats&p=90", { ...envUmami, UMAMI_API_KEY: "mauvaise" })).text();
-  assert.match(html, /Statistiques indisponibles[\s\S]*clé refusée/);
+  assert.match(html, /Chiffres indisponibles[\s\S]*accès refusé/);
 });
 
 test("Statistiques : période inconnue → 30 jours", async () => {
