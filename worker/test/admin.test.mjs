@@ -887,6 +887,16 @@ test("Statistiques : sans clé Umami, explication du secret à ajouter ; aucun a
   assert.equal(umamiAppels.length, 0);
 });
 
+test("Statistiques : sans clé mais avec lien de partage Umami, bouton vers le tableau de bord ; aucun appel à Umami", async () => {
+  umamiAppels = [];
+  const html = await (await vue("stats", { ...env, UMAMI_SHARE_URL: "https://cloud.umami.is/share/abcXYZ123" })).text();
+  assert.match(html, /href="https:\/\/cloud\.umami\.is\/share\/abcXYZ123" target="_blank" rel="noopener noreferrer"/);
+  assert.equal(umamiAppels.length, 0);
+  const autre = await (await vue("stats", { ...env, UMAMI_SHARE_URL: "https://exemple.com/share/x" })).text();
+  assert.doesNotMatch(autre, /exemple\.com/);
+  assert.match(autre, /UMAMI_SHARE_URL/);
+});
+
 test("Statistiques : totaux et écarts, produits (vues + ajouts au panier), sources, appareils, pays ; sans Google ni script", async () => {
   const sans = { ...envUmami, GOOGLE_SA_KEY: "" };
   const r = await vue("stats&p=7", sans), html = await r.text();

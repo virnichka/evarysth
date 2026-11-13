@@ -683,13 +683,23 @@ function repartition(items, nom, total) {
   const somme = total || items.reduce((t, o) => t + o.y, 0) || 1;
   return items.map(o => `<div class="ligne"><span>${esc(nom(o.x))}</span><span>${entier(o.y)} <span class="muted">· ${pourcent(o.y / somme)}</span></span></div>`).join("");
 }
+/* Lien de partage Umami Cloud (secret UMAMI_SHARE_URL, offre gratuite) : seulement une adresse cloud.umami.is/share/… */
+function lienPartageUmami(env) {
+  const u = String(env.UMAMI_SHARE_URL || "").trim();
+  return /^https:\/\/cloud\.umami\.is\/share\/[\w-]+(\/[\w.-]*)?$/.test(u) ? u : "";
+}
 async function vueStatistiques(env, email, bandeau, p, frais) {
   const jours = PERIODES.includes(p) ? p : 30;
   const choix = `<nav class="filtres" aria-label="Période">${PERIODES.map(j => `<a href="/admin?vue=stats&amp;p=${j}"${j === jours ? ' aria-current="page"' : ""}>${j} jours</a>`).join("")}</nav>`;
   const ici = `/admin?vue=stats&p=${jours}&frais`;
+  const partage = lienPartageUmami(env);
+  if (!umamiConfigure(env) && partage) {
+    return page("Statistiques", cadre("stats", email, bandeau, `<h1>Statistiques</h1><div class="carte"><p>Les statistiques du site (visites, pages, sources, appareils, pays, ajouts au panier, temps réel) s'affichent dans le tableau de bord Umami.</p>
+<p><a class="carte" href="${esc(partage)}" target="_blank" rel="noopener noreferrer"><b>Ouvrir les statistiques ↗</b></a></p></div>`));
+  }
   if (!umamiConfigure(env)) {
     return page("Statistiques", cadre("stats", email, bandeau, `<h1>Statistiques</h1><div class="carte"><p><b>Statistiques non branchées.</b></p>
-<p class="muted">Ajoutez la clé d'API Umami Cloud au Worker, en secret nommé <code>UMAMI_API_KEY</code> (Cloudflare → Workers → ce Worker → Settings → Variables and Secrets). Les chiffres apparaîtront ici au prochain affichage.</p></div>`));
+<p class="muted">Ajoutez au Worker le lien de partage Umami (secret <code>UMAMI_SHARE_URL</code>, offre gratuite) ou la clé d'API Umami Cloud (secret <code>UMAMI_API_KEY</code>, offre payante) (Cloudflare → Workers → ce Worker → Settings → Variables and Secrets). Le lien ou les chiffres apparaîtront ici au prochain affichage.</p></div>`));
   }
   let s;
   try { s = await statistiques(env, jours, { frais }); }
