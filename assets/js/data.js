@@ -407,7 +407,14 @@ EVARYSTH.products = [
       remarques: "Quatre pièces sans support : bras à plat (celui à bague retourné, bague contre le plateau), bec debout, bouchon retourné.", pieces: [
       { nom: "bras B (bague et crochet)", orientation: POSE.retourne }, { nom: "bras A (axe)" },
       { nom: "bec" }, { nom: "bouchon", orientation: POSE.retourne }] },
-    custom: { params: [param("a", "Largeur du sac à plat", 110, 230, 140, 5)] }
+    custom: { params: [param("a", "Largeur du sac à plat", 110, 230, 140, 5)] },
+    photos: [
+      { src: "assets/photos/pince-sac-verseur/1.webp", alt: "Pince noire fermée sur un sachet de café kraft posé sur un plan de travail, bouchon sur le bec" },
+      { src: "assets/photos/pince-sac-verseur/2.webp", alt: "Pince fermée vue de trois quarts, bouchon strié vissé sur le bec" },
+      { src: "assets/photos/pince-sac-verseur/3.webp", alt: "Gros plan du goulot fileté, bouchon soulevé au-dessus", pos: "50% 40%" },
+      { src: "assets/photos/pince-sac-verseur/4.webp", alt: "Pièces à plat : bras ouverts à la charnière, bec et bouchon" }
+    ],
+    photosNote: "Visuels d'illustration, coloris noir mat"
   },
   {
     id: "support-aerosol-skadis", universe: "meubles", matiere: "asa", shape: "cup", model: "support-aerosol-skadis",
