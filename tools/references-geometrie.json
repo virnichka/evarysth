@@ -146,6 +146,17 @@
     "a=68 b=220": {"taille":[219.974,128.757,82.3],"volume":311346.6,"solides":1},
     "a=68 b=250": {"taille":[249.974,130.257,82.3],"volume":358914.5,"solides":1}
   },
+  "distributeur-oeufs-boucle": {
+    "a=50 b=210": {"taille":[210,75.045,63.37],"volume":277555.9,"solides":1},
+    "a=50 b=274": {"taille":[274,75.045,63.37],"volume":368409.4,"solides":1},
+    "a=50 b=280": {"taille":[280,75.045,63.37],"volume":376926.9,"solides":1},
+    "a=60 b=210": {"taille":[210,75.045,73.37],"volume":293016.2,"solides":1},
+    "a=60 b=274": {"taille":[274,75.045,73.37],"volume":383869.6,"solides":1},
+    "a=60 b=280": {"taille":[280,75.045,73.37],"volume":392387.2,"solides":1},
+    "a=68 b=210": {"taille":[210,75.045,81.37],"volume":305384.4,"solides":1},
+    "a=68 b=274": {"taille":[274,75.045,81.37],"volume":396237.8,"solides":1},
+    "a=68 b=280": {"taille":[280,75.045,81.37],"volume":404755.4,"solides":1}
+  },
   "equerre-l": {
     "a=50 b=50 c=10": {"taille":[50,50,10],"volume":6108,"solides":1},
     "a=50 b=50 c=20": {"taille":[50,50,20],"volume":12287.5,"solides":1},

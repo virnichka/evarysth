@@ -54,7 +54,8 @@ const POSE = {
   debout: [[1, 0, 0], [0, 0, -1], [0, 1, 0]],     // comme l'aperçu (Y → Z)
   retourne: [[1, 0, 0], [0, 0, 1], [0, -1, 0]],   // tête en bas (Y → −Z)
   aPlat: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],       // profil extrudé selon Z, couché à plat (Z → Z)
-  surLeCote: [[0, 0, -1], [0, 1, 0], [1, 0, 0]]    // X → Z
+  surLeCote: [[0, 0, -1], [0, 1, 0], [1, 0, 0]],   // X → Z
+  enDiagonale: [[Math.SQRT1_2, -Math.SQRT1_2, 0], [Math.SQRT1_2, Math.SQRT1_2, 0], [0, 0, 1]]  // à plat (Z → Z), tourné de 45° : pièces plus longues que le plateau
 };
 
 /* shape : illustration utilisée (voir app.js) · popular : mis en avant sur l'accueil */
@@ -353,6 +354,23 @@ EVARYSTH.products = [
       { src: "assets/photos/distributeur-oeufs/4.webp", alt: "Distributeur vert sauge sur fond clair, demi-tour à l'arrière" }
     ],
     photosNote: "Photos : rendus de démonstration ; œufs non fournis"
+  },
+  {
+    id: "distributeur-oeufs-boucle", universe: "meubles", matiere: "petg", shape: "eggs", model: "distributeur-oeufs-boucle",
+    name: "Distributeur d'œufs en boucle",
+    tagline: "La forme d'origine, avec ses berceaux galbés.",
+    desc: "Couchez les œufs en travers dans le bac du haut : ils roulent jusqu'à la boucle, font demi-tour et redescendent par le bac du bas jusqu'à son bout relevé, où l'on prend le premier. Chaque œuf repose sur deux berceaux galbés, de part et d'autre d'une fente qui laisse voir les œufs du dessous. Les berceaux s'écartent selon la longueur de vos œufs ; la longueur du distributeur fixe le nombre d'œufs.",
+    variants: sizes("Longueur du distributeur", [["Compact", "environ 6 œufs", { a: 60, b: 214 }], ["Moyen", "environ 7 œufs", { a: 60, b: 244 }], ["Grand", "environ 8 œufs", { a: 60, b: 274 }]]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "coquille", label: "Coquille d'œuf", hex: "#ece3d2", roughness: 0.7 }
+    ],
+    impression: { matiere: "petg", orientation: POSE.enDiagonale, supports: true, parPlateau: 1,
+      remarques: "Couché sur un flanc, en diagonale du plateau (il est plus long que le plateau). Supports sous les berceaux et dans la boucle." },
+    custom: { params: [
+      param("a", "Longueur de vos œufs", 50, 68, 60),
+      param("b", "Longueur du distributeur", 210, 280, 274)
+    ] }
   },
   {
     id: "cintre-sac", universe: "meubles", matiere: "petg", shape: "hook", model: "cintre-sac",
