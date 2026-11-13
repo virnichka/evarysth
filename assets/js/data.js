@@ -205,10 +205,10 @@ EVARYSTH.products = [
     photosNote: "Photos : coloris de démonstration, mousse et outils non fournis"
   },
   {
-    id: "support-casque-gyroide", universe: "bureau", matiere: "petg", shape: "headstand", model: "support-casque-gyroide",
-    name: "Support casque Gyroïde",
+    id: "support-casque-treillis", universe: "bureau", matiere: "petg", shape: "headstand", model: "support-casque-treillis",
+    name: "Support casque Treillis",
     tagline: "Un vrai présentoir pour votre casque, léger comme une dentelle.",
-    desc: "Socle plein, colonne et tête en treillis gyroïde, appui bombé qui épouse l'arceau sans le marquer. Réglez la hauteur pour que les coussinets ne touchent pas le bureau, et la largeur de votre arceau, que l'appui déborde de 4 mm de chaque côté : le treillis garde la même maille, il gagne simplement des cellules.",
+    desc: "Socle plein, colonne et tête en treillis ajouré, appui bombé qui épouse l'arceau sans le marquer. Réglez la hauteur pour que les coussinets ne touchent pas le bureau, et la largeur de votre arceau, que l'appui déborde de 4 mm de chaque côté : le treillis garde la même maille, il gagne simplement des cellules.",
     variants: sizes("Taille du casque", [["Compact", "supra-auriculaire", { a: 220, b: 100 }], ["Standard", "circum-auriculaire", { a: 250, b: 120 }], ["Grand", "casque de studio", { a: 255, b: 140 }]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
@@ -216,16 +216,16 @@ EVARYSTH.products = [
       { id: "rouge", label: "Rouge brique", hex: "#a8382f", roughness: 0.62 }
     ],
     impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 2,
-      remarques: "Debout sur son socle : le treillis gyroïde se soutient seul." },
+      remarques: "Debout sur son socle : le treillis se soutient seul." },
     custom: { params: [
       param("a", "Hauteur totale du support", 200, 255, 250, 5),
       param("b", "Largeur de l'arceau du casque", 80, 160, 120, 5)
     ] },
     photos: [
-      { src: "assets/photos/support-casque-gyroide/1.webp", alt: "Support casque Gyroïde posé sur un bureau en bois, un casque circum-auriculaire suspendu à son appui" },
-      { src: "assets/photos/support-casque-gyroide/2.webp", alt: "Support casque Gyroïde vu de trois quarts : socle plein, colonne et tête en treillis" },
-      { src: "assets/photos/support-casque-gyroide/3.webp", alt: "Support casque Gyroïde vu de l'autre côté, nervure centrale dans la tête" },
-      { src: "assets/photos/support-casque-gyroide/4.webp", alt: "Gros plan du treillis gyroïde sous l'appui bombé" }
+      { src: "assets/photos/support-casque-treillis/1.webp", alt: "Support casque Treillis posé sur un bureau en bois, un casque circum-auriculaire suspendu à son appui" },
+      { src: "assets/photos/support-casque-treillis/2.webp", alt: "Support casque Treillis vu de trois quarts : socle plein, colonne et tête en treillis" },
+      { src: "assets/photos/support-casque-treillis/3.webp", alt: "Support casque Treillis vu de l'autre côté, nervure centrale dans la tête" },
+      { src: "assets/photos/support-casque-treillis/4.webp", alt: "Gros plan du treillis sous l'appui bombé" }
     ],
     photosNote: "Photos : coloris de démonstration, casque non fourni"
   },

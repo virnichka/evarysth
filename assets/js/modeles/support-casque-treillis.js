@@ -1,19 +1,19 @@
-/* Modèle 3D « support-casque-gyroide » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
+/* Modèle 3D « support-casque-treillis » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
 /* a = hauteur totale (exacte, du dessous du socle au sommet de l'appui), b = largeur de l'arceau du casque
-   (l'appui le déborde de 4 mm de chaque côté) ; reconstruction paramétrique, treillis gyroïde */
-EVARYSTH.viewer3d.define("support-casque-gyroide", () => {
-  /* Support de casque gyroïde. Reconstruit d'après le STL « gyroid headphone holder » (210 000 triangles,
-     trop lourd et non paramétrable) : socle plein, colonne puis tête évasée en treillis gyroïde, appui
+   (l'appui le déborde de 4 mm de chaque côté) ; reconstruction paramétrique, treillis ajouré */
+EVARYSTH.viewer3d.define("support-casque-treillis", () => {
+  /* Support de casque en treillis. Reconstruit d'après un STL de support de casque (210 000 triangles,
+     trop lourd et non paramétrable) : socle plein, colonne puis tête évasée en treillis, appui
      bombé plein sous l'arceau. Le treillis est recalculé (champ implicite + « surface nets ») à cellule
      fixe : quand on agrandit, il gagne des cellules au lieu d'épaissir. Montants pleins aux 4 arêtes.
      a = hauteur totale, b = largeur de l'arceau. Repère : y vers le haut, sol en y = 0 (puis centré). */
-  const gyroStand = (T, { a, b }) => {
+  const supportTreillis = (T, { a, b }) => {
     const BT = 8, S = 8, CT = 6, B = b + 8;           // socle, flèche et épaisseur de l'appui, largeur de l'appui
     const cw = 44, cd = 32, hd = 44, HH = 0.6 * b;     // colonne (x, z), profondeur de la tête, hauteur de la tête
     const yT = a - S - CT + 1.5, yH = yT - HH;         // dessous de l'appui (au bord), début de l'évasement :
                                                        // sommet de l'appui (bombé + 4,5 mm, arrondi compris) en y = a
     const arcY = x => S * (1 - (2 * x / B) ** 2);      // bombé de l'appui
-    const P = 20, kk = 2 * Math.PI / P, wall = 1.3;    // période du gyroïde, demi-épaisseur de paroi
+    const P = 20, kk = 2 * Math.PI / P, wall = 1.3;    // période du treillis, demi-épaisseur de paroi
     /* Silhouette pleine (distance approchée) */
     const shape = y => { const u = Math.min(1, Math.max(0, (y - yH) / (0.6 * HH))), e = u * u * (3 - 2 * u);  // évasement puis partie droite
       return [cw / 2 + (B / 2 - 2 - cw / 2) * e, cd / 2 + (hd / 2 - cd / 2) * e]; };
@@ -124,8 +124,8 @@ EVARYSTH.viewer3d.define("support-casque-gyroide", () => {
     g.computeVertexNormals();
     return g.center();
   };
-  gyroStand.smooth = true;  // treillis organique : pas d'arêtes à souligner
-  return gyroStand;
+  supportTreillis.smooth = true;  // treillis organique : pas d'arêtes à souligner
+  return supportTreillis;
 }, {
   solides: 1,
   /* Résultat centré (BufferGeometry) : repère de construction = repère final, plan x = 0 = milieu de l'appui */

@@ -209,7 +209,7 @@
     "a=80 b=60": {"taille":[87.8,60,98.8],"volume":105577.5,"solides":1},
     "a=80 b=110": {"taille":[87.8,110,98.8],"volume":184111.6,"solides":1}
   },
-  "support-casque-gyroide": {
+  "support-casque-treillis": {
     "a=200 b=80": {"taille":[93,199.997,113],"volume":184820.5,"solides":1},
     "a=200 b=120": {"taille":[133,199.998,113],"volume":257756.1,"solides":1},
     "a=200 b=160": {"taille":[173,199.999,113],"volume":345153.8,"solides":1},
