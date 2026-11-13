@@ -196,6 +196,11 @@
     "a=60": {"taille":[76,21,76],"volume":20503.7,"solides":2},
     "a=100": {"taille":[116,21,116],"volume":40399.5,"solides":2}
   },
+  "pince-sac-verseur": {
+    "a=110": {"taille":[131.962,33.2,40.6],"volume":41968.2,"solides":4},
+    "a=140": {"taille":[161.962,33.2,40.6],"volume":48448.2,"solides":4},
+    "a=230": {"taille":[251.962,33.2,40.6],"volume":67888.2,"solides":4}
+  },
   "support-accessoires-aspirateur": {
     "a=30 b=180 c=50": {"taille":[180,27,66.496],"volume":87188.3,"solides":1},
     "a=30 b=180 c=60": {"taille":[180,27,76.496],"volume":92688.3,"solides":1},
