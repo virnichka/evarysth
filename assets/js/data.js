@@ -359,8 +359,8 @@ EVARYSTH.products = [
     id: "distributeur-oeufs-boucle", universe: "meubles", matiere: "petg", shape: "eggs", model: "distributeur-oeufs-boucle",
     name: "Distributeur d'œufs en boucle",
     tagline: "La forme d'origine, avec ses berceaux galbés.",
-    desc: "Couchez les œufs en travers dans le bac du haut : ils roulent jusqu'à la boucle, font demi-tour et redescendent par le bac du bas jusqu'à son bout relevé, où l'on prend le premier. Chaque œuf repose sur deux berceaux galbés, de part et d'autre d'une fente qui laisse voir les œufs du dessous. Les berceaux s'écartent selon la longueur de vos œufs ; la longueur du distributeur fixe le nombre d'œufs.",
-    variants: sizes("Longueur du distributeur", [["Compact", "environ 6 œufs", { a: 60, b: 214 }], ["Moyen", "environ 7 œufs", { a: 60, b: 244 }], ["Grand", "environ 8 œufs", { a: 60, b: 274 }]]),
+    desc: "Couchez les œufs en travers dans le bac du haut : ils roulent jusqu'à la boucle, font demi-tour et redescendent par le bac du bas jusqu'à son bout relevé, où l'on prend le premier. Chaque œuf repose sur deux berceaux galbés, de part et d'autre d'une fente qui laisse voir les œufs du dessous. Les berceaux accueillent les œufs du commerce, du calibre moyen au gros ; la longueur du distributeur fixe le nombre d'œufs.",
+    variants: sizes("Longueur du distributeur", [["Compact", "environ 6 œufs", { a: 214 }], ["Moyen", "environ 7 œufs", { a: 244 }], ["Grand", "environ 8 œufs", { a: 274 }]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "coquille", label: "Coquille d'œuf", hex: "#ece3d2", roughness: 0.7 }
@@ -368,8 +368,7 @@ EVARYSTH.products = [
     impression: { matiere: "petg", orientation: POSE.enDiagonale, supports: true, parPlateau: 1,
       remarques: "Couché sur un flanc, en diagonale du plateau (il est plus long que le plateau). Supports sous les berceaux et dans la boucle." },
     custom: { params: [
-      param("a", "Longueur de vos œufs", 50, 68, 60),
-      param("b", "Longueur du distributeur", 210, 280, 274)
+      param("a", "Longueur du distributeur", 210, 280, 274)
     ] }
   },
   {
