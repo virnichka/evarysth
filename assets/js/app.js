@@ -44,6 +44,9 @@
     eggs: `<path d="M10 104h100" class="ghost"/><path d="M30 26a34 34 0 0 0 0 68" class="ghost"/>
       <path d="M30 52 98 46v-12M30 94l76 6v-12"/><path d="M98 100v4M30 94v10"/>
       <circle cx="50" cy="40" r="10"/><circle cx="72" cy="38" r="10"/><circle cx="56" cy="86" r="10"/><circle cx="78" cy="88" r="10"/>`,
+    bagclip: `<path d="M44 62h70M44 72h70" class="ghost"/><path d="M50 72c-6 10-8 22-8 34M96 72c4 10 6 22 6 34" class="ghost"/>
+      <path d="M12 60h96a4 4 0 0 1 4 4v1H40M12 74h104v-10"/><circle cx="14" cy="67" r="5"/>
+      <path d="M34 60V44h28v16"/><rect x="30" y="26" width="36" height="18" rx="3"/><path d="M38 26v18M48 26v18M58 26v18" class="ghost"/>`,
     rack: `<rect x="10" y="40" width="100" height="14" rx="2" class="ghost"/><path d="M12 54h96" class="ghost"/>
       <path d="M30 60V20M60 60V30M90 60V24" class="ghost"/><path d="M24 20h12M54 30h12M84 24h12" class="ghost"/>
       <ellipse cx="30" cy="62" rx="13" ry="5"/><ellipse cx="60" cy="62" rx="13" ry="5"/><ellipse cx="90" cy="62" rx="13" ry="5"/>

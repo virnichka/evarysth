@@ -393,6 +393,23 @@ EVARYSTH.products = [
     photosNote: "Photos : modèle standard, coloris de démonstration"
   },
   {
+    id: "pince-sac-verseur", universe: "meubles", matiere: "petg", shape: "bagclip", model: "pince-sac-verseur",
+    name: "Pince à sac avec bec verseur",
+    tagline: "Le paquet de café refermé, et un bec pour verser sans en mettre partout.",
+    desc: "Glissez le bec dans l'ouverture du sac, rabattez les deux bras : ils pincent le film tout le long et serrent le bas du bec dans sa poche en goutte. Pour verser, on dévisse le bouchon d'un quart de tour, pas plus. Café en grains, riz, sucre, croquettes : la pince est faite à la largeur de votre sac posé à plat.",
+    variants: sizes("Largeur du sac à plat", [["S", "≈ 110 mm", { a: 110 }], ["M", "≈ 140 mm", { a: 140 }], ["L", "≈ 180 mm", { a: 180 }]]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "cafe", label: "Brun café", hex: "#5b3a29", roughness: 0.62 },
+      { id: "sauge", label: "Vert sauge", hex: "#8fa58a", roughness: 0.65 }
+    ],
+    impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 3,
+      remarques: "Quatre pièces sans support : bras à plat (celui à bague retourné, bague contre le plateau), bec debout, bouchon retourné.", pieces: [
+      { nom: "bras B (bague et crochet)", orientation: POSE.retourne }, { nom: "bras A (axe)" },
+      { nom: "bec" }, { nom: "bouchon", orientation: POSE.retourne }] },
+    custom: { params: [param("a", "Largeur du sac à plat", 110, 230, 140, 5)] }
+  },
+  {
     id: "support-aerosol-skadis", universe: "meubles", matiere: "asa", shape: "cup", model: "support-aerosol-skadis",
     name: "Support de bombe pour SKADIS",
     tagline: "La bombe aérosol rangée debout sur le panneau perforé, toujours à portée de main.",
