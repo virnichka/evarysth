@@ -69,7 +69,7 @@ test("valeurs repères (barème du commit e555d74)", () => {
   assert.deepEqual([
     E.priceFor(g("crochet-balcon"), "standard", t("crochet-balcon", "S")),
     E.priceFor(g("tablette-rambarde"), "custom", ext("tablette-rambarde", "def")),
-    E.priceFor(g("support-casque-gyroide"), "standard", t("support-casque-gyroide", "Compact")),
+    E.priceFor(g("support-casque-treillis"), "standard", t("support-casque-treillis", "Compact")),
     E.prixDes(g("organiseur-tiroir")), E.priceFor(g("organiseur-tiroir"), "custom", ext("organiseur-tiroir", "max")),
     E.priceFor(g("boite-rugged"), "custom", ext("boite-rugged", "max")),
     E.priceFor(g("chat-lord"), "standard", t("chat-lord", "L")),
