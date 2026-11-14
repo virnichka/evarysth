@@ -8,7 +8,7 @@ EVARYSTH.viewer3d.define("duo-plage", ({ sculpt }) => {
   solides: 1,
   /* Doigts sculptés de la main libre plus fins que 1,2 mm (≈ 0,7 mm à 120 mm), sans rôle mécanique :
      0,8 mm = deux lignes d'une buse de 0,4 mm. Seuil 1,2 mm² : angle vif d'une arête sculptée, dont la perte
-     croît avec l'échelle (≤ 0,9 mm² de 100 à 200 mm), pas une paroi fine */
+     croît avec l'échelle (≤ 0,9 mm² de 110 à 200 mm), pas une paroi fine */
   paroi: { min: 0.8, seuil: 1.2 },
   /* Mise à l'échelle uniforme : seule la cote hors tout compte */
   cotes: ({ a }) => [{ nom: "hauteur de la figurine", mesure: "boite", selon: "y", attendu: a }]

@@ -2459,6 +2459,141 @@
    }
   },
   {
+   "id": "duo-plage",
+   "matiere": "pla",
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 18,
+   "tailles": [
+    {
+     "taille": "S",
+     "cotes": {
+      "a": 100
+     },
+     "prix": 18,
+     "surMesure": 18
+    },
+    {
+     "taille": "M",
+     "cotes": {
+      "a": 130
+     },
+     "prix": 23,
+     "surMesure": 23
+    },
+    {
+     "taille": "L",
+     "cotes": {
+      "a": 160
+     },
+     "prix": 31,
+     "surMesure": 31
+    }
+   ],
+   "reperes": {
+    "min": {
+     "cotes": {
+      "a": 100
+     },
+     "masse_g": 46.1,
+     "heures": 2.1,
+     "mat": 2.42,
+     "mach": 1.32,
+     "vm": 2.1,
+     "mo": 2.77,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.61,
+     "prix": 18,
+     "parQuantite": [
+      18,
+      17,
+      16,
+      16,
+      16,
+      16
+     ]
+    },
+    "def": {
+     "cotes": {
+      "a": 130
+     },
+     "masse_g": 87.6,
+     "heures": 3.35,
+     "mat": 4.6,
+     "mach": 2.11,
+     "vm": 3.35,
+     "mo": 3.1,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 3.41,
+     "prix": 23,
+     "parQuantite": [
+      23,
+      22,
+      22,
+      22,
+      21,
+      21
+     ]
+    },
+    "max": {
+     "cotes": {
+      "a": 200
+     },
+     "masse_g": 262.1,
+     "heures": 8.15,
+     "mat": 13.76,
+     "mach": 5.13,
+     "vm": 8.06,
+     "mo": 4.5,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 6.61,
+     "prix": 45,
+     "parQuantite": [
+      45,
+      44,
+      43,
+      43,
+      43,
+      43
+     ]
+    }
+   },
+   "balayage": {
+    "valeursParAxe": {
+     "a": 21
+    },
+    "points": 21,
+    "baisses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausseMaxMm": 0.4,
+    "min": {
+     "prix": 18,
+     "cotes": {
+      "a": 100
+     }
+    },
+    "max": {
+     "prix": 45,
+     "cotes": {
+      "a": 200
+     }
+    }
+   }
+  },
+  {
    "id": "carapuce",
    "matiere": "pa12",
    "filiere": "externe",
