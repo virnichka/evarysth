@@ -479,7 +479,10 @@ ${colors.length ? `
       b.classList.add("is-on");
     }
 
-    function pulse() { const d = $("#dims"); d.classList.remove("pulse"); void d.offsetWidth; d.classList.add("pulse"); }
+    /* Signal bref après un changement de taille, de mode ou de saisie : la classe est retirée à la fin de l'animation,
+       sinon chaque mise à jour (curseur) recrée les pastilles et rejoue le clignotement */
+    function pulse() { const d = $("#dims"); clearTimeout(d._t); d.classList.remove("pulse"); void d.offsetWidth; d.classList.add("pulse");
+      d._t = setTimeout(() => d.classList.remove("pulse"), 500); }
 
     root.onclick = e => {
       const m = e.target.closest("[data-mode]");
