@@ -2464,15 +2464,15 @@
    "filiere": "atelier",
    "provisoire": false,
    "valeur": 1,
-   "des": 18,
+   "des": 20,
    "tailles": [
     {
      "taille": "S",
      "cotes": {
-      "a": 100
+      "a": 110
      },
-     "prix": 18,
-     "surMesure": 18
+     "prix": 20,
+     "surMesure": 20
     },
     {
      "taille": "M",
@@ -2494,26 +2494,26 @@
    "reperes": {
     "min": {
      "cotes": {
-      "a": 100
+      "a": 110
      },
-     "masse_g": 46.1,
-     "heures": 2.1,
-     "mat": 2.42,
-     "mach": 1.32,
-     "vm": 2.1,
-     "mo": 2.77,
+     "masse_g": 58.1,
+     "heures": 2.46,
+     "mat": 3.05,
+     "mach": 1.55,
+     "vm": 2.46,
+     "mo": 2.86,
      "emballage": 0.3,
      "fixes": 4,
      "lancement": 2,
-     "prelevements": 2.61,
-     "prix": 18,
+     "prelevements": 2.84,
+     "prix": 20,
      "parQuantite": [
+      20,
       18,
-      17,
-      16,
-      16,
-      16,
-      16
+      18,
+      18,
+      18,
+      17
      ]
     },
     "def": {
@@ -2545,10 +2545,10 @@
       "a": 200
      },
      "masse_g": 262.1,
-     "heures": 8.15,
+     "heures": 8.16,
      "mat": 13.76,
-     "mach": 5.13,
-     "vm": 8.06,
+     "mach": 5.14,
+     "vm": 8.07,
      "mo": 4.5,
      "emballage": 0.3,
      "fixes": 4,
@@ -2567,9 +2567,9 @@
    },
    "balayage": {
     "valeursParAxe": {
-     "a": 21
+     "a": 19
     },
-    "points": 21,
+    "points": 19,
     "baisses": {
      "nombre": 0,
      "exemples": []
@@ -2580,9 +2580,9 @@
     },
     "hausseMaxMm": 0.4,
     "min": {
-     "prix": 18,
+     "prix": 20,
      "cotes": {
-      "a": 100
+      "a": 110
      }
     },
     "max": {
