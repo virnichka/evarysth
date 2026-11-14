@@ -459,6 +459,23 @@ EVARYSTH.products = [
     photosNote: "Photos : coloris gris de démonstration ; la vue 3D montre le coloris choisi"
   },
   {
+    id: "duo-plage", universe: "deco", matiere: "pla", shape: "couple", model: "duo-plage",
+    name: "Duo de plage",
+    tagline: "Deux silhouettes main dans la main, prêtes pour la mise à l'eau.",
+    desc: "Une figurine de couple au style figurine de collection : lui en combinaison de chasse sous-marine, sac sur le dos, elle en maillot, lunettes relevées sur la tête. Imprimée d'un seul bloc sur son socle rond, elle se règle en hauteur : du clin d'œil posé sur un bureau à la pièce qui trône sur une étagère.",
+    variants: sizes("Hauteur", [["S", "100 mm", { a: 100 }], ["M", "130 mm", { a: 130 }], ["L", "160 mm", { a: 160 }]]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "sable", label: "Sable", hex: "#d8c9b0", roughness: 0.65 },
+      { id: "ocean", label: "Bleu océan", hex: "#5b6f94", roughness: 0.6 }
+    ],
+    impression: { matiere: "pla", orientation: POSE.debout, supports: true, parPlateau: 4,
+      remarques: "Debout sur son socle ; supports sous les bras, les mains jointes, les lunettes et la queue de cheval." },
+    custom: { params: [
+      param("a", "Hauteur de la figurine", 100, 200, 130, 5)
+    ] }
+  },
+  {
     id: "carapuce", universe: "deco", matiere: "pa12", shape: "turtle", model: "carapuce",
     name: "Carapuce",
     tagline: "La petite tortue la plus effrontée de l'étagère.",

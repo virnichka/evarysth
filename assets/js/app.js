@@ -34,6 +34,10 @@
       <circle cx="58" cy="34" r="18"/><path d="M51 32v4M65 32v4"/><path d="M52 43c4 3 8 3 12 0"/>
       <path d="M44 50c-8 8-10 22-6 34h40c4-12 2-26-6-34"/><path d="M47 64h26M48 76h24" class="ghost"/>
       <path d="M44 84v12h10v-12M66 84v12h10v-12"/><path d="M38 80c-14 0-20 8-14 16 5 6 14 2 12-4"/>`,
+    couple: `<ellipse cx="60" cy="100" rx="40" ry="6" class="ghost"/>
+      <circle cx="42" cy="30" r="12"/><circle cx="78" cy="32" r="11"/><path d="M68 22c6-4 16-4 21 2" class="ghost"/>
+      <path d="M32 46h20l4 22-6 2v26M32 46l-4 22 4 2v26M42 72v24"/>
+      <path d="M70 48h16l4 20-4 2v26M70 48l-4 20h0M74 72v24M82 72v24M66 68h-10"/>`,
     car: `<path d="M10 82h100" class="ghost"/>
       <path d="M16 78v-10c0-6 4-9 10-10l16-3 14-11c4-3 8-4 13-4h12c8 0 14 4 18 10l6 9c4 1 7 4 7 9v10"/>
       <path d="M48 56h44M64 44v12" class="ghost"/><path d="M88 34l4-8h14M98 26v14" />
