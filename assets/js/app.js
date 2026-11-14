@@ -367,7 +367,7 @@ ${colors.length ? `
             <div class="qty qty--lg">
               <button data-q="-1" aria-label="Moins">−</button><span id="qty">1</span><button data-q="1" aria-label="Plus">+</button>
             </div>
-            <button class="btn btn--primary btn--grow" id="add">Ajouter au panier — <span id="add-price"></span></button>
+            <button class="btn btn--primary btn--grow" id="add">Ajouter au panier<span class="add__sep"> —</span> <span id="add-price"></span></button>
           </div>
           <p class="legal-note" id="legal-note" hidden>Fabriqué à vos cotes : ni repris ni échangé, sauf défaut. Les cotes saisies font foi. <a href="cgv/#retractation">CGV</a></p>
 
