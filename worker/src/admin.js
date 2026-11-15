@@ -124,6 +124,7 @@ ${TETE_ICONES}
 main{max-width:640px;margin:0 auto;padding:24px 16px 48px}.marque{font:600 12px/1 ui-monospace,"JetBrains Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 h1{font-family:"Bricolage Grotesque",Inter,sans-serif;font-size:26px;letter-spacing:-.02em;line-height:1.1;margin:10px 0 16px}
 h2{font-size:18px;margin:28px 0 10px}.carte{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px}
+a.carte{display:block;text-decoration:none;color:inherit}a.carte:hover{border-color:var(--muted)}
 p{margin:0 0 8px}.muted{color:var(--muted);font-size:14px}.tete{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
 .art{border-top:1px solid var(--line);padding:12px 0 0;margin:12px 0 0}.piece{font:14px/1.5 ui-monospace,"JetBrains Mono",monospace;background:var(--bg);border-radius:8px;padding:8px 10px;margin:6px 0 10px;overflow-wrap:anywhere}
 .badge{display:inline-block;white-space:nowrap;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
