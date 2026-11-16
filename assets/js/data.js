@@ -314,7 +314,13 @@ EVARYSTH.products = [
     custom: { params: [
       { ...param("a", "Chargeurs", 1, 2, 2), type: "compte", unite: ["chargeur", "chargeurs"] },
       { ...param("b", "Supports de pose", 1, 4, 2), type: "compte", unite: ["support de pose", "supports de pose"] }
-    ] }
+    ] },
+    photos: [
+      { src: "assets/photos/station-brosses-dents/1.webp", alt: "Station en vert sauge : deux logements de chargeur à l'arrière, trois supports de pose avec leur picot à l'avant" },
+      { src: "assets/photos/station-brosses-dents/2.webp", alt: "Station en rose poudré, deux chargeurs et quatre supports de pose, vue de trois quarts" },
+      { src: "assets/photos/station-brosses-dents/3.webp", alt: "Station Solo en noir mat : un support de pose devant, un logement de chargeur derrière avec sa sortie de câble" }
+    ],
+    photosNote: "Photos : prototypes imprimés ; chargeurs et brosses non fournis"
   },
   {
     id: "distributeur-oeufs", universe: "meubles", matiere: "petg", shape: "eggs", model: "distributeur-oeufs",
