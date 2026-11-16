@@ -42,7 +42,11 @@ function lireLigne(it, n) {
     values = {};
     for (const prm of p.custom.params) {
       const x = v[prm.key];
-      if (typeof x !== "number" || !Number.isFinite(x) || x < prm.min || x > prm.max || !surGrille(x, prm.step))
+      if (EVARYSTH.estCompte(prm)) {
+        /* Paramètre compte : entier seulement, dans [min, max] */
+        if (!Number.isInteger(x) || x < prm.min || x > prm.max)
+          throw new ErreurPanier(`Ligne ${n} : « ${prm.label} » doit être un nombre entier entre ${prm.min} et ${prm.max}.`);
+      } else if (typeof x !== "number" || !Number.isFinite(x) || x < prm.min || x > prm.max || !surGrille(x, prm.step))
         throw new ErreurPanier(`Ligne ${n} : « ${prm.label} » doit être comprise entre ${prm.min} et ${prm.max} mm (pas de ${prm.step} mm).`);
       values[prm.key] = x;
     }
@@ -91,7 +95,7 @@ export function lireCadeau(corps) {
 /* Texte lisible par le client (page Stripe, reçu, facture) */
 export function descriptionLigne(l) {
   const parts = l.mode === "custom"
-    ? l.p.custom.params.map((prm, i) => `${LETTRES[i]} · ${prm.label} : ${l.values[prm.key]} mm`)
+    ? l.p.custom.params.map((prm, i) => `${LETTRES[i]} · ${prm.label} : ${EVARYSTH.texteCote(prm, l.values[prm.key])}`)
     : [`${l.p.variants.label} : ${l.taille.label} (${l.taille.hint})`];
   parts.push(`Matière : ${EVARYSTH.matiere(l.p).label}`);
   if (l.coloris) parts.push(`Coloris : ${l.coloris.label}`);

@@ -53,14 +53,16 @@ export const typeCommande = fiche => (lignesArticles(fiche).some(l => (l.meta ||
 export const A_VALIDER = "a_valider", STL_A_INDIQUER = "lien_stl_a_indiquer";
 export const statutInitial = async (env, a) => (a.type === "standard" && await fichierStandardDispo(env, a.texte) ? A_VALIDER : STL_A_INDIQUER);
 
-/* Un article : « <produit> · <taille M | a=45 b=32> · <matière> · <coloris> · ×<qté> » (matière : celle du catalogue) */
+/* Un article : « <produit> · <taille M | a=45 b=32> · <matière> · <coloris> · ×<qté> » (matière : celle du catalogue) ;
+   paramètre compte : « a=2 chargeurs » (le « = » marque toujours le sur-mesure, voir fichier.js) */
 function ligneArticle(l) {
   const m = l.meta || {};
+  const p = m.produit && EVARYSTH.getProduct(m.produit);
   let taille = m.taille || "";
   if (m.mode === "custom") {
-    try { taille = Object.entries(JSON.parse(m.cotes_mm || "{}")).map(([k, v]) => `${k}=${v}`).join(" "); } catch { /* cotes illisibles */ }
+    const prm = k => p && p.custom.params.find(x => x.key === k);
+    try { taille = Object.entries(JSON.parse(m.cotes_mm || "{}")).map(([k, v]) => `${k}=${EVARYSTH.estCompte(prm(k)) ? EVARYSTH.texteCote(prm(k), v) : v}`).join(" "); } catch { /* cotes illisibles */ }
   }
-  const p = m.produit && EVARYSTH.getProduct(m.produit);
   const col = p && (p.colors || []).find(c => c.id === m.coloris);
   const matiere = m.matiere || (p && EVARYSTH.matiere ? EVARYSTH.matiere(p).label : "");
   return [m.produit || l.nom, taille || "—", ...(matiere ? [matiere] : []), (col && col.label) || m.coloris || "—", `×${l.quantite}`].join(" · ");

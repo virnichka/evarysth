@@ -28,7 +28,7 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `assets/og/<id>.jpg` | Images d'aperçu quand on partage un lien (WhatsApp, réseaux…), 1200 × 630. |
 | `produit.html` | Ancienne adresse : redirige vers `produits/<produit>/` (les anciens liens `#p-<produit>` aussi). |
 | `assets/css/style.css` | Toute l'apparence : couleurs, polices, mise en page, thème clair/sombre, version mobile. |
-| `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max), photos, matières (avec leur jeu d'ajustement) et fiche d'impression de chaque produit. C'est le fichier à modifier pour ajouter ou changer un produit. |
+| `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max ; un paramètre `type: "compte"` est un nombre entier d'éléments, voir « Paramètre compte »), photos, matières (avec leur jeu d'ajustement) et fiche d'impression de chaque produit. C'est le fichier à modifier pour ajouter ou changer un produit. |
 | `assets/js/app.js` | **Le chef d'orchestre.** Lit le type de page (`data-product-id`, `data-universe-id`, `data-page="catalogue"` sur le `<body>`, ou `#…` sur l'accueil), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
 | `assets/js/prix.js` | **Le calcul des prix** (règle : `docs/prix.md`), chargé après `data.js` et `bareme.js` sur le site et dans le Worker : tarifs, prix sur-mesure, prix d'une taille, frais de livraison et d'emballage cadeau, code de démonstration. Contrôle : `node tools/rapport-prix.mjs --verifier`. |
 | `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js et le moteur géométrique seulement quand une fiche en a besoin, affiche et fait tourner la pièce. Si la 3D ne peut pas s'afficher (WebGL absent, WASM bloqué), la fiche montre la 1re photo ou la vignette 3D avec un message court. |
@@ -250,6 +250,10 @@ Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publi
    `data-page`). Sur l'accueil, seule l'ancre `#favoris` change la vue (fonction `route`) ; les anciens liens `#catalogue`,
    `#f-<univers>`, `#p-<produit>` redirigent vers les nouvelles pages.
 3. **Fiche produit** — sur `produits/<id>/`, `app.js` lit le produit dans `data.js`, crée les boutons de taille et un curseur par cote sur-mesure, puis, si le produit a un champ `model`, demande à `viewer3d.js` d'afficher la pièce 3D dans `#viewer3d` (le moteur va alors chercher le plan de cette seule pièce).
+   **Paramètre compte** : `{ ...param("a", "Chargeurs", 1, 2, 1), type: "compte", unite: ["chargeur", "chargeurs"] }`
+   (min, max, def entiers, pas 1 ; `unite` = [singulier, pluriel]) s'affiche en boutons segmentés (radiogroup, flèches
+   au clavier) au lieu du curseur, sans « mm » ; partout ailleurs (panier, page Stripe, Sheet, /admin, e-mails) la valeur
+   s'écrit « 2 chargeurs » (`EVARYSTH.texteCote` de `data.js`). Le Worker n'accepte qu'un entier dans [min, max].
 4. **Bouger un curseur** →
    la nouvelle valeur est enregistrée → `update()` recalcule le prix (`EVARYSTH.priceFor`), les cotes affichées et le résumé → le viewer 3D reçoit les nouvelles cotes et **redessine la pièce** à partir de son plan (`assets/js/modeles/<pièce>.js`).
 5. **Ajouter au panier** — le bouton `#add` transmet le produit et ses cotes à `cart.js`, qui met à jour le panier et le garde en mémoire (`localStorage`).
