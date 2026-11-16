@@ -272,7 +272,10 @@ Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publi
    - **Produit sans cote en mm** (seulement des comptes ou des choix, `EVARYSTH.sansCote`) : même gabarit ; les 3 tailles
      standard sont 3 configurations prédéfinies (`sizes("Configuration", [["Solo", "…", { a: …, b: … }], …])`, comme la
      station brosses à dents), le mode sur-mesure compose les options. La fiche dit « 3 configurations prêtes » /
-     « À composer » et « Fabriqué selon vos choix… Les options choisies font foi » au lieu des cotes.
+     « À composer ».
+   - **Droit de rétractation** (`EVARYSTH.horsRetractation`, CGV article 8) : un article composé uniquement de comptes et
+     de choix garde les 14 jours, comme une taille standard ; seul un article sur-mesure avec au moins une cote en mm en
+     est exclu (case à cocher dans le panier, revérifiée par le Worker, avertissement sur la page Stripe).
 4. **Bouger un curseur** →
    la nouvelle valeur est enregistrée → `update()` recalcule le prix (`EVARYSTH.priceFor`), les cotes affichées et le résumé → le viewer 3D reçoit les nouvelles cotes et **redessine la pièce** à partir de son plan (`assets/js/modeles/<pièce>.js`).
 5. **Ajouter au panier** — le bouton `#add` transmet le produit et ses cotes à `cart.js`, qui met à jour le panier et le garde en mémoire (`localStorage`).

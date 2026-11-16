@@ -397,10 +397,10 @@ ${colors.length ? `
             </div>
             <button class="btn btn--primary btn--grow" id="add">Ajouter au panier<span class="add__sep"> —</span> <span id="add-price"></span></button>
           </div>
-          <p class="legal-note" id="legal-note" hidden>${sansCote ? "Fabriqué selon vos choix : ni repris ni échangé, sauf défaut. Les options choisies font foi." : "Fabriqué à vos cotes : ni repris ni échangé, sauf défaut. Les cotes saisies font foi."} <a href="cgv/#retractation">CGV</a></p>
+          <p class="legal-note" id="legal-note" hidden>${sansCote ? "Composé à partir des options de la fiche : 14 jours pour changer d'avis, comme une taille standard." : "Fabriqué à vos cotes : ni repris ni échangé, sauf défaut. Les cotes saisies font foi."} <a href="cgv/#retractation">CGV</a></p>
 
           <div class="accordion accordion--pdp">
-            <details><summary><span>Livraison estimée <b>${deliveryRange()}</b></span></summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut.</p><p>Garantie légale de conformité, 2 ans : une pièce défectueuse ou non conforme à la commande (taille standard ou dimensions saisies) est réparée, refabriquée ou remboursée. <a href="cgv/">Voir les CGV</a>.</p></details>
+            <details><summary><span>Livraison estimée <b>${deliveryRange()}</b></span></summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. ${sansCote ? "Taille standard ou options composées : 14 jours pour changer d'avis." : "Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut."}</p><p>Garantie légale de conformité, 2 ans : une pièce défectueuse ou non conforme à la commande (${sansCote ? "taille standard ou options choisies" : "taille standard ou dimensions saisies"}) est réparée, refabriquée ou remboursée. <a href="cgv/">Voir les CGV</a>.</p></details>
             
           </div>
         </div>

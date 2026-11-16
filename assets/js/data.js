@@ -540,6 +540,10 @@ EVARYSTH.estMm = prm => Boolean(prm) && !EVARYSTH.estCompte(prm) && !EVARYSTH.es
 EVARYSTH.option = (prm, id) => (prm.options || []).find(o => o.id === id);
 /* Produit sans cote en mm (seulement des comptes ou des choix) : textes « options » au lieu de « cotes » sur la fiche */
 EVARYSTH.sansCote = p => !(p.custom && p.custom.params || []).some(EVARYSTH.estMm);
+/* Droit de rétractation (CGV, article 8) : seul un article sur-mesure qui porte au moins une cote en mm en est exclu
+   (art. L221-28 3°) ; un article composé uniquement de comptes et de choix (liste fermée de la fiche) garde les 14 jours,
+   comme une taille standard. Même règle sur la fiche, dans le panier et dans le Worker. */
+EVARYSTH.horsRetractation = (p, mode) => mode === "custom" && !(p && EVARYSTH.sansCote(p));
 /* Valeur sur-mesure en texte : « 42 mm », « 1 chargeur » / « 2 chargeurs » (compte), libellé de l'option (choix) */
 EVARYSTH.texteCote = (prm, x) => {
   if (EVARYSTH.estChoix(prm)) { const o = EVARYSTH.option(prm, x); return o ? o.label : String(x); }
