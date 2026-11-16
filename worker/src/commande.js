@@ -148,7 +148,7 @@ const LIGNE_CADEAU = {
 };
 
 export function parametresSession(lignes, { base, retour, ref, promotionCode, catalogue, environnement, cadeau = null, consentement = false, sha = "" }) {
-  const surMesure = lignes.some(l => l.mode === "custom");
+  const surMesure = lignes.some(l => EVARYSTH.horsRetractation(l.p, l.mode));
   const cgv = `[conditions générales de vente](${URL_CGV})`;
   const avertissement = surMesure ? " Les pièces sur-mesure sont fabriquées selon vos cotes : elles ne bénéficient pas du droit de rétractation (art. L221-28 3° du Code de la consommation)." : "";
   return {

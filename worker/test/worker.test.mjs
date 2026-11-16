@@ -192,6 +192,19 @@ test("sur-mesure : paiement refusé sans la case cochée dans le panier (pas de 
   assert.equal(std.status, 200);
 });
 
+test("composition d'options sans cote (comptes, choix) : droit de rétractation gardé, ni case ni avertissement", async () => {
+  const station = { id: "station-brosses-dents", mode: "custom", values: { a: 1, b: 3 }, color: "noir", qty: 1 };
+  const r = await poster("/checkout", { items: [station] });
+  assert.equal(r.status, 200);
+  const p = decode(appels.find(a => a.chemin === "/v1/checkout/sessions").corps);
+  assert.doesNotMatch(p["custom_text[submit][message]"] || "", /rétractation/);
+  /* Mélangée à un article à cotes : la case redevient obligatoire */
+  assert.equal((await poster("/checkout", { items: [station, tablette] })).status, 400);
+  assert.ok(!EVARYSTH.horsRetractation(EVARYSTH.getProduct("station-brosses-dents"), "custom"));
+  assert.ok(EVARYSTH.horsRetractation(EVARYSTH.getProduct("tablette-rambarde"), "custom"));
+  assert.ok(!EVARYSTH.horsRetractation(EVARYSTH.getProduct("tablette-rambarde"), "standard"));
+});
+
 test("webhook : signature vérifiée (valide, falsifiée, périmée)", async () => {
   const corps = JSON.stringify({ type: "checkout.session.completed", livemode: false, data: { object: { id: "cs_test_abc", payment_status: "paid", metadata: { ref: "EV-1" }, amount_total: 9690,
     customer_details: { name: "Camille Test", email: "client@example.com" }, shipping_details: { name: "Camille Test", address: { line1: "1 rue Secrète", city: "Lyon" } } } } });

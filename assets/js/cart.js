@@ -156,7 +156,8 @@
     $("#gift-on").checked = gift.on;
     $("#gift-message").value = gift.message.slice(0, GIFT_MAX);
     $("#gift-on").addEventListener("change", e => { gift.on = e.target.checked; saveGift(); render(); });
-    /* Sur-mesure sans droit de rétractation (CGV, L221-28 3°) : accord explicite avant de payer, revérifié par le Worker */
+    /* Sur-mesure à vos cotes, sans droit de rétractation (CGV, L221-28 3° ; EVARYSTH.horsRetractation) : accord explicite
+       avant de payer, revérifié par le Worker */
     $("#custom-ok").addEventListener("change", render);
     $("#gift-message").addEventListener("input", e => { gift.message = e.target.value.slice(0, GIFT_MAX); saveGift(); renderGiftCount(); });
     render();
@@ -228,7 +229,8 @@
     $("#gift-box").hidden = !gift.on;
     $("#cart-gift").hidden = !items.length;
     $("#cart-legal").hidden = !items.length;
-    const surMesure = items.some(i => i.mode === "custom");
+    /* Case à cocher seulement pour un article exclu du droit de rétractation (au moins une cote en mm) */
+    const surMesure = items.some(i => EVARYSTH.horsRetractation(EVARYSTH.getProduct(i.id), i.mode));
     $("#cart-custom-note").hidden = !surMesure;
     if (!surMesure) $("#custom-ok").checked = false;
     renderGiftCount();
