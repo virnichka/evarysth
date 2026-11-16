@@ -80,6 +80,8 @@ pas un gabarit de forme.
    1 à 3 paramètres, exprimés comme l'utilisateur les mesure, en mm, avec des bornes
    qui gardent une pièce imprimable et solide.
    Un nombre d'éléments (pas une cote) : paramètre `type: "compte"` (boutons, entier ; format dans README).
+   Une option dans une liste (modèle de chargeur, accessoire…) : paramètre `choix(…)`, `type: "choix"` (valeur = id ;
+   README « Paramètre choix ») ; produit sans cote : tailles standard = 3 configurations prédéfinies.
 4. **Liberté de design** : le STL fourni est une base, pas une contrainte. Tu peux :
    simplifier ou retirer des détails inutiles, ajouter des congés/chanfreins, renforcer,
    ajuster les proportions, réorganiser les pièces, ou reconstruire l'objet entièrement,

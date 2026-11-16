@@ -154,8 +154,8 @@
         ${p.custom.outil
           ? `<li><b>Préparez de quoi mesurer</b><span>${esc(p.custom.outil)}</span></li>`
           : `<li><b>Prenez un mètre ruban</b><span>Un simple mètre de couturière ou de bricolage suffit, pas besoin de pied à coulisse.</span></li>`}
-        ${p.custom.params.map((prm, i) => prm.aide
-          /* Aide propre à la cote (data.js : aide, schema facultatif) ; sinon consigne générique */
+        ${p.custom.params.map((prm, i) => !EVARYSTH.estMm(prm) ? "" : prm.aide
+          /* Aide propre à la cote (data.js : aide, schema facultatif) ; sinon consigne générique ; rien à mesurer pour un compte ou un choix */
           ? `<li><b>${"ABC"[i]} · ${esc(prm.label)}</b><span>${esc(prm.aide)} Entre ${prm.min} et ${EVARYSTH.texteCote(prm, prm.max)}.</span>${prm.schema ? prm.schema.replace("<svg ", '<svg class="guide__schema" aria-hidden="true" ') : ""}</li>`
           : `<li><b>${esc(prm.label)}</b><span>Mesurez en millimètres (1 cm = 10 mm), entre ${prm.min} et ${prm.max} mm. Mesurez deux fois, au point le plus large.</span></li>`).join("")}
         <li><b>Réglez les curseurs</b><span>Ne vous souciez pas du jeu : on ajoute nous-mêmes la tolérance pour que la pièce s'ajuste parfaitement.</span></li>

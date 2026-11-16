@@ -99,6 +99,8 @@ test("fabriquer : entrées validées (n° d'article, cotes)", () => {
   assert.ok(FORMATS.cf.test("CF-2026-0012-1") && FORMATS.cf.test("CF-ESSAI-0001-1"));
   assert.ok(!FORMATS.cf.test("EV-2026-0012") && !FORMATS.cf.test("CF-2026-0012-1; rm -rf /"));
   assert.deepEqual(lireCotes('{"a":45,"b":250}'), { a: 45, b: 250 });
+  assert.deepEqual(lireCotes('{"a":"apple","b":45}'), { a: "apple", b: 45 }, "id d'option d'un paramètre choix");
+  for (const c of ['{"a":"Apple"}', '{"a":"a b"}', '{"a":"1x"}']) assert.throws(() => lireCotes(c), c);
   for (const c of ["", "[]", '{"a":"45"}', '{"ab":1}', "{}", '{"a":1,"b":2,"c":3,"d":4,"e":5,"f":6,"g":7}']) assert.throws(() => lireCotes(c), c);
 });
 

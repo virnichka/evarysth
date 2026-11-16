@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* Evarysth · barème des prix sur-mesure (docs/fabrication.md, « Barème des prix »).
-   Tranche une grille de cotes par produit (tools/lib/bareme.mjs) et écrit assets/js/bareme.js : volume de filament (cm³)
-   et temps estimé (s) par point, lus par EVARYSTH.estimation (prix.js, barème lissé) par interpolation.
+   Tranche une grille de cotes par produit, plus un point par option de paramètre choix (tools/lib/bareme.mjs), et écrit
+   assets/js/bareme.js : volume de filament (cm³) et temps estimé (s) par point, lus par EVARYSTH.estimation (prix.js,
+   barème lissé) par interpolation et supplément par option.
    Usage :
      node tools/generer-bareme.mjs [id…] [--tous] [--docker=<image>]     tranche les produits donnés (défaut : barèmes
                                                                           absents ou périmés) et met à jour bareme.js
@@ -18,7 +19,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { RACINE, FICHIER, SCRIPTS_PRIX, VERSION_GRILLE, PROFIL, charger, avecBareme, matiereImpression, grille, axes, empreinte, perimes } from "./lib/bareme.mjs";
+import { RACINE, FICHIER, SCRIPTS_PRIX, VERSION_GRILLE, PROFIL, charger, avecBareme, matiereImpression, grille, axes, pointsOptions, empreinte, perimes } from "./lib/bareme.mjs";
 
 const args = process.argv.slice(2);
 const opt = k => { const a = args.find(x => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : undefined; };
@@ -62,8 +63,24 @@ function trancherProduit(E, p) {
     points.push([r.cm3, r.s]);
     console.log(`${p.id} ${JSON.stringify(c)} : ${r.cm3} cm³, ${Math.round(r.s / 60)} min, ${r.plateaux} plateau(x)`);
   }
-  console.log(`${p.id} : ${points.length} points tranchés en ${Math.round((Date.now() - t0) / 1000)} s`);
-  return { empreinte: empreinte(p, E), matiere: matiereImpression(p), profil: prof, bambu_studio: bambu, axes: axes(p), points };
+  /* Paramètres choix : un point par option (autres paramètres par défaut) ; l'option par défaut = point de la grille
+     aux valeurs par défaut */
+  const opts = {}, cles = Object.keys(axes(p)), g = grille(p), def = Object.fromEntries(p.custom.params.map(q => [q.key, q.def]));
+  const iDef = g.findIndex(c => cles.every(k => c[k] === def[k]));
+  for (const o of pointsOptions(p)) {
+    let pt;
+    if (o.option === def[o.cle]) pt = points[iDef];
+    else {
+      const r = trancherPoint(p, o.cotes, densite);
+      pt = [r.cm3, r.s];
+      console.log(`${p.id} ${JSON.stringify(o.cotes)} : ${r.cm3} cm³, ${Math.round(r.s / 60)} min, ${r.plateaux} plateau(x)`);
+    }
+    (opts[o.cle] ??= {})[o.option] = pt;
+  }
+  const n = points.length + pointsOptions(p).filter(o => o.option !== def[o.cle]).length;
+  console.log(`${p.id} : ${n} points tranchés en ${Math.round((Date.now() - t0) / 1000)} s`);
+  return { empreinte: empreinte(p, E), matiere: matiereImpression(p), profil: prof, bambu_studio: bambu, axes: axes(p), points,
+    ...(Object.keys(opts).length ? { options: opts } : {}) };
 }
 
 /* bareme.js : une ligne par produit, ordre de data.js, produits retirés du catalogue supprimés */
@@ -74,7 +91,8 @@ function ecrire(E, nouveaux) {
   fs.writeFileSync(path.join(RACINE, FICHIER), `/* Evarysth — barème des prix sur-mesure. FICHIER GÉNÉRÉ par tools/generer-bareme.mjs (workflow « Barème »,
    bareme.yml) : ne pas modifier à la main. Par produit : empreinte des entrées (périmée → job geometrie rouge), matière,
    profil de tranchage, axes de la grille (mm) et points [cm³ de filament, temps estimé en s], premier axe = rang le plus
-   lent. Lu par EVARYSTH.estimation (prix.js), qui le lisse sans le modifier. */
+   lent ; options : point de chaque option des paramètres choix (autres paramètres par défaut). Lu par EVARYSTH.estimation
+   (prix.js), qui lisse la grille sans la modifier. */
 window.EVARYSTH = window.EVARYSTH || {};
 EVARYSTH.bareme = {
   version: ${VERSION_GRILLE},
@@ -91,7 +109,7 @@ ${lignes.join(",\n")}
 function tableau(E) {
   const lignes = ["| Produit | Matière | Min / défaut / max | Tailles standard |", "|---|---|---|---|"];
   for (const p of E.products.filter(avecBareme)) {
-    const ext = ["min", "def", "max"].map(k => Object.fromEntries(p.custom.params.map(q => [q.key, q[k]])));
+    const ext = ["min", "def", "max"].map(k => Object.fromEntries(p.custom.params.map(q => [q.key, q.type === "choix" ? q.def : q[k]])));
     const r = ext.map(v => E.prixDetail(p, v));
     if (r.some(x => !x)) { lignes.push(`| ${p.id} | — | barème absent | |`); continue; }
     lignes.push(`| ${p.id} | ${E.matieres[matiereImpression(p)].court} | ${r.map(x => `${x.prix} €`).join(" / ")}`

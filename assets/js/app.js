@@ -287,6 +287,20 @@
     const colors = p.colors || [];
     const mat = EVARYSTH.matiere(p);
     const LETTERS = ["A", "B", "C"];
+    /* Sans cote en mm (comptes, choix) : « configurations » et « options » au lieu de « tailles » et « cotes » */
+    const sansCote = EVARYSTH.sansCote(p);
+    /* Paramètre choix : boutons segmentés jusqu'à 4 options courtes (tiennent sur une ligne de téléphone), sinon liste */
+    const enBoutons = prm => prm.options.length <= 4 && prm.options.reduce((n, o) => n + o.label.length, 0) <= 28
+      && prm.options.every(o => o.label.length <= 12);
+    const ctrlChoix = (prm, i) => `
+              <div class="slider slider--compte">
+                <div class="slider__head"><${enBoutons(prm) ? "span" : `label for="c-${prm.key}"`} class="slider__lbl" id="l-${prm.key}"><span class="mono letter">${LETTERS[i]}</span>${prm.label}</${enBoutons(prm) ? "span" : "label"}></div>
+                ${enBoutons(prm) ? `<div class="compte compte--choix" role="radiogroup" aria-labelledby="l-${prm.key}">
+                  ${prm.options.map(o => `<button type="button" role="radio" data-radio="${prm.key}" data-v="${o.id}" aria-checked="${o.id === prm.def}" tabindex="${o.id === prm.def ? 0 : -1}">${o.label}</button>`).join("")}
+                </div>` : `<select class="choix-liste" id="c-${prm.key}" data-choix="${prm.key}">
+                  ${prm.options.map(o => `<option value="${o.id}"${o.id === prm.def ? " selected" : ""}>${o.label}</option>`).join("")}
+                </select>`}
+              </div>`;
     const photos = p.photos || [];
     /* Cotes communes aux 3 tailles standard (paramètres qui ont un libellé court « court » dans data.js) */
     const coteFixes = p.custom.params.filter(prm => prm.court && new Set(p.variants.options.map(o => o.values[prm.key])).size === 1)
@@ -344,8 +358,8 @@ ${colors.length ? `
           </div>` : ""}
 
           <div class="segmented" role="group" aria-label="Type de commande">
-            <button type="button" data-mode="standard">Standard <small>3 tailles prêtes</small></button>
-            <button type="button" data-mode="custom">Sur-mesure <small>À vos dimensions</small></button>
+            <button type="button" data-mode="standard">Standard <small>${sansCote ? "3 configurations prêtes" : "3 tailles prêtes"}</small></button>
+            <button type="button" data-mode="custom">Sur-mesure <small>${sansCote ? "À composer" : "À vos dimensions"}</small></button>
           </div>
 
           <div class="pane" id="pane-standard">
@@ -358,11 +372,11 @@ ${colors.length ? `
           </div>
 
           <div class="pane" id="pane-custom" hidden>
-            ${p.custom.params.map((prm, i) => EVARYSTH.estCompte(prm) ? `
+            ${p.custom.params.map((prm, i) => EVARYSTH.estChoix(prm) ? ctrlChoix(prm, i) : EVARYSTH.estCompte(prm) ? `
               <div class="slider slider--compte">
                 <div class="slider__head"><span class="slider__lbl" id="l-${prm.key}"><span class="mono letter">${LETTERS[i]}</span>${prm.label}</span></div>
                 <div class="compte" role="radiogroup" aria-labelledby="l-${prm.key}">
-                  ${Array.from({ length: prm.max - prm.min + 1 }, (_, k) => prm.min + k).map(n => `<button type="button" role="radio" class="mono" data-compte="${prm.key}" data-n="${n}" aria-checked="${n === prm.def}" tabindex="${n === prm.def ? 0 : -1}" aria-label="${EVARYSTH.texteCote(prm, n)}">${n}</button>`).join("")}
+                  ${Array.from({ length: prm.max - prm.min + 1 }, (_, k) => prm.min + k).map(n => `<button type="button" role="radio" class="mono" data-radio="${prm.key}" data-v="${n}" aria-checked="${n === prm.def}" tabindex="${n === prm.def ? 0 : -1}" aria-label="${EVARYSTH.texteCote(prm, n)}">${n}</button>`).join("")}
                 </div>
               </div>` : `
               <div class="slider">
@@ -383,7 +397,7 @@ ${colors.length ? `
             </div>
             <button class="btn btn--primary btn--grow" id="add">Ajouter au panier<span class="add__sep"> —</span> <span id="add-price"></span></button>
           </div>
-          <p class="legal-note" id="legal-note" hidden>Fabriqué à vos cotes : ni repris ni échangé, sauf défaut. Les cotes saisies font foi. <a href="cgv/#retractation">CGV</a></p>
+          <p class="legal-note" id="legal-note" hidden>${sansCote ? "Fabriqué selon vos choix : ni repris ni échangé, sauf défaut. Les options choisies font foi." : "Fabriqué à vos cotes : ni repris ni échangé, sauf défaut. Les cotes saisies font foi."} <a href="cgv/#retractation">CGV</a></p>
 
           <div class="accordion accordion--pdp">
             <details><summary><span>Livraison estimée <b>${deliveryRange()}</b></span></summary><p>Fabriqué à la commande, expédié en général sous 3 à 5 jours ouvrés. Taille standard : 14 jours pour changer d'avis. Sur-mesure : ni repris ni échangé, sauf défaut.</p><p>Garantie légale de conformité, 2 ans : une pièce défectueuse ou non conforme à la commande (taille standard ou dimensions saisies) est réparée, refabriquée ou remboursée. <a href="cgv/">Voir les CGV</a>.</p></details>
@@ -428,7 +442,8 @@ ${colors.length ? `
 
       const dimRows = p.custom.params.map((prm, i) => [`${LETTERS[i]} · ${prm.label}`, EVARYSTH.texteCote(prm, v[prm.key])]);
       $("#dims").innerHTML = p.custom.params.map((prm, i) =>
-        `<span class="dim mono"><i>${LETTERS[i]}</i>${v[prm.key]}<small>${EVARYSTH.texteCote(prm, v[prm.key]).replace(/^\S+\s*/, "")}</small></span>`).join("");
+        `<span class="dim mono"><i>${LETTERS[i]}</i>${EVARYSTH.estChoix(prm) ? `<small>${EVARYSTH.texteCote(prm, v[prm.key])}</small>`
+          : `${v[prm.key]}<small>${EVARYSTH.texteCote(prm, v[prm.key]).replace(/^\S+\s*/, "")}</small>`}</span>`).join("");
 
       $("#legal-note").hidden = state.mode !== "custom";
       state._unit = unit; state._dimRows = dimRows;
@@ -515,16 +530,18 @@ ${colors.length ? `
       const q = e.target.closest("[data-q]"); if (q) { state.qty = Math.max(1, Math.min(20, state.qty + +q.dataset.q)); update(); }
     };
 
-    /* Paramètre compte : boutons radio (flèches, Début/Fin au clavier, un seul arrêt de tabulation) */
-    function comptes(prm) {
-      const btns = [...root.querySelectorAll(`[data-compte="${prm.key}"]`)];
+    /* Paramètre compte ou choix en boutons : boutons radio (flèches, Début/Fin au clavier, un seul arrêt de tabulation) ;
+       valeur = nombre (compte) ou id d'option (choix) */
+    function radios(prm) {
+      const btns = [...root.querySelectorAll(`[data-radio="${prm.key}"]`)];
+      const val = b => EVARYSTH.estChoix(prm) ? b.dataset.v : +b.dataset.v;
       const choisir = (b, focus) => {
         btns.forEach(x => { const on = x === b; x.classList.toggle("is-active", on); x.setAttribute("aria-checked", on); x.tabIndex = on ? 0 : -1; });
         if (focus) b.focus();
-        if (state.custom[prm.key] !== +b.dataset.n) { state.custom[prm.key] = +b.dataset.n; update(); pulse(); }
+        if (state.custom[prm.key] !== val(b)) { state.custom[prm.key] = val(b); update(); pulse(); }
       };
       btns.forEach((b, i) => {
-        b.classList.toggle("is-active", +b.dataset.n === state.custom[prm.key]);
+        b.classList.toggle("is-active", val(b) === state.custom[prm.key]);
         b.addEventListener("click", () => choisir(b, false));
         b.addEventListener("keydown", e => {
           const j = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: btns.length - 1 }[e.key];
@@ -536,7 +553,11 @@ ${colors.length ? `
     }
 
     p.custom.params.forEach(prm => {
-      if (EVARYSTH.estCompte(prm)) return comptes(prm);
+      if (EVARYSTH.estChoix(prm) && !enBoutons(prm)) {
+        const sel = $(`#c-${prm.key}`);
+        return sel.addEventListener("change", () => { state.custom[prm.key] = sel.value; update(); pulse(); });
+      }
+      if (!EVARYSTH.estMm(prm)) return radios(prm);
       const range = $(`#s-${prm.key}`), num = $(`#n-${prm.key}`);
       const paint = () => range.style.setProperty("--p", ((range.value - prm.min) / (prm.max - prm.min)) * 100 + "%");
       range.addEventListener("input", () => { state.custom[prm.key] = +range.value; num.value = range.value; $(`#m-${prm.key}`).hidden = true; num.setAttribute("aria-invalid", "false"); paint(); update(); bulle(prm, range, true); });
@@ -647,7 +668,10 @@ ${colors.length ? `
 
     disposeViewer();
     if (p.model && EVARYSTH.viewer3d) {
-      viewer = EVARYSTH.viewer3d.mount($("#viewer3d"), p.model, p.custom.params, build => {
+      /* Caméra cadrée aux valeurs max ; un choix n'a pas de max : option par défaut (une option ne doit pas sortir
+         nettement de l'encombrement de la pièce) */
+      const cadrage = p.custom.params.map(q => EVARYSTH.estChoix(q) ? { ...q, max: q.def } : q);
+      viewer = EVARYSTH.viewer3d.mount($("#viewer3d"), p.model, cadrage, build => {
         $("#stage").classList.add("is-3d");
         const lab = $("#open3d") && $("#open3d").closest(".stage__open");
         if (lab) lab.hidden = !build.openable;   // curseur « Ouvrir » seulement pour les modèles articulés

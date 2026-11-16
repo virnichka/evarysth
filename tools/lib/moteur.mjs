@@ -60,10 +60,10 @@ const instance = async () => {
 
 /* Modèle prêt à calculer : calc(valeurs, jeu) → résultat brut du modèle (Solid ou BufferGeometry).
    jeu : jeu d'ajustement de la matière (data.js), passé au modèle comme valeur « jeu » */
-export async function modele(id) {
+export async function modele(id, fichier = `assets/js/modeles/${id}.js`) {
   const { v, kit, charges } = await instance();
   if (!charges[id]) {
-    run(`assets/js/modeles/${id}.js`);
+    run(fichier);   // autre fichier : modèle de test (tools/fixtures/)
     const build = v.models[id];
     if (!build) throw new Error(`Modèle 3D « ${id} » non défini`);
     if (build.prepare) await build.prepare(THREE);
@@ -77,8 +77,26 @@ export async function modele(id) {
 export const solidesAttendus = (build, vals) => typeof build.solides === "function" ? build.solides(vals) : build.solides;
 /* Jeu de la matière imprimée du produit (data.js) */
 export const jeu = p => EVARYSTH.jeu(p);
-/* Combinaisons min/défaut/max des cotes d'un produit */
-export const combinaisons = prm => prm.reduce((acc, q) => acc.flatMap(c => [...new Set([q.min, q.def, q.max])].map(x => ({ ...c, [q.key]: x }))), [{}]);
+/* Combinaisons contrôlées d'un produit : min/défaut/max des cotes et comptes (choix par défaut) ; avec des paramètres
+   choix, en plus, aux cotes min puis max : chaque option seule (autres choix par défaut) et la « diagonale » (k-ième
+   option de chaque choix), pour que chaque option et des mélanges sans défaut soient contrôlés sans le produit complet
+   des options (1 + Σ (options − 1) + max(options) jeux au plus). Clés dans l'ordre des paramètres. */
+export const combinaisons = prm => {
+  const choix = prm.filter(q => q.type === "choix"), def = Object.fromEntries(choix.map(q => [q.key, q.def]));
+  const ordre = v => Object.fromEntries(prm.map(q => [q.key, v[q.key]]));
+  const cotes = prm.filter(q => q.type !== "choix").reduce((acc, q) => acc.flatMap(c => [...new Set([q.min, q.def, q.max])].map(x => ({ ...c, [q.key]: x }))), [{}]);
+  const tout = cotes.map(c => ordre({ ...c, ...def }));
+  if (choix.length) {
+    const jeux = [...choix.flatMap(q => q.options.map(o => ({ ...def, [q.key]: o.id }))),
+      ...Array.from({ length: Math.max(...choix.map(q => q.options.length)) }, (_, i) => Object.fromEntries(choix.map(q => [q.key, q.options[i % q.options.length].id])))];
+    for (const k of ["min", "max"]) {
+      const c = Object.fromEntries(prm.filter(q => q.type !== "choix").map(q => [q.key, q[k]]));
+      tout.push(...jeux.map(j => ordre({ ...c, ...j })));
+    }
+  }
+  const vu = new Set();
+  return tout.filter(v => { const k = JSON.stringify(v); return !vu.has(k) && vu.add(k); });
+};
 
 /* Cotes : défauts data.js, puis taille standard, puis valeurs explicites ; contrôle des bornes */
 export function cotes(p, { taille, valeurs = {} } = {}) {
@@ -92,10 +110,13 @@ export function cotes(p, { taille, valeurs = {} } = {}) {
   for (const [k, x] of Object.entries(valeurs)) {
     const q = prm.find(r => r.key === k);
     if (!q) throw new Error(`Cote « ${k} » inconnue pour ${p.id} (cotes : ${prm.map(r => r.key).join(", ")})`);
-    v[k] = Number(x);
+    v[k] = q.type === "choix" ? String(x) : Number(x);
   }
   for (const q of prm) {
-    if (!Number.isFinite(v[q.key]) || v[q.key] < q.min || v[q.key] > q.max)
+    if (q.type === "choix") {
+      if (!q.options.some(o => o.id === v[q.key]))
+        throw new Error(`Option ${q.key} = ${v[q.key]} inconnue pour ${p.id} (${q.label} : ${q.options.map(o => o.id).join(", ")})`);
+    } else if (!Number.isFinite(v[q.key]) || v[q.key] < q.min || v[q.key] > q.max)
       throw new Error(`Cote ${q.key} = ${v[q.key]} hors bornes pour ${p.id} (${q.label} : ${q.min} à ${q.max} mm)`);
   }
   return v;

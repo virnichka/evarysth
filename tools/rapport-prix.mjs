@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* Evarysth — rapport des prix (docs/prix.md) : pour chaque produit, prix des tailles standard, prix aux cotes min / défaut /
-   max avec leur décomposition, « Dès », prix unitaire par quantité, puis balayage de toutes les cotes (pas des curseurs,
-   au plus PAS_MAX valeurs par axe) et invariants. Lit le site tel quel (data.js, bareme.js, prix.js) : rien n'est
+   max avec leur décomposition (paramètres choix à leur option par défaut), « Dès », prix unitaire par quantité, puis
+   balayage de toutes les cotes (pas des curseurs, au plus PAS_MAX valeurs par axe ; toutes les options des choix) et
+   invariants. Lit le site tel quel (data.js, bareme.js, prix.js) : rien n'est
    recalculé ici.
 
      node tools/rapport-prix.mjs                   tableau Markdown
@@ -25,8 +26,10 @@ export const QUANTITES = [1, 2, 3, 4, 5, 10];
 const EXEMPLES = 3;
 
 const decimales = x => (String(x).split(".")[1] || "").length;
-/* Valeurs d'un axe sur la grille du curseur (min + k × pas), au plus PAS_MAX, min et max compris */
+/* Valeurs d'un axe sur la grille du curseur (min + k × pas), au plus PAS_MAX, min et max compris ; paramètre choix :
+   toutes ses options */
 export function valeursAxe(q) {
+  if (q.type === "choix") return q.options.map(o => o.id);
   const n = Math.round((q.max - q.min) / q.step), d = Math.max(decimales(q.step), decimales(q.min));
   const ks = n + 1 <= PAS_MAX ? Array.from({ length: n + 1 }, (_, i) => i)
     : [...new Set(Array.from({ length: PAS_MAX }, (_, i) => Math.round(i * n / (PAS_MAX - 1))))];
@@ -43,7 +46,7 @@ function produit(E, p) {
   const tailles = p.variants.options.map(o => ({ taille: o.label, cotes: o.values, prix: E.priceFor(p, "standard", o.values),
     surMesure: E.priceFor(p, "custom", o.values) }));
   const reperes = Object.fromEntries(["min", "def", "max"].map(k => {
-    const v = Object.fromEntries(prm.map(q => [q.key, q[k]]));
+    const v = Object.fromEntries(prm.map(q => [q.key, E.estChoix(q) ? q.def : q[k]]));   // choix : sans ordre, par défaut
     return [k, { cotes: v, ...detail(E.prixDetail(p, v)), parQuantite: QUANTITES.map(n => E.priceFor(p, "custom", v, n)) }];
   }));
 
@@ -65,6 +68,8 @@ function produit(E, p) {
   const baisses = { nombre: 0, exemples: [] }, hausses = { nombre: 0, exemples: [] };
   let pasAxe = 1, hausseMaxMm = 0;
   for (let d = cles.length - 1; d >= 0; d--) {
+    /* Paramètre choix : options sans ordre, ni baisse ni hausse à contrôler (« Dès » couvre toutes ses options) */
+    if (E.estChoix(prm[d])) { pasAxe *= dims[d]; continue; }
     for (let i = 0; i < total; i++) {
       const k = Math.floor(i / pasAxe) % dims[d];
       if (k === dims[d] - 1) continue;

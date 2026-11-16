@@ -47,6 +47,11 @@ const sizes = (label, opts) => ({ label, options: opts.map(([l, hint, values]) =
 const param = (key, label, min, max, def, step = 1) => ({ key, label, min, max, step, def });
 /* Paramètre « compte » (nombre entier d'éléments, boutons au lieu du curseur, sans mm) :
    { ...param("a", "Chargeurs", 1, 2, 1), type: "compte", unite: ["chargeur", "chargeurs"] } (min, max, def entiers, pas 1) */
+/* Paramètre « choix » (une option dans une liste, sans mm ; valeur = id de l'option, chaîne) :
+   choix("a", "Chargeur de montre", [["apple", "Apple Watch"], ["galaxy", "Galaxy Watch"]], "apple") (défaut : 1re option).
+   Ajouter une option = une entrée ici + sa forme dans le modèle 3D (README, « Paramètre choix »). */
+const choix = (key, label, options, def = options[0][0]) =>
+  ({ key, label, type: "choix", options: options.map(([id, l]) => ({ id, label: l })), def });
 
 /* Fiche d'impression (champ impression, contrôlée par tools/lib/impression.mjs et les tests de tools/test/) :
    orientation = rotation propre (lignes, déterminant +1) du repère du modèle (Y vers le haut, comme l'aperçu)
@@ -527,9 +532,17 @@ EVARYSTH.products = [
 EVARYSTH.getProduct = id => EVARYSTH.products.find(p => p.id === id);
 EVARYSTH.getUniverse = id => EVARYSTH.universes.find(u => u.id === id);
 
-/* Valeur sur-mesure en texte : « 42 mm », ou « 1 chargeur » / « 2 chargeurs » pour un paramètre compte */
+/* Types de paramètre : cote en mm (défaut), compte (nombre entier d'éléments), choix (id d'une option) */
 EVARYSTH.estCompte = prm => Boolean(prm && prm.type === "compte");
+EVARYSTH.estChoix = prm => Boolean(prm && prm.type === "choix");
+EVARYSTH.estMm = prm => Boolean(prm) && !EVARYSTH.estCompte(prm) && !EVARYSTH.estChoix(prm);
+/* Option d'un paramètre choix d'après son id (undefined si inconnue) */
+EVARYSTH.option = (prm, id) => (prm.options || []).find(o => o.id === id);
+/* Produit sans cote en mm (seulement des comptes ou des choix) : textes « options » au lieu de « cotes » sur la fiche */
+EVARYSTH.sansCote = p => !(p.custom && p.custom.params || []).some(EVARYSTH.estMm);
+/* Valeur sur-mesure en texte : « 42 mm », « 1 chargeur » / « 2 chargeurs » (compte), libellé de l'option (choix) */
 EVARYSTH.texteCote = (prm, x) => {
+  if (EVARYSTH.estChoix(prm)) { const o = EVARYSTH.option(prm, x); return o ? o.label : String(x); }
   if (!EVARYSTH.estCompte(prm)) return `${x} mm`;
   const [un, plusieurs] = prm.unite || [];
   return `${x} ${(Math.abs(x) >= 2 ? plusieurs : un) || ""}`.trim();

@@ -28,7 +28,7 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `assets/og/<id>.jpg` | Images d'aperçu quand on partage un lien (WhatsApp, réseaux…), 1200 × 630. |
 | `produit.html` | Ancienne adresse : redirige vers `produits/<produit>/` (les anciens liens `#p-<produit>` aussi). |
 | `assets/css/style.css` | Toute l'apparence : couleurs, polices, mise en page, thème clair/sombre, version mobile. |
-| `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max ; un paramètre `type: "compte"` est un nombre entier d'éléments, voir « Paramètre compte »), photos, matières (avec leur jeu d'ajustement) et fiche d'impression de chaque produit. C'est le fichier à modifier pour ajouter ou changer un produit. |
+| `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max ; un paramètre `type: "compte"` est un nombre entier d'éléments, voir « Paramètre compte » ; `type: "choix"` une option dans une liste, voir « Paramètre choix »), photos, matières (avec leur jeu d'ajustement) et fiche d'impression de chaque produit. C'est le fichier à modifier pour ajouter ou changer un produit. |
 | `assets/js/app.js` | **Le chef d'orchestre.** Lit le type de page (`data-product-id`, `data-universe-id`, `data-page="catalogue"` sur le `<body>`, ou `#…` sur l'accueil), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
 | `assets/js/prix.js` | **Le calcul des prix** (règle : `docs/prix.md`), chargé après `data.js` et `bareme.js` sur le site et dans le Worker : tarifs, prix sur-mesure, prix d'une taille, frais de livraison et d'emballage cadeau, code de démonstration. Contrôle : `node tools/rapport-prix.mjs --verifier`. |
 | `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js et le moteur géométrique seulement quand une fiche en a besoin, affiche et fait tourner la pièce. Si la 3D ne peut pas s'afficher (WebGL absent, WASM bloqué), la fiche montre la 1re photo ou la vignette 3D avec un message court. |
@@ -254,6 +254,25 @@ Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publi
    (min, max, def entiers, pas 1 ; `unite` = [singulier, pluriel]) s'affiche en boutons segmentés (radiogroup, flèches
    au clavier) au lieu du curseur, sans « mm » ; partout ailleurs (panier, page Stripe, Sheet, /admin, e-mails) la valeur
    s'écrit « 2 chargeurs » (`EVARYSTH.texteCote` de `data.js`). Le Worker n'accepte qu'un entier dans [min, max].
+   **Paramètre choix** : `choix("a", "Chargeur de montre", [["apple", "Apple Watch"], ["galaxy", "Galaxy Watch"]], "apple")`
+   (fabrique de `data.js` ; défaut : 1re option) donne `{ key, label, type: "choix", options: [{ id, label }], def }`.
+   - Valeur = id de l'option (chaîne : minuscules, chiffres, tirets, commence par une lettre) ; clé d'une lettre (`a`, `b`,
+     `c`) comme les cotes. Les tailles standard donnent aussi une option à chaque choix (`{ a: "galaxy", b: 60 }`).
+   - Fiche : boutons segmentés (radiogroup, flèches au clavier) jusqu'à 4 options aux libellés courts (≤ 12 caractères,
+     28 en tout : une ligne de téléphone), sinon liste déroulante. Partout ailleurs (panier, page Stripe, Sheet, /admin,
+     e-mails, fiche d'impression) : le libellé de l'option (`EVARYSTH.texteCote`) ; métadonnées et fabrication : l'id.
+     Le Worker n'accepte qu'un id d'option connu.
+   - Modèle 3D : reçoit l'id avec les autres valeurs (`({ a, b, jeu })`) et dessine l'option ; la caméra est cadrée à
+     l'option par défaut. Contrôles (`verifier-geometrie`, tests) : aux cotes min/défaut/max avec les options par défaut,
+     puis, aux cotes min et max, chaque option seule et la « diagonale » (k-ième option de chaque choix) ; pas le produit
+     complet des options.
+   - Prix : un point de barème par option, ajouté à la grille des cotes (`docs/prix.md`). Ajouter une option = une entrée
+     dans `data.js` + sa forme dans le modèle 3D, puis le barème (workflow « Barème des prix sur-mesure ») ; aucun code
+     ailleurs.
+   - **Produit sans cote en mm** (seulement des comptes ou des choix, `EVARYSTH.sansCote`) : même gabarit ; les 3 tailles
+     standard sont 3 configurations prédéfinies (`sizes("Configuration", [["Solo", "…", { a: …, b: … }], …])`, comme la
+     station brosses à dents), le mode sur-mesure compose les options. La fiche dit « 3 configurations prêtes » /
+     « À composer » et « Fabriqué selon vos choix… Les options choisies font foi » au lieu des cotes.
 4. **Bouger un curseur** →
    la nouvelle valeur est enregistrée → `update()` recalcule le prix (`EVARYSTH.priceFor`), les cotes affichées et le résumé → le viewer 3D reçoit les nouvelles cotes et **redessine la pièce** à partir de son plan (`assets/js/modeles/<pièce>.js`).
 5. **Ajouter au panier** — le bouton `#add` transmet le produit et ses cotes à `cart.js`, qui met à jour le panier et le garde en mémoire (`localStorage`).

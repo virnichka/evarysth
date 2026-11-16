@@ -30,8 +30,10 @@ export function lireCotes(texte) {
   try { c = JSON.parse(texte); } catch { throw new Error("cotes : JSON illisible"); }
   if (!c || typeof c !== "object" || Array.isArray(c)) throw new Error("cotes : objet { clé: mm } attendu");
   const e = Object.entries(c);
-  if (!e.length || e.length > 6 || !e.every(([k, v]) => /^[a-z]$/.test(k) && typeof v === "number" && Number.isFinite(v)))
-    throw new Error("cotes : 1 à 6 clés d'une lettre, valeurs numériques");
+  /* Valeur : nombre (cote, compte) ou id d'option d'un paramètre choix (vérifié contre data.js par generer-stl) */
+  if (!e.length || e.length > 6 || !e.every(([k, v]) => /^[a-z]$/.test(k)
+    && ((typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^[a-z][a-z0-9-]{0,29}$/.test(v)))))
+    throw new Error("cotes : 1 à 6 clés d'une lettre, valeurs numériques ou id d'option");
   return c;
 }
 

@@ -30,7 +30,7 @@ test("estimation : barème lissé (maximum cumulé par axe, jamais sous le brut)
       assert.ok(Math.abs(e.cm3 - b.points[i][0]) < 1e-9 && Math.abs(e.temps_min * 60 - b.points[i][1]) < 1e-6, `${p.id} ${JSON.stringify(c)}`);
       assert.ok(Math.abs(e.masse_g - b.points[i][0] * m.densite) < 1e-9);
       /* Monotone : chaque nœud ≥ son voisin d'en dessous sur chaque axe */
-      for (const q of p.custom.params) {
+      for (const q of p.custom.params.filter(r => !E.estChoix(r))) {
         const ax = b.axes[q.key], k = ax.indexOf(c[q.key]);
         if (k > 0) {
           const e0 = E.estimation(p, { ...c, [q.key]: ax[k - 1] });
@@ -38,11 +38,26 @@ test("estimation : barème lissé (maximum cumulé par axe, jamais sous le brut)
         }
       }
     });
-    const q = p.custom.params[0], ax = b.axes[q.key];
+    const q = p.custom.params.find(r => !E.estChoix(r));
+    if (!q) continue;
+    const ax = b.axes[q.key];
     const base = Object.fromEntries(p.custom.params.map(r => [r.key, r.def]));
     const v0 = E.estimation(p, { ...base, [q.key]: ax[0] }).cm3, v1 = E.estimation(p, { ...base, [q.key]: ax[1] }).cm3;
     const mi = E.estimation(p, { ...base, [q.key]: (ax[0] + ax[1]) / 2 }).cm3;
     assert.ok(Math.abs(mi - (v0 + v1) / 2) < 1e-9, `${p.id} : interpolation linéaire entre deux nœuds`);
+  }
+});
+
+test("barème : chaque option des paramètres choix a son point ; l'option par défaut reprend la grille aux valeurs par défaut", () => {
+  for (const p of avec) {
+    const b = E.bareme.produits[p.id], ch = p.custom.params.filter(E.estChoix);
+    assert.equal(JSON.stringify(Object.keys(b.options || {})), JSON.stringify(ch.map(q => q.key)), `${p.id} : options du barème`);
+    const def = Object.fromEntries(p.custom.params.map(q => [q.key, q.def])), i = grille(p).findIndex(c => Object.keys(b.axes).every(k => c[k] === def[k]));
+    for (const q of ch) {
+      assert.equal(JSON.stringify(Object.keys(b.options[q.key])), JSON.stringify(q.options.map(o => o.id)), `${p.id} ${q.key}`);
+      for (const [cm3, s] of Object.values(b.options[q.key])) assert.ok(cm3 > 0 && s > 0, `${p.id} ${q.key} : point nul`);
+      assert.equal(JSON.stringify(b.options[q.key][q.def]), JSON.stringify(b.points[i]), `${p.id} ${q.key} : option par défaut`);
+    }
   }
 });
 
