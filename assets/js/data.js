@@ -301,15 +301,15 @@ EVARYSTH.products = [
   {
     id: "station-brosses-dents", universe: "meubles", matiere: "petg", shape: "toothbrush", model: "station-brosses-dents",
     name: "Station brosses à dents",
-    tagline: "Le chargeur bien calé, les autres brosses debout juste derrière.",
-    desc: "Un socle à poser près du lavabo, compatible chargeurs Oral-B ronds (type 3757, gammes Pro et Vitality ; pas les chargeurs iO). À l'avant, chaque chargeur s'emboîte dans son logement, posé sur le plan de travail, et son câble file par une encoche puis une gorge sous le socle : la station reste bien à plat. À l'arrière, une cuvette et un picot gardent debout chaque brosse qui attend son tour. Choisissez le nombre de chargeurs et de supports de pose. Produit indépendant, non affilié à Oral-B ; chargeurs et brosses non fournis.",
+    tagline: "Les brosses debout devant, le chargeur bien calé juste derrière.",
+    desc: "Un socle à poser près du lavabo, compatible chargeurs Oral-B ronds (type 3757, gammes Pro et Vitality ; pas les chargeurs iO). À l'avant, une cuvette et un picot gardent debout chaque brosse, à portée de main. À l'arrière, chaque chargeur s'emboîte dans son logement, posé sur le plan de travail, et son câble sort par une encoche à l'arrière : la station reste bien à plat. Pour recharger une brosse, posez-la derrière. Choisissez le nombre de chargeurs et de supports de pose. Produit indépendant, non affilié à Oral-B ; chargeurs et brosses non fournis.",
     variants: sizes("Configuration", [["Solo", "1 chargeur, 1 support", { a: 1, b: 1 }], ["Duo", "2 chargeurs, 2 supports", { a: 2, b: 2 }], ["Famille", "2 chargeurs, 4 supports", { a: 2, b: 4 }]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
       { id: "blanc", label: "Blanc", hex: "#ecebe6", roughness: 0.6 }
     ],
     impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 4,
-      remarques: "À plat sur son dessous : logements traversants, cuvettes ouvertes vers le haut ; sortie de câble et gorge en pont." },
+      remarques: "À plat sur son dessous : logements traversants, cuvettes ouvertes vers le haut ; sortie de câble en pont." },
     custom: { params: [
       { ...param("a", "Chargeurs", 1, 2, 1), type: "compte", unite: ["chargeur", "chargeurs"] },
       { ...param("b", "Supports de pose", 1, 4, 2), type: "compte", unite: ["support de pose", "supports de pose"] }

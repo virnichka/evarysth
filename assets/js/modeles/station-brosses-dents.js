@@ -1,18 +1,18 @@
 /* Modèle 3D « station-brosses-dents » — chargé à la demande par viewer3d.js (voir EVARYSTH.viewer3d.define). */
-/* Socle à poser pour chargeurs ronds Oral-B (type 3757) : rangée avant de a logements de chargeur, rangée arrière de b
-   supports de pose (cuvette + picot), centrées, fondues en une pièce (cuvettes réunies par des raccords arrondis).
+/* Socle à poser pour chargeurs ronds Oral-B (type 3757) : rangée avant de b supports de pose (cuvette + picot), rangée
+   arrière de a logements de chargeur, centrées, fondues en une pièce (cuvettes réunies par des raccords arrondis).
    Cotes fonctionnelles reprises des STL « Oral-B toothbrush holder » (1 et 2 chargeurs) :
    - logement du chargeur, traversant (le chargeur repose sur le plan de travail) : ellipse 47,54 × 60,54 mm jusqu'à
      14,5 mm de haut, puis qui suit le galbe du chargeur jusqu'à 41,46 × 54,46 mm à 28,3 mm (haut du socle) ;
-   - sortie de câble à l'arrière du logement : 27 mm de large, 14 mm de haut, prolongée sous le socle par une gorge
-     de 8 × 6 mm jusqu'au bord arrière (le socle reste à plat, câble dessous) ;
+   - sortie de câble à l'arrière du logement : 27 mm de large, 14 mm de haut, ouverte sur le bord arrière (le câble
+     part à plat derrière le socle) ;
    - support de pose : cuvette elliptique 31,24 × 36 mm, 10 mm de profondeur (congé de 1,5 mm au fond), picot de
      6,98 × 8,76 mm (section en goutte, mesurée à mi-hauteur, dépouille de 1°, tête arrondie) qui dépasse de 13 mm du
      fond, décalé de 3 mm vers l'arrière.
    Les STL sont dessinés pour le PLA (jeu 0,2 mm, déjà compté) : logement et cuvette + (jeu − 0,2), picot − (jeu − 0,2).
-   Repère : Y vers le haut (dessous en y = 0), X la largeur, Z vers l'avant ; rangée des chargeurs en z = 0. */
+   Repère : Y vers le haut (dessous en y = 0), X la largeur, Z vers l'avant ; chargeurs en z = 0, supports en z = D. */
 (() => {
-  const H = 28.3, T = 3.2, ECART = 4, PC = 52, PS = 37, RACCORD = 10, ARRONDI = 2;   // ARRONDI : arête du dessus
+  const H = 28.3, T = 3.2, ECART = 4, PC = 52, PS = 37, RACCORD = 10;
   /* [y, demi-largeur] du logement (demi-longueur = + 6,5) ; relevés du STL à 16, 20, 26 et 28,3 mm à moins de 0,05 mm */
   const SOCLE = [[-1, 23.77], [14.5, 23.77], [18, 23.29], [22, 22.5], [25, 21.72], [27, 21.13], [H + 1, 20.42]];
   const LONG = 6.5, CUV = [15.62, 18.0], PROF = 10, CONGE = 1.5, PICOT = 13, DECALE = 3.0;
@@ -37,12 +37,12 @@
     for (const [x1, z1] of p1) for (const [x2, z2] of p2) d = Math.min(d, Math.hypot(x1 - x2, z1 - z2));
     return d;
   };
-  /* Disposition : chargeurs en z = 0, supports en z = −D (D minimal pour garder ECART entre logement et cuvette) */
+  /* Disposition : chargeurs en z = 0, supports devant en z = D (D minimal pour garder ECART entre logement et cuvette) */
   const disposition = (a, b, jeu) => {
     a = Math.round(a); b = Math.round(b);
     const dj = (jeu - 0.2) / 2, As = SOCLE[0][1] + dj, Bs = As + LONG, Ac = CUV[0] + dj, Bc = CUV[1] + dj;
     const xc = Array.from({ length: a }, (_, i) => (i - (a - 1) / 2) * PC), xs = Array.from({ length: b }, (_, j) => (j - (b - 1) / 2) * PS);
-    const ok = D => xc.every(x1 => xs.every(x2 => ecart([x1, 0, As, Bs], [x2, -D, Ac, Bc]) >= ECART));
+    const ok = D => xc.every(x1 => xs.every(x2 => ecart([x1, 0, As, Bs], [x2, D, Ac, Bc]) >= ECART));
     let lo = Bs, hi = Bs + Bc + ECART + 1;
     for (let i = 0; i < 20; i++) { const mid = (lo + hi) / 2; if (ok(mid)) hi = mid; else lo = mid; }
     return { xc, xs, D: Math.round(hi * 100) / 100, dj, As, Bs, Ac, Bc };
@@ -55,34 +55,15 @@
     const hull = pts => k.solid(Manifold.hull(pts)).mf;
     const anneau = (pts2, y, f) => pts2.map(([u, v]) => [...f(u, v), y]).map(([x, z, yy]) => [x, yy, z]);
 
-    /* Corps : union des empreintes (logements et cuvettes + paroi), raccords concaves, arête du dessus arrondie.
-       Contour décoratif : 96 segments par ellipse. Profil 2D en (x, −z) ; l'extrusion est posée par la rotation propre
-       (x, y, z) → (x, z, −y), chaque sommet du haut rentré le long de sa bissectrice (quart de rond de rayon ARRONDI). */
+    /* Corps : prisme de l'union des empreintes (logements et cuvettes + paroi), raccords concaves de RACCORD.
+       Contour décoratif : 96 segments par ellipse. Profil 2D en (x, −z), dressé par rotation de −90° autour de X. */
     const own = mf => k.solid(mf).mf;
-    const empreintes = [...xc.map(x => ell(x, 0, L.As + T, Bs + T, 96)), ...xs.map(x => ell(x, -D, Ac + T, Bc + T, 96))]
+    const empreintes = [...xc.map(x => ell(x, 0, L.As + T, Bs + T, 96)), ...xs.map(x => ell(x, D, Ac + T, Bc + T, 96))]
       .map(p => k.section(p.map(([x, z]) => [x, -z])).cs);
     const contour = k.conge(sec(CrossSection.union(empreintes)), RACCORD, { convexes: false });
-    const rentre = new Map(), cle = (x, y) => Math.round(x * 1e4) + "," + Math.round(y * 1e4);
-    for (const p of contour.polygons()) p.forEach(([x, y], i) => {
-      const [px, py] = p[(i + p.length - 1) % p.length], [nx, ny] = p[(i + 1) % p.length];
-      const l1 = Math.hypot(x - px, y - py) || 1, l2 = Math.hypot(nx - x, ny - y) || 1;
-      const n1 = [-(y - py) / l1, (x - px) / l1], n2 = [-(ny - y) / l2, (nx - x) / l2];
-      const bx = n1[0] + n2[0], by = n1[1] + n2[1], c = (bx * n1[0] + by * n1[1]) / (Math.hypot(bx, by) || 1);
-      const f = 1 / (Math.hypot(bx, by) || 1) / Math.max(c, 0.5);
-      rentre.set(cle(x, y), [bx * f, by * f]);
-    });
-    const niv = [[0, 0], [H - ARRONDI, 0], ...Array.from({ length: 4 }, (_, i) => {
-      const p = (i + 1) / 4 * Math.PI / 2;
-      return [H - ARRONDI + ARRONDI * Math.sin(p), ARRONDI * (1 - Math.cos(p))];
-    })];
-    const corps = own(own(contour.cs.extrude(niv.length - 1, niv.length - 2, 0, [1, 1], false)).warpBatch((v, count) => {
-      for (let i = 0; i < count; i++) {
-        const x = v[3 * i], y = v[3 * i + 1], [h, o] = niv[Math.round(v[3 * i + 2])], d = rentre.get(cle(x, y)) || [0, 0];
-        v[3 * i] = x + d[0] * o; v[3 * i + 1] = h; v[3 * i + 2] = -(y + d[1] * o);
-      }
-    }));
+    const corps = own(contour.cs.extrude(H, 0, 0, [1, 1], false).rotate([-90, 0, 0]));
 
-    /* Creux : logements (enveloppe convexe des sections du galbe), sortie de câble, gorge, cuvettes */
+    /* Creux : logements (enveloppe convexe des sections du galbe), sortie de câble vers l'arrière, cuvettes */
     const creux = [];
     for (const x of xc) {
       creux.push(hull(SOCLE.flatMap(([y, A]) => anneau(ell(0, 0, A + dj, A + dj + LONG), y, (u, v) => [x + u, v]))));
@@ -93,13 +74,8 @@
         const t = Math.PI / 2 + i / 8 * Math.PI / 2;
         return [-13.5 + r + r * Math.cos(t), 14 - r + r * Math.sin(t)];
       })];
-      const Ls = Bs + T + 1.5, Lg = D + Bc + T + 12;
+      const Ls = Bs + T + 15;
       creux.push(k.ext(sortie, Ls).translate(x, 0, -Ls / 2).mf);
-      const gorge = [[-4, -1], [4, -1], ...Array.from({ length: 17 }, (_, i) => {
-        const t = i / 16 * Math.PI;
-        return [4 * Math.cos(t), 2 + 4 * Math.sin(t)];
-      })];
-      creux.push(k.ext(gorge, Lg).translate(x, 0, -Lg / 2).mf);
     }
     const fond = H - PROF;
     for (const x of xs) {
@@ -108,7 +84,7 @@
         return [fond + CONGE * (1 - Math.cos(p)), -CONGE + CONGE * Math.sin(p)];
       });
       niv.push([H + 1, 0]);
-      creux.push(hull(niv.flatMap(([y, o]) => anneau(ell(0, 0, Ac + o, Bc + o), y, (u, v) => [x + u, -D + v]))));
+      creux.push(hull(niv.flatMap(([y, o]) => anneau(ell(0, 0, Ac + o, Bc + o), y, (u, v) => [x + u, D + v]))));
     }
 
     /* Picots : section relevée, dépouille, tête arrondie (r 1,2), petit congé au pied */
@@ -117,7 +93,7 @@
     const dAt = t => dp + DEPOUILLE * (MI - t);
     const picots = [];
     for (const x of xs) {
-      const pose = (u, v) => [x + u, -D - DECALE - v];
+      const pose = (u, v) => [x + u, D - DECALE - v];
       const niv = [[-0.5, dAt(0)], [0, dAt(0)], [tete, dAt(tete)],
         ...Array.from({ length: 6 }, (_, i) => {
           const p = (i + 1) / 6 * Math.PI / 2;
@@ -132,14 +108,14 @@
     return k.join(k.solid(piece));
   }), {
     solides: 1,
-    /* Repère de construction : dessous en y = 0, logements en z = 0 (x = xc), supports en z = −D (x = xs) */
+    /* Repère de construction : dessous en y = 0, logements en z = 0 (x = xc), supports en z = D (x = xs) */
     cotes: ({ a, b, jeu }) => {
       const { xc, xs, D } = disposition(a, b, jeu), j = jeu - 0.2;
       return [
         { nom: "logement du chargeur, largeur à la base (+ jeu)", axe: "y", en: [xc[0], 7, 0], mesure: "largeur", selon: "x", attendu: 47.54 + j },
         { nom: "logement du chargeur, longueur à 22 mm (+ jeu)", axe: "y", en: [xc[0], 22, 0], mesure: "largeur", selon: "z", attendu: 58.0 + j },
-        { nom: "picot de pose, largeur (− jeu)", axe: "y", en: [xs[0], H - PROF + MI, -D - DECALE - 2.35], mesure: "largeur", selon: "x", attendu: 6.98 - j },
-        { nom: "picot de pose, longueur (− jeu)", axe: "y", en: [xs[0], H - PROF + MI, -D - DECALE], mesure: "largeur", selon: "z", attendu: 8.76 - j }];
+        { nom: "picot de pose, largeur (− jeu)", axe: "y", en: [xs[0], H - PROF + MI, D - DECALE - 2.35], mesure: "largeur", selon: "x", attendu: 6.98 - j },
+        { nom: "picot de pose, longueur (− jeu)", axe: "y", en: [xs[0], H - PROF + MI, D - DECALE], mesure: "largeur", selon: "z", attendu: 8.76 - j }];
     }
   });
 })();
