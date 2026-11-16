@@ -59,14 +59,31 @@ export function axe(q, n) {
   return v;
 }
 
+const estChoix = q => q.type === "choix";
+/* Axes de la grille : cotes et comptes seulement (un paramètre choix n'a pas d'ordre ; voir options) */
 export function axes(p) {
-  const n = POINTS[p.custom.params.length] || 3;
-  return Object.fromEntries(p.custom.params.map(q => [q.key, axe(q, n)]));
+  const prm = p.custom.params.filter(q => !estChoix(q)), n = POINTS[prm.length] || 3;
+  return Object.fromEntries(prm.map(q => [q.key, axe(q, n)]));
+}
+/* Valeurs par défaut des paramètres choix (la grille est tranchée avec elles) */
+const choixDefaut = p => Object.fromEntries(p.custom.params.filter(estChoix).map(q => [q.key, q.def]));
+
+/* Points de la grille, dans l'ordre de stockage (premier paramètre = rang le plus lent), choix à leur valeur par défaut */
+export function grille(p) {
+  return Object.entries(axes(p)).reduce((acc, [k, vs]) => acc.flatMap(c => vs.map(v => ({ ...c, [k]: v }))), [choixDefaut(p)]);
 }
 
-/* Points de la grille, dans l'ordre de stockage (premier paramètre = rang le plus lent) */
-export function grille(p) {
-  return Object.entries(axes(p)).reduce((acc, [k, vs]) => acc.flatMap(c => vs.map(v => ({ ...c, [k]: v }))), [{}]);
+/* Options à trancher : pour chaque paramètre choix, chaque option, les autres paramètres à leur valeur par défaut
+   (1 + Σ (options − 1) tranchages au lieu du produit des options ; docs/prix.md). L'option par défaut reprend le point
+   de la grille aux cotes par défaut, sans nouveau tranchage. [{ cle, option, cotes }] */
+export function pointsOptions(p) {
+  const def = Object.fromEntries(p.custom.params.map(q => [q.key, q.def]));
+  return p.custom.params.filter(estChoix).flatMap(q => q.options.map(o => ({ cle: q.key, option: o.id, cotes: { ...def, [q.key]: o.id } })));
+}
+/* Ids des options par paramètre choix (dans l'empreinte : une option ajoutée rend le barème périmé) ; undefined sans choix */
+export function options(p) {
+  const c = p.custom.params.filter(estChoix);
+  return c.length ? Object.fromEntries(c.map(q => [q.key, { def: q.def, ids: q.options.map(o => o.id) }])) : undefined;
 }
 
 const hacher = (h, rel) => {
@@ -81,7 +98,7 @@ export function empreinte(p, E) {
   const mat = matiereImpression(p), { remarques, ...fiche } = p.impression || {};
   const lock = JSON.parse(fs.readFileSync(path.join(RACINE, "tools/package-lock.json"), "utf8"));
   h.update(JSON.stringify({
-    v: VERSION_GRILLE, modele: p.model, matiere: mat, profil: PROFIL[mat], jeu: E.jeu(p), fiche, axes: axes(p),
+    v: VERSION_GRILLE, modele: p.model, matiere: mat, profil: PROFIL[mat], jeu: E.jeu(p), fiche, axes: axes(p), options: options(p),
     manifold: (lock.packages["node_modules/manifold-3d"] || {}).version
   }));
   for (const f of COMMUNS) hacher(h, f);

@@ -28,7 +28,9 @@ export function ficheHtml(m, p) {
   const params = (p.custom && p.custom.params) || [];
   const cotes = Object.entries(m.cotes || {}).map(([k, v]) => {
     const d = params.find(x => x.key === k);
-    return `<tr><td>${e(d ? d.label : k)}</td><td>${e(k)}</td><td class="n">${e(v)} mm</td></tr>`;
+    /* Choix : libellé de l'option et son id ; cote : valeur en mm */
+    const o = d && d.type === "choix" && (d.options || []).find(x => x.id === v);
+    return `<tr><td>${e(d ? d.label : k)}</td><td>${e(k)}</td><td class="n">${o ? `${e(o.label)} (${e(v)})` : `${e(v)} mm`}</td></tr>`;
   }).join("");
   const imp = m.impression || {}, tr = imp.tranches || [];
   const pieces = (imp.pieces || []).map(q => `<tr><td>${q.piece}</td><td>${e(q.nom || "pièce " + q.piece)}</td>`

@@ -42,7 +42,11 @@ function lireLigne(it, n) {
     values = {};
     for (const prm of p.custom.params) {
       const x = v[prm.key];
-      if (EVARYSTH.estCompte(prm)) {
+      if (EVARYSTH.estChoix(prm)) {
+        /* Paramètre choix : id d'une option connue seulement */
+        if (typeof x !== "string" || !EVARYSTH.option(prm, x))
+          throw new ErreurPanier(`Ligne ${n} : option inconnue pour « ${prm.label} ».`);
+      } else if (EVARYSTH.estCompte(prm)) {
         /* Paramètre compte : entier seulement, dans [min, max] */
         if (!Number.isInteger(x) || x < prm.min || x > prm.max)
           throw new ErreurPanier(`Ligne ${n} : « ${prm.label} » doit être un nombre entier entre ${prm.min} et ${prm.max}.`);

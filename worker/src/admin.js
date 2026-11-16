@@ -820,7 +820,8 @@ async function vueCatalogue(env, email, bandeau) {
           + decomposition(p, o.values);
       });
       const externe = EVARYSTH.matierePrix(p).filiere === "externe" ? " · provisoire (devis à venir)" : "";
-      const sm = p.custom ? `Sur-mesure, même calcul que les tailles${externe} : ${(p.custom.params || []).map(x => `${esc(x.label)} ${x.min}–${EVARYSTH.texteCote(x, x.max)}`).join(" ; ")}` : "";
+      const sm = p.custom ? `Sur-mesure, même calcul que les tailles${externe} : ${(p.custom.params || []).map(x => EVARYSTH.estChoix(x) ? `${esc(x.label)} : ${x.options.map(o => esc(o.label)).join(", ")}`
+        : `${esc(x.label)} ${x.min}–${EVARYSTH.texteCote(x, x.max)}`).join(" ; ")}` : "";
       const stl = cles ? `<span class="badge ${presents === tailles.length ? "present" : "manque"}">STL ${presents}/${tailles.length}</span>` : "";
       return `<details><summary><span class="nom">${esc(p.name)}</span>${stl}<span class="resume">dès ${prix(EVARYSTH.prixDes(p))}</span></summary><div class="detail">
 <p class="muted">${esc(p.id)} · <a href="${SITE}/produits/${encodeURIComponent(p.id)}/" target="_blank" rel="noopener noreferrer">fiche ↗</a></p>

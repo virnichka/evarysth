@@ -2,7 +2,9 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
-import { lirePanier, parametresSession, ErreurPanier, descriptionLigne } from "../src/commande.js";
+import { lirePanier, parametresSession, ErreurPanier, descriptionLigne, metaLigne } from "../src/commande.js";
+import { articles as articlesSheet } from "../src/sheet.js";
+import { ligneLisible } from "../src/email.js";
 import { EVARYSTH } from "../src/catalogue.js";
 import { encoder, signer, verifierSignature } from "../src/stripe.js";
 
@@ -88,6 +90,38 @@ test("paramètre compte : entier dans [min, max] seulement, affiché « 45 charg
     assert.equal(EVARYSTH.texteCote(p.custom.params[0], 1), "1 chargeur");
     assert.equal(EVARYSTH.texteCote(avant, 42), "42 mm");
   } finally { p.custom.params[0] = avant; }
+});
+
+test("paramètre choix : id d'option connu seulement, libellé affiché partout (Stripe, Sheet, e-mail), id en métadonnées", () => {
+  /* Produit fictif hors catalogue, ajouté le temps du test avec son barème (grille sur a, un point par option de b) */
+  const essai = { ...EVARYSTH.getProduct("tablette-rambarde"), id: "essai-choix", custom: { params: [
+    { key: "a", label: "Largeur", min: 40, max: 100, step: 1, def: 60 },
+    { key: "b", label: "Chargeur de montre", type: "choix", def: "apple",
+      options: [{ id: "apple", label: "Apple Watch" }, { id: "galaxy", label: "Galaxy Watch" }] }] } };
+  EVARYSTH.products.push(essai);
+  EVARYSTH.bareme.produits["essai-choix"] = { matiere: "asa", axes: { a: [40, 100] }, points: [[50, 6000], [80, 9000]],
+    options: { b: { apple: [60, 7000], galaxy: [70, 8000] } } };
+  try {
+    const item = { id: "essai-choix", mode: "custom", values: { a: 60, b: "galaxy" }, color: "noir", qty: 1 };
+    const [l] = lirePanier({ items: [item] });
+    assert.equal(l.values.b, "galaxy");
+    assert.equal(l.unitCents, EVARYSTH.priceFor(essai, "custom", { a: 60, b: "galaxy" }) * 100);
+    assert.ok(EVARYSTH.priceFor(essai, "custom", { a: 60, b: "galaxy" }) > EVARYSTH.priceFor(essai, "custom", { a: 60, b: "apple" }), "supplément de l'option");
+    assert.match(descriptionLigne(l), /B · Chargeur de montre : Galaxy Watch · /);
+    assert.doesNotMatch(descriptionLigne(l), /galaxy|Galaxy Watch mm/);
+    const meta = metaLigne(l, "abc");
+    assert.equal(meta.cotes_mm, '{"a":60,"b":"galaxy"}', "fabrication : id de l'option");
+    const [art] = articlesSheet({ lignes: [{ nom: "Essai", quantite: 1, meta }] });
+    assert.match(art.texte, /^essai-choix · a=60 b=Galaxy Watch · /);
+    assert.equal(art.type, "sur-mesure");
+    assert.ok(ligneLisible({ nom: "Essai", quantite: 1, meta }).cotes.includes("B · Chargeur de montre : Galaxy Watch"));
+    for (const b of ["sphere", "Galaxy", "", 1, null, ["galaxy"], { id: "galaxy" }])
+      assert.throws(() => lirePanier({ items: [{ ...item, values: { a: 60, b } }] }), ErreurPanier, JSON.stringify(b));
+    assert.throws(() => lirePanier({ items: [{ ...item, values: { a: 60 } }] }), /option inconnue pour « Chargeur de montre »/);
+  } finally {
+    EVARYSTH.products.splice(EVARYSTH.products.indexOf(essai), 1);
+    delete EVARYSTH.bareme.produits["essai-choix"];
+  }
 });
 
 test("session Stripe : lignes, cotes en métadonnées, livraison, promo, retours", () => {

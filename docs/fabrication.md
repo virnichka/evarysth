@@ -41,6 +41,10 @@ commande : README « Paiement et commandes » ; Sheet et /admin : `docs/commande
 
 ## Ce qui est produit (`tools/fabriquer.mjs`)
 `node tools/fabriquer.mjs --cf=… --produit=… --cotes='{"a":60}' [--coloris=…] [--quantite=n] [--docker=<image>]`
+- `--cotes` : valeurs de la commande telles que le Worker les a validées (`cotes_mm` des métadonnées Stripe) : nombre
+  pour une cote ou un compte, id d'option pour un paramètre choix (`{"a":"galaxy","b":60}` ; id en minuscules, chiffres
+  et tirets, vérifié contre `data.js` par `generer-stl`). Le modèle 3D reçoit cet id et dessine l'option commandée ; la
+  fiche d'impression affiche le libellé de l'option.
 - `generer-stl --impression --quantite=n --coloris --cf --3mf` : exemplaires sur un ou plusieurs plateaux, 3MF non
   tranché par plateau, manifeste (n° d'article, coloris id + hex, quantité, pièces et orientations, versions).
 - `trancher.mjs` : profil par matière (PLA, PETG ; autre matière : code 3), couleur du coloris (`filament_colour`),
@@ -100,8 +104,10 @@ commande : README « Paiement et commandes » ; Sheet et /admin : `docs/commande
 ## Barème des prix (`assets/js/bareme.js`, généré)
 - `tools/generer-bareme.mjs` tranche une grille de cotes par produit (min, défaut, max et milieux : 5 points par axe pour
   1 paramètre, 4 pour 2, 3 pour 3, aucun pas > 100 mm) et stocke cm³ de filament et temps (s) d'un exemplaire. ASA, PA12,
-  PA-CF : profil PETG (estimation).
-- Empreinte par produit (modèle, STL d'origine, moteur, fiche d'impression, bornes des cotes, jeu, profils, image) :
+  PA-CF : profil PETG (estimation). Paramètres choix : la grille est tranchée à leur option par défaut, puis chaque
+  autre option une fois, les autres paramètres à leur valeur par défaut (`options` du barème ; règle : `docs/prix.md`).
+- Empreinte par produit (modèle, STL d'origine, moteur, fiche d'impression, bornes des cotes, ids et défaut des options,
+  jeu, profils, image ; pas les libellés) :
   le job `geometrie` échoue si le barème est périmé.
 - Mise à jour : workflow `bareme.yml` sur la branche (refuse `main`), ou `node tools/generer-bareme.mjs <id>` avec Bambu
   Studio installé. Contrôle : `node tools/generer-bareme.mjs --verifier --tableau`.

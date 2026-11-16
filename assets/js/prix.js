@@ -56,8 +56,10 @@
     return lisses.get(b.points);
   };
 
-  /* Masse et temps estimés : interpolation multilinéaire dans le barème lissé ; cotes hors grille ramenées aux bornes.
-     null si le barème n'est pas chargé ou ne connaît pas le produit. */
+  /* Masse et temps estimés : interpolation multilinéaire dans le barème lissé (cotes et comptes ; cotes hors grille
+     ramenées aux bornes), plus, pour chaque paramètre choix, le supplément de l'option retenue sur l'option par défaut
+     (options du barème, tranchées aux autres valeurs par défaut ; supplément négatif possible). null si le barème n'est
+     pas chargé, ne connaît pas le produit ou pas l'option. */
   E.estimation = (p, values) => {
     const b = E.baremeLisse(p);
     if (!b) return null;
@@ -77,6 +79,12 @@
       });
       if (w) { cm3 += w * b.points[idx][0]; s += w * b.points[idx][1]; }
     }
+    for (const [k, o] of Object.entries(b.options || {})) {
+      const prm = p.custom.params.find(q => q.key === k), x = o[values[k]], ref = prm && o[prm.def];
+      if (!x || !ref) return null;
+      cm3 += x[0] - ref[0]; s += x[1] - ref[1];
+    }
+    cm3 = Math.max(0, cm3); s = Math.max(0, s);
     return { cm3, masse_g: cm3 * E.matierePrix(p).densite, temps_min: s / 60 };
   };
 
@@ -126,11 +134,12 @@
     return { articles, emballage, remise: reduction, masse_g, livraison, total: c(base - reduction + livraison) };
   };
 
-  /* « Dès » : prix aux cotes minimales des curseurs (le prix ne baisse jamais quand une cote augmente) ; sans sur-mesure,
-     plus petit prix des tailles standard */
+  /* « Dès » : prix aux cotes minimales des curseurs (le prix ne baisse jamais quand une cote augmente), au moins cher des
+     choix (toutes leurs combinaisons : les options n'ont pas d'ordre) ; sans sur-mesure, plus petit prix des tailles standard */
   E.prixDes = p => {
     const prm = p.custom && p.custom.params;
-    if (prm && prm.length) return E.priceFor(p, "custom", Object.fromEntries(prm.map(q => [q.key, q.min])));
+    if (prm && prm.length) return Math.min(...prm.reduce((acc, q) => acc.flatMap(c =>
+      (E.estChoix(q) ? q.options.map(o => o.id) : [q.min]).map(x => ({ ...c, [q.key]: x }))), [{}]).map(v => E.priceFor(p, "custom", v)));
     return Math.min(...p.variants.options.map(o => E.priceFor(p, "standard", o.values)));
   };
 })(window.EVARYSTH);
