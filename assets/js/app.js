@@ -48,6 +48,10 @@
     eggs: `<path d="M10 104h100" class="ghost"/><path d="M30 26a34 34 0 0 0 0 68" class="ghost"/>
       <path d="M30 52 98 46v-12M30 94l76 6v-12"/><path d="M98 100v4M30 94v10"/>
       <circle cx="50" cy="40" r="10"/><circle cx="72" cy="38" r="10"/><circle cx="56" cy="86" r="10"/><circle cx="78" cy="88" r="10"/>`,
+    toothbrush: `<path d="M8 106h104" class="ghost"/><path d="M14 90h92v10a6 6 0 0 1-6 6H20a6 6 0 0 1-6-6z"/>
+      <path d="M26 90c0-8 4-12 12-12h8c8 0 12 4 12 12"/><rect x="34" y="20" width="16" height="58" rx="7"/>
+      <path d="M38 20V8h8v12M38 12h8" class="ghost"/><rect x="72" y="28" width="16" height="62" rx="7"/>
+      <path d="M76 28V14h8v14M76 18h8" class="ghost"/><path d="M80 90v-4" class="ghost"/>`,
     bagclip: `<path d="M44 62h70M44 72h70" class="ghost"/><path d="M50 72c-6 10-8 22-8 34M96 72c4 10 6 22 6 34" class="ghost"/>
       <path d="M12 60h96a4 4 0 0 1 4 4v1H40M12 74h104v-10"/><circle cx="14" cy="67" r="5"/>
       <path d="M34 60V44h28v16"/><rect x="30" y="26" width="36" height="18" rx="3"/><path d="M38 26v18M48 26v18M58 26v18" class="ghost"/>`,
