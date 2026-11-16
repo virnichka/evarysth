@@ -16,7 +16,7 @@ export function ligneLisible(l) {
     const v = JSON.parse(m.cotes_mm || "{}");
     cotes = Object.entries(v).map(([k, x]) => {
       const i = p ? p.custom.params.findIndex(prm => prm.key === k) : -1;
-      return i >= 0 ? `${LETTRES[i]} · ${p.custom.params[i].label} : ${x} mm` : `${k} : ${x} mm`;
+      return i >= 0 ? `${LETTRES[i]} · ${p.custom.params[i].label} : ${EVARYSTH.texteCote(p.custom.params[i], x)}` : `${k} : ${x} mm`;
     });
   } catch { /* métadonnées absentes ou anciennes */ }
   const col = p && (p.colors || []).find(c => c.id === m.coloris);

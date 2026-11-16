@@ -473,7 +473,7 @@ main { padding: 0 var(--gutter); max-width: 1320px; margin: 0 auto; }
 /* Curseur compact : titre + valeur sur une ligne, puis min — curseur — max */
 .slider { display: grid; grid-template-columns: 28px 1fr 52px; align-items: center; column-gap: 12px; row-gap: 8px; padding: 10px 14px 12px; border: 1px solid var(--line); border-radius: 16px; margin-bottom: 8px; background: var(--bg-2); }
 .slider__head { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.slider__head label { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; min-width: 0; }
+.slider__head label, .slider__lbl { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; min-width: 0; }
 .letter { background: var(--accent); color: var(--accent-ink); width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 11px; flex: none; }
 .slider__val { display: flex; align-items: center; gap: 4px; flex: none; border: 1.5px solid var(--line-strong); border-radius: 10px; padding: 3px 10px; background: var(--bg); }
 .slider__val:focus-within { border-color: var(--accent); }
@@ -493,6 +493,10 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .slider__msg { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--accent-text); font-weight: 500; }
 .slider__msg[hidden] { display: none; }
 .slider:has(.slider__msg:not([hidden])) .slider__val { border-color: var(--accent); }
+.compte { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(48px, 1fr)); gap: 4px; padding: 4px; background: var(--bg-3); border-radius: 14px; }
+.compte button { min-height: 42px; border-radius: 11px; font-weight: 600; font-size: 16px; transition: all .25s var(--ease); }
+.compte button.is-active { background: var(--inv); color: var(--inv-text); }
+.compte button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .std-note { margin: 10px 0 0; font-size: 14px; color: var(--soft); }
 .tip { font-size: 14px; color: var(--soft); padding: 10px 14px; background: var(--bg-3); border-radius: 16px; }
 .tip .link { margin-left: 4px; color: var(--accent-text); font-weight: 600; }

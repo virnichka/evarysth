@@ -79,6 +79,7 @@ pas un gabarit de forme.
    - **combinaison** : ex. corps reconstruit + détail repris du STL et translaté.
    1 à 3 paramètres, exprimés comme l'utilisateur les mesure, en mm, avec des bornes
    qui gardent une pièce imprimable et solide.
+   Un nombre d'éléments (pas une cote) : paramètre `type: "compte"` (boutons, entier ; format dans README).
 4. **Liberté de design** : le STL fourni est une base, pas une contrainte. Tu peux :
    simplifier ou retirer des détails inutiles, ajouter des congés/chanfreins, renforcer,
    ajuster les proportions, réorganiser les pièces, ou reconstruire l'objet entièrement,

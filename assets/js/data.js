@@ -45,6 +45,8 @@ EVARYSTH.jeu = p => (EVARYSTH.matieres[p && p.impression && p.impression.matiere
    Coefficient valeur facultatif d'un produit : champ valeur (1 par défaut, docs/prix.md). */
 const sizes = (label, opts) => ({ label, options: opts.map(([l, hint, values]) => ({ label: l, hint, values })) });
 const param = (key, label, min, max, def, step = 1) => ({ key, label, min, max, step, def });
+/* Paramètre « compte » (nombre entier d'éléments, boutons au lieu du curseur, sans mm) :
+   { ...param("a", "Chargeurs", 1, 2, 1), type: "compte", unite: ["chargeur", "chargeurs"] } (min, max, def entiers, pas 1) */
 
 /* Fiche d'impression (champ impression, contrôlée par tools/lib/impression.mjs et les tests de tools/test/) :
    orientation = rotation propre (lignes, déterminant +1) du repère du modèle (Y vers le haut, comme l'aperçu)
@@ -526,6 +528,14 @@ EVARYSTH.products = [
 
 EVARYSTH.getProduct = id => EVARYSTH.products.find(p => p.id === id);
 EVARYSTH.getUniverse = id => EVARYSTH.universes.find(u => u.id === id);
+
+/* Valeur sur-mesure en texte : « 42 mm », ou « 1 chargeur » / « 2 chargeurs » pour un paramètre compte */
+EVARYSTH.estCompte = prm => Boolean(prm && prm.type === "compte");
+EVARYSTH.texteCote = (prm, x) => {
+  if (!EVARYSTH.estCompte(prm)) return `${x} mm`;
+  const [un, plusieurs] = prm.unite || [];
+  return `${x} ${(Math.abs(x) >= 2 ? plusieurs : un) || ""}`.trim();
+};
 
 EVARYSTH.fmt = n => {
   const entier = Math.abs(n - Math.round(n)) < 0.005;

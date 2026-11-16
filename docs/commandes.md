@@ -50,7 +50,7 @@ Deux numérotations qui ne se croisent jamais :
 | C | Statut | **formule** (en-tête, `MAP` + `COUNTIFS` sur `Commandes CF`) | ne jamais écrire |
 | D | Statut forcé | propriétaire | vide, `incident`, `remboursee`, `annulee` |
 | E | Type | Worker | `standard` ou `sur-mesure` (sur-mesure si au moins un article l'est) |
-| F | Articles | Worker | un par ligne : `<produit> · <taille M \| a=45 b=32> · <matière> · <coloris> · ×<qté>` |
+| F | Articles | Worker | un par ligne : `<produit> · <taille M \| a=45 b=32> · <matière> · <coloris> · ×<qté>` ; un paramètre compte s'écrit avec son unité (`a=2 chargeurs`), une cote en mm sans unité |
 | G | Client | Worker | 3 lignes : nom / e-mail / adresse |
 | H | Commandes CF | **formule** (en-tête, `MAP` + `FILTER`) | ne jamais écrire |
 | I | Cadeau / message | Worker | vide, ou `oui` / `oui · <message>` |

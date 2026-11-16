@@ -2,7 +2,8 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
-import { lirePanier, parametresSession, ErreurPanier } from "../src/commande.js";
+import { lirePanier, parametresSession, ErreurPanier, descriptionLigne } from "../src/commande.js";
+import { EVARYSTH } from "../src/catalogue.js";
 import { encoder, signer, verifierSignature } from "../src/stripe.js";
 
 const SITE = "https://www.evarysth.fr";
@@ -71,6 +72,22 @@ test("panier refusé : cotes hors bornes, hors pas, inconnues, produit/coloris/q
   ];
   for (const it of cas) assert.throws(() => lirePanier({ items: [it] }), ErreurPanier, JSON.stringify(it));
   assert.throws(() => lirePanier({ items: [] }), ErreurPanier);
+});
+
+test("paramètre compte : entier dans [min, max] seulement, affiché « 45 chargeurs » sans mm", () => {
+  /* Paramètre compte posé le temps du test sur une cote existante (bornes resserrées dans la grille du barème) */
+  const p = EVARYSTH.getProduct("tablette-rambarde"), avant = p.custom.params[0];
+  p.custom.params[0] = { ...avant, min: 44, max: 46, def: 45, step: 1, type: "compte", unite: ["chargeur", "chargeurs"] };
+  try {
+    const [l] = lirePanier({ items: [tablette] });
+    assert.equal(l.values.a, 45);
+    assert.match(descriptionLigne(l), /A · .* : 45 chargeurs · /);
+    assert.doesNotMatch(descriptionLigne(l), /45 mm/);
+    for (const a of [43, 47, 44.5, "45", null, Infinity])
+      assert.throws(() => lirePanier({ items: [{ ...tablette, values: { a, b: 250 } }] }), ErreurPanier, String(a));
+    assert.equal(EVARYSTH.texteCote(p.custom.params[0], 1), "1 chargeur");
+    assert.equal(EVARYSTH.texteCote(avant, 42), "42 mm");
+  } finally { p.custom.params[0] = avant; }
 });
 
 test("session Stripe : lignes, cotes en métadonnées, livraison, promo, retours", () => {

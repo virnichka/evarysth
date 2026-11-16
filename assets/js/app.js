@@ -286,7 +286,7 @@
     const photos = p.photos || [];
     /* Cotes communes aux 3 tailles standard (paramètres qui ont un libellé court « court » dans data.js) */
     const coteFixes = p.custom.params.filter(prm => prm.court && new Set(p.variants.options.map(o => o.values[prm.key])).size === 1)
-      .map(prm => `${prm.court} ${p.variants.options[0].values[prm.key]} mm`).join(" · ");
+      .map(prm => `${prm.court} ${EVARYSTH.texteCote(prm, p.variants.options[0].values[prm.key])}`).join(" · ");
 
     root.innerHTML = `
       <nav class="crumbs" aria-label="Fil d'Ariane"><a href="catalogue/">Catalogue</a> / <a href="univers/${u.id}/">${u.name}</a> / <span>${p.name}</span></nav>
@@ -354,7 +354,13 @@ ${colors.length ? `
           </div>
 
           <div class="pane" id="pane-custom" hidden>
-            ${p.custom.params.map((prm, i) => `
+            ${p.custom.params.map((prm, i) => EVARYSTH.estCompte(prm) ? `
+              <div class="slider slider--compte">
+                <div class="slider__head"><span class="slider__lbl" id="l-${prm.key}"><span class="mono letter">${LETTERS[i]}</span>${prm.label}</span></div>
+                <div class="compte" role="radiogroup" aria-labelledby="l-${prm.key}">
+                  ${Array.from({ length: prm.max - prm.min + 1 }, (_, k) => prm.min + k).map(n => `<button type="button" role="radio" class="mono" data-compte="${prm.key}" data-n="${n}" aria-checked="${n === prm.def}" tabindex="${n === prm.def ? 0 : -1}" aria-label="${EVARYSTH.texteCote(prm, n)}">${n}</button>`).join("")}
+                </div>
+              </div>` : `
               <div class="slider">
                 <div class="slider__head">
                   <label for="s-${prm.key}"><span class="mono letter">${LETTERS[i]}</span>${prm.label}</label>
@@ -416,9 +422,9 @@ ${colors.length ? `
       prixScene(unit, v);
       $("#qty").textContent = state.qty;
 
-      const dimRows = p.custom.params.map((prm, i) => [`${LETTERS[i]} · ${prm.label}`, `${v[prm.key]} mm`]);
+      const dimRows = p.custom.params.map((prm, i) => [`${LETTERS[i]} · ${prm.label}`, EVARYSTH.texteCote(prm, v[prm.key])]);
       $("#dims").innerHTML = p.custom.params.map((prm, i) =>
-        `<span class="dim mono"><i>${LETTERS[i]}</i>${v[prm.key]}<small>mm</small></span>`).join("");
+        `<span class="dim mono"><i>${LETTERS[i]}</i>${v[prm.key]}<small>${EVARYSTH.texteCote(prm, v[prm.key]).replace(/^\S+\s*/, "")}</small></span>`).join("");
 
       $("#legal-note").hidden = state.mode !== "custom";
       state._unit = unit; state._dimRows = dimRows;
@@ -505,7 +511,28 @@ ${colors.length ? `
       const q = e.target.closest("[data-q]"); if (q) { state.qty = Math.max(1, Math.min(20, state.qty + +q.dataset.q)); update(); }
     };
 
+    /* Paramètre compte : boutons radio (flèches, Début/Fin au clavier, un seul arrêt de tabulation) */
+    function comptes(prm) {
+      const btns = [...root.querySelectorAll(`[data-compte="${prm.key}"]`)];
+      const choisir = (b, focus) => {
+        btns.forEach(x => { const on = x === b; x.classList.toggle("is-active", on); x.setAttribute("aria-checked", on); x.tabIndex = on ? 0 : -1; });
+        if (focus) b.focus();
+        if (state.custom[prm.key] !== +b.dataset.n) { state.custom[prm.key] = +b.dataset.n; update(); pulse(); }
+      };
+      btns.forEach((b, i) => {
+        b.classList.toggle("is-active", +b.dataset.n === state.custom[prm.key]);
+        b.addEventListener("click", () => choisir(b, false));
+        b.addEventListener("keydown", e => {
+          const j = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: btns.length - 1 }[e.key];
+          if (j === undefined) return;
+          e.preventDefault();
+          choisir(btns[(j + btns.length) % btns.length], true);
+        });
+      });
+    }
+
     p.custom.params.forEach(prm => {
+      if (EVARYSTH.estCompte(prm)) return comptes(prm);
       const range = $(`#s-${prm.key}`), num = $(`#n-${prm.key}`);
       const paint = () => range.style.setProperty("--p", ((range.value - prm.min) / (prm.max - prm.min)) * 100 + "%");
       range.addEventListener("input", () => { state.custom[prm.key] = +range.value; num.value = range.value; $(`#m-${prm.key}`).hidden = true; num.setAttribute("aria-invalid", "false"); paint(); update(); bulle(prm, range, true); });
@@ -545,7 +572,7 @@ ${colors.length ? `
       const v = values();
       const variantLabel = state.mode === "custom" ? "" : p.variants.options[state.variant].label;
       const details = state.mode === "custom"
-        ? p.custom.params.map(prm => [prm.label, `${v[prm.key]} mm`])
+        ? p.custom.params.map(prm => [prm.label, EVARYSTH.texteCote(prm, v[prm.key])])
         : [[p.variants.label, `${variantLabel} (${p.variants.options[state.variant].hint})`]];
       const col = colors[state.color];
       if (col) details.push(["Coloris", col.label]);
