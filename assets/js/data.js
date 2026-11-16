@@ -301,8 +301,8 @@ EVARYSTH.products = [
   {
     id: "station-brosses-dents", universe: "meubles", matiere: "petg", shape: "toothbrush", model: "station-brosses-dents",
     name: "Station brosses à dents",
-    tagline: "Les brosses debout devant, le chargeur bien calé juste derrière.",
-    desc: "Un socle à poser près du lavabo, compatible chargeurs Oral-B ronds (type 3757, gammes Pro et Vitality ; pas les chargeurs iO). À l'avant, une cuvette et un picot gardent debout chaque brosse, à portée de main. À l'arrière, chaque chargeur s'emboîte dans son logement, posé sur le plan de travail, et son câble sort par une encoche à l'arrière : la station reste bien à plat. Pour recharger une brosse, posez-la derrière. Choisissez le nombre de chargeurs et de supports de pose. Produit indépendant, non affilié à Oral-B ; chargeurs et brosses non fournis.",
+    tagline: "Rechargez quand il faut, pas en permanence.",
+    desc: "Une brosse qui reste toujours sur son chargeur fatigue sa batterie. Ici, elle attend debout sur son support et ne passe sur le chargeur que pour recharger. Pour le chargeur rond Oral-B type 3757 (Pro, Vitality, iO2 à iO6) ; pas le socle magnétique des iO7 à iO9. Produit non affilié à Oral-B.",
     variants: sizes("Configuration", [["Solo", "1 chargeur, 1 support", { a: 1, b: 1 }], ["Duo", "2 chargeurs, 2 supports", { a: 2, b: 2 }], ["Famille", "2 chargeurs, 4 supports", { a: 2, b: 4 }]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
@@ -319,8 +319,7 @@ EVARYSTH.products = [
       { src: "assets/photos/station-brosses-dents/1.webp", alt: "Station en vert sauge : deux logements de chargeur à l'arrière, trois supports de pose avec leur picot à l'avant" },
       { src: "assets/photos/station-brosses-dents/2.webp", alt: "Station en rose poudré, deux chargeurs et quatre supports de pose, vue de trois quarts" },
       { src: "assets/photos/station-brosses-dents/3.webp", alt: "Station Solo en noir mat : un support de pose devant, un logement de chargeur derrière avec sa sortie de câble" }
-    ],
-    photosNote: "Photos : prototypes imprimés ; chargeurs et brosses non fournis"
+    ]
   },
   {
     id: "distributeur-oeufs-boucle", universe: "meubles", matiere: "petg", shape: "eggs", model: "distributeur-oeufs-boucle",
