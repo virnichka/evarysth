@@ -237,6 +237,30 @@ EVARYSTH.products = [
     photosNote: "Photos : coloris de démonstration, casque non fourni"
   },
   {
+    id: "organisateur-bureau", universe: "bureau", matiere: "petg", shape: "organizer", model: "organisateur-bureau",
+    name: "Organisateur de bureau",
+    tagline: "Téléphone, montre, écouteurs, clés : tout a sa place, tout se recharge.",
+    desc: "Une seule pièce pour tout poser le soir. Le téléphone s'appuie sur un dossier incliné, sans rien sur les côtés : un grand modèle déborde librement. Son câble passe sous le socle et ressort à l'avant par une fente plus étroite que la prise, qui reste posée sur le rebord une fois débranchée. Le palet de la montre se loge dans le poteau, le bracelet s'enfile par le haut. Deux crochets à clés, un pot à stylos, un vide-poche ; les câbles se clipsent dans les rainures du dessous et sortent ensemble à l'arrière. Chargeurs non fournis ; produit non affilié aux marques citées.",
+    variants: sizes("Configuration", [
+      ["Apple", "Apple Watch charge rapide, AirPods sur MagSafe, 2 téléphones", { a: "apple-rapide", b: "magsafe", c: "telephone" }],
+      ["Samsung", "Galaxy Watch, écouteurs par USB-C, étui à lunettes", { a: "galaxy", b: "usbc", c: "lunettes" }],
+      ["Essentiel", "poteau de montre sans palet, coupelle, vide-poche", { a: "simple", b: "plateau", c: "vide-poche" }]
+    ]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "gris", label: "Gris clair", hex: "#c9c8c4", roughness: 0.68 },
+      { id: "sable", label: "Sable", hex: "#cdb894", roughness: 0.66 }
+    ],
+    impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 1,
+      remarques: "Debout sur son socle, seul sur le plateau (254 × 165 mm). Sans support : dossiers inclinés de 20°, crochets à 45°, logement du palet en goutte. Ponts : encoche arrière (32 mm), plafond du logement MagSafe (Ø 56 mm) ou Qi (Ø 72 mm) sous le socle, à soigner (ventilation à fond)." },
+    custom: { params: [
+      choix("a", "Chargeur de montre", [["apple", "Apple Watch"], ["apple-rapide", "Apple Watch, charge rapide"],
+        ["galaxy", "Galaxy Watch 4 à 7, Ultra"], ["pixel", "Pixel Watch 2 et 3"], ["simple", "Sans palet (Garmin et autres)"]]),
+      choix("b", "Écouteurs", [["plateau", "Coupelle"], ["usbc", "USB-C"], ["magsafe", "MagSafe"], ["qi", "Qi"]]),
+      choix("c", "2ᵉ emplacement", [["telephone", "Téléphone"], ["lunettes", "Lunettes"], ["vide-poche", "Vide-poche"]])
+    ] }
+  },
+  {
     id: "organiseur-tiroir", universe: "meubles", matiere: "petg", shape: "tray", model: "organiseur-tiroir", popular: true,
     name: "Organiseur de tiroir",
     tagline: "Un casier qui épouse exactement votre tiroir.",

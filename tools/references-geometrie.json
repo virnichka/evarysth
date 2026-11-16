@@ -145,6 +145,22 @@
     "a=130": {"taille":[108.191,130.007,108.189],"volume":221407.7,"solides":1},
     "a=200": {"taille":[166.448,200.011,166.444],"volume":806218.3,"solides":1}
   },
+  "organisateur-bureau": {
+    "a=apple b=plateau c=telephone": {"taille":[253,205,165],"volume":1033110.3,"solides":1},
+    "a=apple-rapide b=plateau c=telephone": {"taille":[253,205,165],"volume":1032457.3,"solides":1},
+    "a=galaxy b=plateau c=telephone": {"taille":[253,205,165],"volume":1033017.1,"solides":1},
+    "a=pixel b=plateau c=telephone": {"taille":[253,205,165],"volume":1033091.7,"solides":1},
+    "a=simple b=plateau c=telephone": {"taille":[253,205,165],"volume":1036860.1,"solides":1},
+    "a=apple b=usbc c=telephone": {"taille":[253,205,165],"volume":1073250.2,"solides":1},
+    "a=apple b=magsafe c=telephone": {"taille":[253,205,165],"volume":1013507.9,"solides":1},
+    "a=apple b=qi c=telephone": {"taille":[253,205,165],"volume":1004746.2,"solides":1},
+    "a=apple b=plateau c=lunettes": {"taille":[253,205,165],"volume":995173.1,"solides":1},
+    "a=apple b=plateau c=vide-poche": {"taille":[253,205,165],"volume":972297.7,"solides":1},
+    "a=apple-rapide b=usbc c=lunettes": {"taille":[253,205,165],"volume":1034659.9,"solides":1},
+    "a=galaxy b=magsafe c=vide-poche": {"taille":[253,205,165],"volume":952602.1,"solides":1},
+    "a=pixel b=qi c=telephone": {"taille":[253,205,165],"volume":1004727.5,"solides":1},
+    "a=simple b=plateau c=lunettes": {"taille":[253,205,165],"volume":998922.9,"solides":1}
+  },
   "organiseur-tiroir": {
     "a=120 b=150": {"taille":[119.7,50,149.7],"volume":148212.7,"solides":1},
     "a=120 b=420": {"taille":[119.7,50,419.7],"volume":396274.1,"solides":3},
