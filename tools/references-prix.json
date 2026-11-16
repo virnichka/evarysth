@@ -1028,6 +1028,159 @@
    }
   },
   {
+   "id": "organisateur-bureau",
+   "matiere": "petg",
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 54,
+   "tailles": [
+    {
+     "taille": "Apple",
+     "cotes": {
+      "a": "apple-rapide",
+      "b": "magsafe",
+      "c": "telephone"
+     },
+     "prix": 57,
+     "surMesure": 57
+    },
+    {
+     "taille": "Samsung",
+     "cotes": {
+      "a": "galaxy",
+      "b": "usbc",
+      "c": "lunettes"
+     },
+     "prix": 58,
+     "surMesure": 58
+    },
+    {
+     "taille": "Essentiel",
+     "cotes": {
+      "a": "simple",
+      "b": "plateau",
+      "c": "vide-poche"
+     },
+     "prix": 54,
+     "surMesure": 54
+    }
+   ],
+   "reperes": {
+    "min": {
+     "cotes": {
+      "a": "apple",
+      "b": "plateau",
+      "c": "telephone"
+     },
+     "masse_g": 385.1,
+     "heures": 10.93,
+     "mat": 20.22,
+     "mach": 6.89,
+     "vm": 9.17,
+     "mo": 5.48,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 8.41,
+     "prix": 57,
+     "parQuantite": [
+      57,
+      56,
+      55,
+      55,
+      55,
+      55
+     ]
+    },
+    "def": {
+     "cotes": {
+      "a": "apple",
+      "b": "plateau",
+      "c": "telephone"
+     },
+     "masse_g": 385.1,
+     "heures": 10.93,
+     "mat": 20.22,
+     "mach": 6.89,
+     "vm": 9.17,
+     "mo": 5.48,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 8.41,
+     "prix": 57,
+     "parQuantite": [
+      57,
+      56,
+      55,
+      55,
+      55,
+      55
+     ]
+    },
+    "max": {
+     "cotes": {
+      "a": "apple",
+      "b": "plateau",
+      "c": "telephone"
+     },
+     "masse_g": 385.1,
+     "heures": 10.93,
+     "mat": 20.22,
+     "mach": 6.89,
+     "vm": 9.17,
+     "mo": 5.48,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 8.41,
+     "prix": 57,
+     "parQuantite": [
+      57,
+      56,
+      55,
+      55,
+      55,
+      55
+     ]
+    }
+   },
+   "balayage": {
+    "valeursParAxe": {
+     "a": 5,
+     "b": 4,
+     "c": 3
+    },
+    "points": 60,
+    "baisses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausseMaxMm": 0,
+    "min": {
+     "prix": 54,
+     "cotes": {
+      "a": "apple",
+      "b": "plateau",
+      "c": "vide-poche"
+     }
+    },
+    "max": {
+     "prix": 58,
+     "cotes": {
+      "a": "apple",
+      "b": "usbc",
+      "c": "telephone"
+     }
+    }
+   }
+  },
+  {
    "id": "organiseur-tiroir",
    "matiere": "petg",
    "filiere": "atelier",
