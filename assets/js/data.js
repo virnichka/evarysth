@@ -306,12 +306,13 @@ EVARYSTH.products = [
     variants: sizes("Configuration", [["Solo", "1 chargeur, 1 support", { a: 1, b: 1 }], ["Duo", "2 chargeurs, 2 supports", { a: 2, b: 2 }], ["Famille", "2 chargeurs, 4 supports", { a: 2, b: 4 }]]),
     colors: [
       { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
-      { id: "blanc", label: "Blanc", hex: "#ecebe6", roughness: 0.6 }
+      { id: "sauge", label: "Vert sauge", hex: "#9aa88c", roughness: 0.65 },
+      { id: "rose", label: "Rose poudré", hex: "#dca8a4", roughness: 0.62 }
     ],
     impression: { matiere: "petg", orientation: POSE.debout, supports: false, parPlateau: 4,
       remarques: "À plat sur son dessous : logements traversants, cuvettes ouvertes vers le haut ; sortie de câble en pont." },
     custom: { params: [
-      { ...param("a", "Chargeurs", 1, 2, 1), type: "compte", unite: ["chargeur", "chargeurs"] },
+      { ...param("a", "Chargeurs", 1, 2, 2), type: "compte", unite: ["chargeur", "chargeurs"] },
       { ...param("b", "Supports de pose", 1, 4, 2), type: "compte", unite: ["support de pose", "supports de pose"] }
     ] }
   },
