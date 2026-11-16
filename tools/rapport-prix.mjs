@@ -70,9 +70,11 @@ function produit(E, p) {
       if (k === dims[d] - 1) continue;
       const a = prix[i], b = prix[i + pasAxe], mm = axes[d][k + 1] - axes[d][k];
       const ex = () => ({ axe: cles[d], de: cotesDe(i), a: axes[d][k + 1], prix: [a, b] });
-      hausseMaxMm = Math.max(hausseMaxMm, (b - a) / mm);
+      /* Paramètre compte (nombre d'éléments, sans mm) : pas de plafond de hausse par cran, seulement aucune baisse */
+      const compte = E.estCompte(prm[d]);
+      if (!compte) hausseMaxMm = Math.max(hausseMaxMm, (b - a) / mm);
       if (b < a) { baisses.nombre++; if (baisses.exemples.length < EXEMPLES) baisses.exemples.push(ex()); }
-      else if (b - a > Math.ceil(HAUSSE_MM * mm - 1e-9)) { hausses.nombre++; if (hausses.exemples.length < EXEMPLES) hausses.exemples.push(ex()); }
+      else if (!compte && b - a > Math.ceil(HAUSSE_MM * mm - 1e-9)) { hausses.nombre++; if (hausses.exemples.length < EXEMPLES) hausses.exemples.push(ex()); }
     }
     pasAxe *= dims[d];
   }

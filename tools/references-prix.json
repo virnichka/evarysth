@@ -1478,6 +1478,150 @@
    }
   },
   {
+   "id": "station-brosses-dents",
+   "matiere": "petg",
+   "filiere": "atelier",
+   "provisoire": false,
+   "valeur": 1,
+   "des": 14,
+   "tailles": [
+    {
+     "taille": "Solo",
+     "cotes": {
+      "a": 1,
+      "b": 1
+     },
+     "prix": 14,
+     "surMesure": 14
+    },
+    {
+     "taille": "Duo",
+     "cotes": {
+      "a": 2,
+      "b": 2
+     },
+     "prix": 17,
+     "surMesure": 17
+    },
+    {
+     "taille": "Famille",
+     "cotes": {
+      "a": 2,
+      "b": 4
+     },
+     "prix": 20,
+     "surMesure": 20
+    }
+   ],
+   "reperes": {
+    "min": {
+     "cotes": {
+      "a": 1,
+      "b": 1
+     },
+     "masse_g": 24.2,
+     "heures": 0.91,
+     "mat": 1.27,
+     "mach": 0.57,
+     "vm": 0.91,
+     "mo": 2.59,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.04,
+     "prix": 14,
+     "parQuantite": [
+      14,
+      13,
+      13,
+      12,
+      12,
+      12
+     ]
+    },
+    "def": {
+     "cotes": {
+      "a": 1,
+      "b": 2
+     },
+     "masse_g": 34,
+     "heures": 1.15,
+     "mat": 1.78,
+     "mach": 0.72,
+     "vm": 1.15,
+     "mo": 2.67,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.21,
+     "prix": 15,
+     "parQuantite": [
+      15,
+      14,
+      14,
+      14,
+      13,
+      13
+     ]
+    },
+    "max": {
+     "cotes": {
+      "a": 2,
+      "b": 4
+     },
+     "masse_g": 70,
+     "heures": 2.19,
+     "mat": 3.68,
+     "mach": 1.38,
+     "vm": 2.19,
+     "mo": 2.96,
+     "emballage": 0.3,
+     "fixes": 4,
+     "lancement": 2,
+     "prelevements": 2.89,
+     "prix": 20,
+     "parQuantite": [
+      20,
+      19,
+      18,
+      18,
+      18,
+      18
+     ]
+    }
+   },
+   "balayage": {
+    "valeursParAxe": {
+     "a": 2,
+     "b": 4
+    },
+    "points": 8,
+    "baisses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausses": {
+     "nombre": 0,
+     "exemples": []
+    },
+    "hausseMaxMm": 0,
+    "min": {
+     "prix": 14,
+     "cotes": {
+      "a": 1,
+      "b": 1
+     }
+    },
+    "max": {
+     "prix": 20,
+     "cotes": {
+      "a": 2,
+      "b": 4
+     }
+    }
+   }
+  },
+  {
    "id": "distributeur-oeufs",
    "matiere": "petg",
    "filiere": "atelier",

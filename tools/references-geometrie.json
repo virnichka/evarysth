@@ -177,6 +177,14 @@
     "a=140": {"taille":[161.962,33.2,40.6],"volume":48448.2,"solides":4},
     "a=230": {"taille":[251.962,33.2,40.6],"volume":67888.2,"solides":4}
   },
+  "station-brosses-dents": {
+    "a=1 b=1": {"taille":[54.04,31.3,107.14],"volume":43431.6,"solides":1},
+    "a=1 b=2": {"taille":[74.74,31.3,102.13],"volume":72595.5,"solides":1},
+    "a=1 b=4": {"taille":[148.74,31.3,102.13],"volume":131300.2,"solides":1},
+    "a=2 b=1": {"taille":[106.04,31.3,96.72],"volume":64620.9,"solides":1},
+    "a=2 b=2": {"taille":[106.04,31.3,106.32],"volume":98464.8,"solides":1},
+    "a=2 b=4": {"taille":[148.74,31.3,106.32],"volume":164841,"solides":1}
+  },
   "support-accessoires-aspirateur": {
     "a=30 b=180 c=50": {"taille":[180,27,66.496],"volume":87188.3,"solides":1},
     "a=30 b=180 c=60": {"taille":[180,27,76.496],"volume":92688.3,"solides":1},
