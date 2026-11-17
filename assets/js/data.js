@@ -261,6 +261,23 @@ EVARYSTH.products = [
     ] }
   },
   {
+    id: "organisateur-bureau-2", universe: "bureau", matiere: "petg", shape: "organizer", model: "organisateur-bureau-2",
+    name: "Organisateur de bureau (prototype)",
+    tagline: "Téléphone, montre, lunettes, écouteurs : tout a sa place.",
+    desc: "Version de travail, reprise du prototype d'origine.",
+    variants: sizes("Configuration", [
+      ["Essentiel", "sans palet", { a: "simple" }], ["Essentiel", "sans palet", { a: "simple" }], ["Essentiel", "sans palet", { a: "simple" }]
+    ]),
+    colors: [
+      { id: "noir", label: "Noir mat", hex: "#2a2a2a" },
+      { id: "gris", label: "Gris clair", hex: "#c9c8c4", roughness: 0.68 },
+      { id: "sable", label: "Sable", hex: "#cdb894", roughness: 0.66 }
+    ],
+    impression: { matiere: "petg", orientation: POSE.debout, supports: true, parPlateau: 1,
+      remarques: "Debout sur son socle, seul sur le plateau (250 × 140 mm). Supports sous le bras de montre et la tablette à lunettes." },
+    custom: { params: [choix("a", "Chargeur de montre", [["simple", "Sans palet"]])] }
+  },
+  {
     id: "organiseur-tiroir", universe: "meubles", matiere: "petg", shape: "tray", model: "organiseur-tiroir", popular: true,
     name: "Organiseur de tiroir",
     tagline: "Un casier qui épouse exactement votre tiroir.",
