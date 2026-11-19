@@ -494,7 +494,6 @@ test("/maj n'existe plus", async () => {
   assert.equal(r.status, 404);
 });
 
-/* ---------- Lot 2 ---------- */
 import { readFileSync } from "node:fs";
 import { signature } from "../src/jeton.js";
 import { ICONES } from "../src/icones.js";

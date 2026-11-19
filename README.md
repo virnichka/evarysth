@@ -153,7 +153,6 @@ En mode test, une clé Stripe live est refusée.
 - Paiement différé (SEPA) : cocher aussi `checkout.session.async_payment_succeeded` sur le webhook Stripe.
 - Sécurité : signature Stripe vérifiée, jetons HMAC en temps constant, textes échappés, Sheet écrit en `RAW`, actions
   GitHub épinglées par SHA. Reste hors code : limite d'appels WAF sur `/checkout` et `/promo`.
-- Reporté : livre des recettes et remboursements Stripe synchronisés (`charge.refunded`).
 
 **Passage en production** : pages légales sans `[À COMPLÉTER]` ; compte Stripe activé, URL CGV et confidentialité dans
 Stripe (Informations publiques), reçus clients cochés ; clé `sk_live_` + webhook live → secrets ; codes promo recréés en
