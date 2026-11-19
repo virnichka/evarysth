@@ -1,13 +1,13 @@
 /* Evarysth — calcul des prix (règle : docs/prix.md).
    Chargé après data.js (produits, matières) et bareme.js (masse et temps tranchés, bruts), dans le navigateur, les pages
-   générées et le Worker (worker/src/catalogue.js) : un seul code, donc prix affiché = prix payé.
+   générées et les outils (tools/) : un seul code.
    Un seul calcul pour les tailles standard et le sur-mesure : une taille n'est qu'un préréglage de cotes.
    Contrôle : node tools/rapport-prix.mjs --verifier (référence tools/references-prix.json, invariants bloquants). */
 (function (E) {
-  /* Frais de commande, communs au panier (cart.js) et au Worker (worker/src/commande.js), en euros TTC.
+  /* Frais de commande, du panier (cart.js), en euros TTC.
      livraison : en point relais, une fois par commande, selon la masse du colis (E.livraison) ; paliers [masse max en g,
      prix], auDela au-delà du dernier palier ; carton_g ajouté à la masse des pièces.
-     promosDemo : codes de démonstration du panier hors paiement (sans ?checkout=test) ; en paiement, Stripe décide. */
+     promosDemo : codes de démonstration du panier. */
   E.frais = {
     livraison: { paliers: [[500, 4.5], [1000, 6.5], [3000, 8.5]], auDela: 11.5, carton_g: 100 },
     cadeau: 3, messageCadeauMax: 200, promosDemo: { BIENVENUE10: 0.10 }
@@ -123,8 +123,8 @@
   E.masseColis = lignes => lignes.reduce((s, l) => s + l.masse_g * l.qty, 0) + E.frais.livraison.carton_g;
 
   /* Totaux du panier, en euros : lignes [{ prix (unitaire, déjà dégressif), masse_g (d'une pièce), qty }] ;
-     cadeau : emballage choisi ; remise : { rate, amount } ou null. Comme Stripe : la remise porte sur les articles et
-     l'emballage, pas sur la livraison. Le Worker refait le même total en centimes (worker/src/commande.js). */
+     cadeau : emballage choisi ; remise : { rate, amount } ou null. La remise porte sur les articles et
+     l'emballage, pas sur la livraison. */
   E.totalPanier = (lignes, { cadeau = false, remise = null } = {}) => {
     const c = x => Math.round(x * 100) / 100, vide = !lignes.length;
     const articles = c(lignes.reduce((s, l) => s + l.prix * l.qty, 0)), emballage = !vide && cadeau ? E.frais.cadeau : 0;

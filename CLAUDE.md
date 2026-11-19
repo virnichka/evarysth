@@ -20,12 +20,12 @@ Il fixe **tous les prix**, tailles standard comprises (site et Worker, `priceFor
 livraison / cadeau / code de démo dans `EVARYSTH.frais`. Rapport : `node tools/rapport-prix.mjs` ; tout prix changé
 fait échouer `tools/test/prix.test.mjs` : si voulu, `--mettre-a-jour` (référence `tools/references-prix.json`, à committer).
 
-Paiement (mode test, ventes fermées) : Worker Cloudflare dans `worker/` (prix recalculés depuis `data.js` et `prix.js`,
-tests `cd worker && node --test`), front dans `cart.js` derrière `?checkout=test`. Circuit des commandes (validation sur la page /admin) : README « Paiement et commandes », détail (Sheet, /admin) : `docs/commandes.md`.
+Pas de vente ni de paiement : le panier (`cart.js`) est une démonstration ; « Commander » annonce l'ouverture prochaine.
+Ne pas réintroduire de back-office (paiement, commandes, fabrication automatique) sans demande explicite.
 Fiche produit (`renderProduct`, `app.js`) : une information = un seul endroit. Même gabarit pour tous les produits (pas de cas par type d'objet ; pas de bloc « Comment mesurer ? », le guide
 reste dans `ui.js` si on le rebranche). Statut « boutique en préparation » : constante `BOUTIQUE_OUVERTE` en tête de `app.js`.
-Chaîne de fabrication (commande payée → fichiers d'impression dans R2, tranchage, barème) : `docs/fabrication.md`.
-**Docs** : décrire l'état actuel au présent ; pas de journal de chantier, de phases ni de plans dans le dépôt (git garde l'historique).
+Tranchage et barème (image Docker Bambu Studio, profils P2S) : `docs/bareme.md`.
+**Docs** : décrire l'état actuel au présent ; pas de journal de chantier, de phases, de plans ni de projets futurs dans le dépôt (git garde l'historique).
 
 ## Économie de tokens (toujours)
 - Ne lis jamais un fichier en entier : `grep -n` puis `sed -n a,bp` sur le passage utile.
