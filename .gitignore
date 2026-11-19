@@ -3,7 +3,7 @@
 .DS_Store
 __pycache__/
 
-# Dépendances et caches Node (aucune n'est nécessaire au site)
+# Dépendances et caches Node (aucune n'est nécessaire au site ; Wrangler peut en créer)
 node_modules/
 .npm
 coverage
@@ -13,5 +13,13 @@ coverage
 .env.*
 !.env.example
 
+# Cloudflare Wrangler : secrets locaux et cache (ne jamais publier)
+.dev.vars
+.dev.vars.*
+.wrangler/
+
 # Sorties des outils Node (STL générés, rapports)
 sortie-stl/
+sortie-stl-standards/
+sortie-fabrication/
+bilan.json
