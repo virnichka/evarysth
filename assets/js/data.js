@@ -30,7 +30,7 @@ EVARYSTH.matieres = {
     desc: "Nylon chargé de fibres de carbone : très rigide et stable, avec un toucher mat légèrement minéral. Il supporte bien la chaleur et les chocs." }
 };
 /* densite (g/cm³), eurKg (€/kg de filament), echec (pièces ratées), filiere (« atelier » : matière
-   avec profil de tranchage ; « externe » : sans profil, même calcul, prix marqué « provisoire » dans le rapport et /admin) : prix (assets/js/prix.js, docs/prix.md) */
+   avec profil de tranchage ; « externe » : sans profil, même calcul, prix marqué « provisoire » dans le rapport) : prix (assets/js/prix.js, docs/prix.md) */
 /* Matière affichée du produit : erreur explicite si elle manque ou est inconnue (aucune matière par défaut) */
 EVARYSTH.matiere = p => {
   const m = p && EVARYSTH.matieres[p.matiere];
@@ -566,7 +566,7 @@ EVARYSTH.option = (prm, id) => (prm.options || []).find(o => o.id === id);
 EVARYSTH.sansCote = p => !(p.custom && p.custom.params || []).some(EVARYSTH.estMm);
 /* Droit de rétractation (CGV, article 8) : seul un article sur-mesure qui porte au moins une cote en mm en est exclu
    (art. L221-28 3°) ; un article composé uniquement de comptes et de choix (liste fermée de la fiche) garde les 14 jours,
-   comme une taille standard. Même règle sur la fiche, dans le panier et dans le Worker. */
+   comme une taille standard. Même règle sur la fiche et dans le panier. */
 EVARYSTH.horsRetractation = (p, mode) => mode === "custom" && !(p && EVARYSTH.sansCote(p));
 /* Valeur sur-mesure en texte : « 42 mm », « 1 chargeur » / « 2 chargeurs » (compte), libellé de l'option (choix) */
 EVARYSTH.texteCote = (prm, x) => {

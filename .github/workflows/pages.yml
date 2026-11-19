@@ -24,10 +24,6 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Vérifier que les pages produit sont à jour
         run: node tools/generer-pages.mjs --check
-      - name: Retirer du site les fichiers qui ne sont pas des pages (Worker de paiement)
-        run: rm -rf worker
-      - name: Version du site (version.json, lue par le Worker au paiement → SHA dans les metadata Stripe)
-        run: printf '{"sha":"%s"}\n' "$GITHUB_SHA" > version.json
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
         with:
           enablement: true
