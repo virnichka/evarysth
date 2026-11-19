@@ -2,7 +2,7 @@
 (function () {
   const KEY = "evarysth.cart.v1";
   /* Livraison (au poids, EVARYSTH.livraison), emballage cadeau, codes de démonstration : EVARYSTH.frais
-     (assets/js/prix.js) */
+     (assets/js/prix.js), partagé avec le Worker */
   const GIFT = EVARYSTH.frais.cadeau;
   const GIFT_MAX = EVARYSTH.frais.messageCadeauMax;
   const $ = s => document.querySelector(s);
@@ -17,7 +17,62 @@
   let gift = { on: false, message: "", ...((EVARYSTH.store && EVARYSTH.store.get(GIFT_KEY, null)) || {}) };
   const saveGift = () => EVARYSTH.store && EVARYSTH.store.set(GIFT_KEY, gift);
 
-  const remiseActive = () => PROMOS[promo] ? { code: promo, rate: PROMOS[promo], amount: 0 } : null;
+  /* Paiement Stripe en MODE TEST : actif seulement après ?checkout=test (mémorisé dans le navigateur),
+     coupé par ?checkout=off. Sans ce drapeau, « Commander » garde le message de prototype.
+     Code du service : worker/ (même adresse dans commande/merci/index.html). */
+  const CHECKOUT_URL = "https://evarysth-checkout.virnichka.workers.dev";
+  const FLAG = "evarysth.checkout";
+  const paiement = (() => {
+    if (!EVARYSTH.store) return false;
+    const q = new URLSearchParams(location.search).get("checkout");
+    if (q === "test") { EVARYSTH.store.set(FLAG, "test"); return true; }   /* actif même si le stockage est bloqué */
+    if (q === "off") { EVARYSTH.store.set(FLAG, ""); return false; }
+    return EVARYSTH.store.get(FLAG, "") === "test";
+  })();
+  /* Remise d'un code vérifié chez Stripe : { code, rate, amount } */
+  let remise = paiement ? EVARYSTH.store.get("evarysth.promo.remise", null) : null;
+  const remiseActive = () => paiement
+    ? (remise && remise.code === promo ? remise : null)
+    : (PROMOS[promo] ? { code: promo, rate: PROMOS[promo], amount: 0 } : null);
+
+  async function appelWorker(chemin, corps) {
+    let r;
+    try {
+      r = await fetch(CHECKOUT_URL + chemin, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
+    } catch { throw new Error("Service de paiement injoignable. Réessayez dans un instant."); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "Service de paiement indisponible. Réessayez dans un instant.");
+    return j;
+  }
+
+  /* Ligne envoyée au paiement : identifiants et cotes seulement, le prix est recalculé par le service */
+  function ligneCommande(i) {
+    const parts = String(i.key).split("|");          /* id|mode|taille|cotes|coloris (paniers plus anciens) */
+    const p = EVARYSTH.getProduct(i.id);
+    let variant = i.variant;
+    if (i.mode === "standard" && !Number.isInteger(variant) && p) variant = p.variants.options.findIndex(o => o.label === parts[2]);
+    return { id: i.id, mode: i.mode, variant, values: i.mode === "custom" ? i.values : undefined,
+      color: i.color ?? (parts[4] || undefined), qty: i.qty };
+  }
+
+  async function payer() {
+    const b = $("#cart-checkout"), m = $("#checkout-msg");
+    b.disabled = true; b.textContent = "Redirection vers le paiement…"; m.hidden = true;
+    try {
+      const j = await appelWorker("/checkout", {
+        items: items.map(ligneCommande),
+        promo: remiseActive() ? promo : "",
+        cadeau: gift.on,
+        surMesureAccepte: $("#custom-ok").checked,
+        message: gift.on ? gift.message.trim() : "",
+        base: new URL(".", document.baseURI).href,
+        retour: location.origin + location.pathname
+      });
+      location.href = j.url;
+    } catch (e) {
+      b.disabled = false; b.textContent = "Commander"; m.hidden = false; m.textContent = e.message;
+    }
+  }
 
   function mount() {
     document.body.insertAdjacentHTML("beforeend", `
@@ -48,7 +103,9 @@
           <div class="row total"><span>Total</span><span id="cart-total">${EVARYSTH.fmt(0)}</span></div>
           <p class="cart-legal" id="cart-legal">En commandant, vous acceptez nos <a href="cgv/" data-cart-close>conditions générales de vente</a>.</p>
           <label class="cart-accept" id="cart-custom-note" hidden><input type="checkbox" id="custom-ok"> <span><b>Sur-mesure :</b> j'ai vérifié mes cotes. Ces pièces sont fabriquées à mes cotes : elles ne sont ni reprises ni échangées, sauf défaut de conformité (<a href="cgv/#retractation" data-cart-close>CGV</a>).</span></label>
+          <p class="promo__msg is-err" id="checkout-msg" role="alert" hidden></p>
           <button class="btn btn--primary btn--block" id="cart-checkout">Commander</button>
+          <p class="promo__msg checkout-test" id="checkout-test" hidden>Mode test : aucun paiement réel. Carte 4242 4242 4242 4242, date future, CVC au choix.</p>
           <p class="fine">Fabriqué à la commande · Expédition en général sous 3 à 5 jours ouvrés · Paiement sécurisé</p>
         </footer>
       </aside>`);
@@ -68,6 +125,15 @@
       e.preventDefault();
       const code = $("#promo-input").value.trim().toUpperCase();
       if (!code) return;
+      if (paiement) {
+        appelWorker("/promo", { code }).then(j => {
+          if (!j.valide) throw new Error(j.error);
+          promo = j.code; remise = j;
+          EVARYSTH.store.set("evarysth.promo", promo); EVARYSTH.store.set("evarysth.promo.remise", j);
+          $("#promo-input").value = ""; render(); EVARYSTH.toast(`Code ${promo} appliqué`);
+        }).catch(err => { const m = $("#promo-msg"); m.hidden = false; m.className = "promo__msg is-err"; m.textContent = err.message; });
+        return;
+      }
       if (PROMOS[code]) { promo = code; EVARYSTH.store.set("evarysth.promo", code); $("#promo-input").value = ""; render(); EVARYSTH.toast(`Code ${code} appliqué`); }
       else { const m = $("#promo-msg"); m.hidden = false; m.className = "promo__msg is-err"; m.textContent = "Code non reconnu. (Essayez BIENVENUE10 pour tester.)"; }
     });
@@ -76,6 +142,7 @@
     });
     $("#cart-checkout").addEventListener("click", () => {
       if (!items.length) return;
+      if (paiement) { payer(); return; }
       const count = items.reduce((s, i) => s + i.qty, 0);
       $("#cart-list").innerHTML = `<li class="empty done">
         <span class="done__icon">✓</span>
@@ -85,13 +152,22 @@
       $("#cart-back").onclick = render;
     });
     window.addEventListener("storage", e => { if (e.key === KEY) { items = load(); render(); } });
+    $("#checkout-test").hidden = !paiement;
     $("#gift-on").checked = gift.on;
     $("#gift-message").value = gift.message.slice(0, GIFT_MAX);
     $("#gift-on").addEventListener("change", e => { gift.on = e.target.checked; saveGift(); render(); });
-    /* Sur-mesure à vos cotes, sans droit de rétractation (CGV, L221-28 3° ; EVARYSTH.horsRetractation) : accord explicite */
+    /* Sur-mesure à vos cotes, sans droit de rétractation (CGV, L221-28 3° ; EVARYSTH.horsRetractation) : accord explicite
+       avant de payer, revérifié par le Worker */
     $("#custom-ok").addEventListener("change", render);
     $("#gift-message").addEventListener("input", e => { gift.message = e.target.value.slice(0, GIFT_MAX); saveGift(); renderGiftCount(); });
     render();
+    /* Retour depuis Stripe sans payer */
+    const q = new URLSearchParams(location.search);
+    if (q.get("panier") === "annule") {
+      q.delete("panier");
+      history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
+      open(); EVARYSTH.toast("Paiement annulé : votre panier est conservé.");
+    }
   }
 
   function open() { document.body.classList.add("cart-open"); $("#cart").setAttribute("aria-hidden", "false"); }
@@ -124,8 +200,8 @@
 
   function renderGiftCount() { $("#gift-count").textContent = `${gift.message.length} / ${GIFT_MAX}`; }
 
-  /* Prix unitaire à jour de chaque article, dégressif selon la quantité de la ligne, et masse d'une pièce (livraison).
-     En cas d'impossibilité (produit retiré, barème absent), le prix enregistré
+  /* Prix unitaire à jour de chaque article, dégressif selon la quantité de la ligne, et masse d'une pièce (livraison) ;
+     le Worker recalcule les deux au paiement. En cas d'impossibilité (produit retiré, barème absent), le prix enregistré
      reste affiché. */
   function prixAJour() {
     for (const i of items) {
@@ -146,7 +222,7 @@
     const count = items.reduce((s, i) => s + i.qty, 0);
     const r = remiseActive();
     const rate = r ? r.rate : 0;
-    /* Totaux : EVARYSTH.totalPanier (prix.js) */
+    /* Totaux : EVARYSTH.totalPanier (prix.js), refait au centime par le Worker */
     const t = EVARYSTH.totalPanier(items.map(i => ({ prix: i.unitPrice, masse_g: i.masse_g || 0, qty: i.qty })), { cadeau: gift.on, remise: r });
     const giftCost = t.emballage, disc = t.remise;
     $("#cart-gift-row").hidden = !giftCost;

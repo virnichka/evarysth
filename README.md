@@ -5,9 +5,10 @@
 ## Documentation
 | Document | Contenu |
 |---|---|
-| `README.md` (ce fichier) | Fonctionnement du site et des outils |
+| `README.md` (ce fichier) | Fonctionnement du site, des commandes et des outils |
 | `CLAUDE.md` | Consignes pour Claude : ajout d'un produit 3D, contrôles, mise en ligne |
-| `docs/bareme.md` | Barème des prix : tranchage Bambu Studio, image Docker, profils |
+| `docs/commandes.md` | Circuit des commandes : Sheet (contrat avec le Worker), statuts, e-mails, fabricants, page /admin, secrets |
+| `docs/fabrication.md` | Fichiers d'impression générés à chaque commande payée (GitHub Actions, R2), image de tranchage, barème, réglages |
 | `docs/prix.md` | Règle de calcul des prix |
 
 ## 1. Vue d'ensemble
@@ -29,23 +30,137 @@ Site 100 % statique (HTML/CSS/JavaScript, aucune installation ni compilation), p
 | `assets/css/style.css` | Toute l'apparence : couleurs, polices, mise en page, thème clair/sombre, version mobile. |
 | `assets/js/data.js` | **Le catalogue.** Univers, produits, prix, 3 tailles standard, curseurs sur-mesure (min/max ; un paramètre `type: "compte"` est un nombre entier d'éléments, voir « Paramètre compte » ; `type: "choix"` une option dans une liste, voir « Paramètre choix »), photos, matières (avec leur jeu d'ajustement) et fiche d'impression de chaque produit. C'est le fichier à modifier pour ajouter ou changer un produit. |
 | `assets/js/app.js` | **Le chef d'orchestre.** Lit le type de page (`data-product-id`, `data-universe-id`, `data-page="catalogue"` sur le `<body>`, ou `#…` sur l'accueil), affiche la bonne vue, construit les cartes et la fiche produit, relie curseurs ↔ prix ↔ 3D. Contient aussi les icônes dessinées (`SHAPES`). |
-| `assets/js/prix.js` | **Le calcul des prix** (règle : `docs/prix.md`), chargé après `data.js` et `bareme.js` sur le site : tarifs, prix sur-mesure, prix d'une taille, frais de livraison et d'emballage cadeau, code de démonstration. Contrôle : `node tools/rapport-prix.mjs --verifier`. |
+| `assets/js/prix.js` | **Le calcul des prix** (règle : `docs/prix.md`), chargé après `data.js` et `bareme.js` sur le site et dans le Worker : tarifs, prix sur-mesure, prix d'une taille, frais de livraison et d'emballage cadeau, code de démonstration. Contrôle : `node tools/rapport-prix.mjs --verifier`. |
 | `assets/js/viewer3d.js` | **Le moteur 3D.** Charge Three.js et le moteur géométrique seulement quand une fiche en a besoin, affiche et fait tourner la pièce. Si la 3D ne peut pas s'afficher (WebGL absent, WASM bloqué), la fiche montre la 1re photo ou la vignette 3D avec un message court. |
 | `assets/js/geo.js` | **Moteur géométrique**, commun au navigateur et à Node : kit `ext`, `box`, `cyl`, `rev`, `join`, `tray`… sur **manifold-3d** (unions booléennes, maillage étanche). Seul moteur du site. |
 | `assets/vendor/manifold-3d/` | manifold-3d **3.5.4** (`manifold.js` + `manifold.wasm`, licence Apache-2.0), copié depuis `tools/node_modules` ; chargé à la demande par le viewer. Changer de version : `tools/package.json`, recopier les 2 fichiers, `MANIFOLD_VERSION` dans `geo.js`. |
 | `assets/js/modeles/` | **Un fichier par pièce 3D** : le « plan » qui transforme des cotes en mm en pièce 3D. Seul le fichier de la fiche ouverte est chargé. |
-| `assets/js/cart.js` | Le panier latéral : ajout, quantités, code promo de démo `BIENVENUE10`, total ; « Commander » annonce l'ouverture prochaine ; mémorisé dans le navigateur. |
+| `assets/js/cart.js` | Le panier latéral : ajout, quantités, code promo de démo `BIENVENUE10` (codes Stripe en mode test), total, envoi au paiement ; mémorisé dans le navigateur. |
 | `assets/js/ui.js` | Le confort : thème clair/sombre, recherche (touche `/`), favoris, notifications, fenêtres modales. |
 | `assets/models/<produit>/` | Fichiers STL d'origine des produits qui partent d'un modèle existant. |
 | `assets/photos/<produit>/` | Photos commerciales (`1.webp` = vignette du catalogue). |
-| `tools/` | Outils d'atelier : analyse des STL (`analyse-stl.py`, `bgcode-decode.py`), `generer-pages.mjs` (pages produit, univers, catalogue, légales, 404, sitemap ; textes légaux dans `pages-legales/`), `captures-og.cjs` (images de partage et vignettes 3D). Fabrication et contrôles (voir « Générer un STL ») : `generer-stl.mjs`, `verifier-geometrie.mjs`, `references-geometrie.json` (référence figée), `lib/` (moteur Node, contrôles, rangement sur plateau, barème), `test/` (tests Node). Dépendances Node épinglées dans `tools/package.json` (three 0.170.0, manifold-3d 3.5.4 : `cd tools && npm ci`) ; la publication du site n'en a pas besoin. |
-| `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages. |
+| `tools/` | Outils d'atelier : analyse des STL (`analyse-stl.py`, `bgcode-decode.py`), `generer-pages.mjs` (pages produit, univers, catalogue, légales, 404, sitemap ; textes légaux dans `pages-legales/`), `captures-og.cjs` (images de partage et vignettes 3D), `icones-admin.mjs` (icônes de /admin). Fabrication et contrôles (voir « Générer un STL ») : `generer-stl.mjs`, `verifier-geometrie.mjs`, `references-geometrie.json` (référence figée), `lib/` (moteur Node, contrôles, fiche d'impression), `test/` (tests Node). Dépendances Node épinglées dans `tools/package.json` (three 0.170.0, manifold-3d 3.5.4 : `cd tools && npm ci`) ; la publication du site n'en a pas besoin. |
+| `.github/workflows/pages.yml` | Publication automatique sur GitHub Pages (le dossier `worker/` n'est pas publié). |
 | `.github/workflows/geometrie.yml` | **Contrôles de géométrie** (job `geometrie`, contrôle obligatoire sur `main`) : lancé sur **chaque PR** (vert en quelques secondes si rien ne touche `assets/js/` (dont `data.js`), `assets/models/`, `tools/` ou ce workflow) et sur chaque push sur `main` qui touche ces dossiers : `cd tools && npm ci && node --test`. Ne pas remettre de filtre `paths` sur `pull_request` : une PR sans résultat resterait bloquée. |
-| `.github/workflows/image-fabrication.yml` + `fabrication/` | Image Docker de tranchage (Bambu Studio en ligne de commande, profils P2S) publiée sur GHCR ; son empreinte est épinglée dans `bareme.yml`. |
-| `.github/workflows/bareme.yml` | Barème des prix (`assets/js/bareme.js`) : tranche chaque produit, à lancer sur une branche (voir `docs/bareme.md`). |
+| `worker/` | **Le service de paiement** (Cloudflare Worker + Stripe Checkout, **mode test**) : reçoit le panier, recalcule les prix depuis `data.js` et `prix.js`, crée la session Stripe, reçoit le webhook. Voir « Paiement » ci-dessous. |
+| `commande/merci/` | Page de retour après paiement (récapitulatif de la commande). |
+| `.github/workflows/worker.yml` | Teste puis déploie le Worker à chaque changement de `worker/` ou de `data.js`. |
+| `.github/workflows/fabrication.yml` | **Génération des fichiers d'une commande** (lancée par le Worker au paiement, ou à la main avec la case « Essai ») : STL, fichier tranché, 3MF, fiche fabricant → R2. |
+| `.github/workflows/stl-standards.yml` | À chaque push sur `main` touchant le catalogue ou les modèles : regénère les STL des 3 tailles standard dans R2 (`<produit>/<taille>.stl`, `.zip` si plusieurs pièces). |
+| `.github/workflows/image-fabrication.yml` + `fabrication/` | Image Docker de tranchage (Bambu Studio en ligne de commande, profils P2S) publiée sur GHCR ; son empreinte est épinglée dans `fabrication.yml`. |
 | `CLAUDE.md` | Méthode pour ajouter un produit 3D à partir de fichiers STL. |
 
-## Générer un STL
+## Paiement et commandes (mode test)
+Ventes **non ouvertes** : sans drapeau, « Commander » affiche « Les commandes ouvrent bientôt ». Tester :
+`https://www.evarysth.fr/?checkout=test` (désactiver : `?checkout=off`). Cartes : `4242 4242 4242 4242` (OK),
+`4000 0025 0000 3155` (3D Secure), `4000 0000 0000 9995` (refusée). Détails : `docs/commandes.md`.
+
+**Circuit d'une commande**
+1. Panier → Worker `evarysth-checkout` (`worker/`) → page Stripe → `commande/merci/`. Le navigateur n'envoie que produit,
+   taille ou cotes, coloris, quantité, cadeau ; **le Worker recalcule les prix depuis `data.js` et `prix.js`** et vérifie les cotes.
+2. Webhook Stripe payé → Sheet back-office : une ligne `Commandes EV` (n° client `EV-AAAA-NNNN`) et une ligne par article
+   dans `Commandes CF` ; e-mail client « Commande reçue » et fiche « Nouvelle commande » au propriétaire (Brevo).
+   Article en `a_valider` (STL standard présent dans R2) ou `lien_stl_a_indiquer`. **Rien ne part sans validation.**
+   **En parallèle, génération automatique des fichiers** (`docs/fabrication.md`) : pour chaque article, le Worker
+   lance `.github/workflows/fabrication.yml` (n° d'article `CF-AAAA-NNNN-<n°>`, sans donnée client). En ~1 min, GitHub
+   produit les STL aux cotes commandées, le fichier tranché pour la P2S (PLA/PETG), un 3MF non tranché et une fiche
+   fabricant, les range dans R2 (`commandes/<n°>/<SHA>/`), puis rappelle le Worker (signature HMAC) qui remplit les
+   colonnes `Génération` (`en_cours` → `prete` ou `echec`), `Masse g`, `Temps min`, `Plateaux` du Sheet. Échec de
+   lancement : nouvel essai par la tâche planifiée. Rien n'est imprimé ni envoyé automatiquement : les fichiers sont
+   proposés dans /admin (ligne « Fichiers » sous chaque article de la fiche) et partent avec l'e-mail
+   fabricant une fois l'article validé. Fichiers prêts → l'article passe de « Lien STL à indiquer » à « À valider ».
+   Chaîne éteinte tant que `GH_ACTIONS_TOKEN` et `FABRICATION_HMAC` manquent (une ligne de Journal le note).
+3. Le propriétaire gère les commandes sur la page d'administration `https://evarysth-admin.virnichka.workers.dev/admin`
+   (téléphone, derrière Cloudflare Access). Onglet Commandes = liste des commandes client (n° EV) avec recherche (n° EV,
+   n° CF ou nom) et filtres `?f=` : À traiter (défaut : à valider ou bloquées), Chez le fabricant, Expédiées, Bloquées,
+   Toutes. Une commande s'ouvre en fiche (`?q=<n°>`) : en-tête (client, ville, statut, lien du paiement Stripe), articles
+   à valider (fabricant + fichiers prêts ou lien STL saisi → « Valider et envoyer » → `envoyee_fabricant`, n° fournisseur
+   `CF-AAAA-NNNN-X`, seul n° vu par le fabricant, lettre = fabricant, e-mail fabricant immédiat avec 3 liens signés
+   14 jours : STL (zip s'il y en a plusieurs), 3MF non tranché, fiche d'impression), une ligne « Fichiers » sous
+   chaque article, à valider ou envoyé (état, liens dont le fichier tranché P2S, masse · temps · plateaux ; en échec : motif
+   et « Relancer la génération » au même SHA) ; repliés dans « Autres options » : lien STL manuel (affiché d'office s'il
+   n'y a pas de fichiers prêts), dossier, SHA, matière, « Régénérer au SHA actuel » avec case de confirmation et ligne
+   d'Historique, tant que l'article n'est pas envoyé ; envoi fabricant : renvoi d'e-mail, réponse par un autre canal,
+   référence externe et retrait repliés dans « Actions » ; liste : badge « À valider » prioritaire ; « Valider et envoyer » refusé tant que les fichiers ne sont pas prêts, sauf lien STL
+   saisi à la main), articles bloqués
+   (« Débloquer »), un pli par envoi fabricant (articles, STL, suivi, « Renvoyer l'e-mail » au fabricant ou d'expédition
+   au client, sans changer le statut ; « Retirer au fabricant » tant que rien n'est expédié : fabricant prévenu par e-mail,
+   articles de nouveau à valider sans fabricant, n° CF jamais réattribué), Historique replié, et un pli « Bloquer, annuler ou rembourser » (« Bloquer » →
+   `incident` ; articles à cocher un par un, puis « Annuler » (pas encore expédiés) ou « Marquer remboursés » après
+   remboursement fait dans Stripe, case « Je confirme » obligatoire, aucun e-mail ; un geste commercial sans retour se fait
+   seulement dans Stripe). Badge « En attente fabricant » (affichage seul, le Sheet garde `en_fabrication`) tant qu'aucun
+   envoi n'est accepté ; envoi non accepté signalé en jaune, en orange après 48 h sans réponse. Pensée pour le téléphone : logo et bouton
+   Actualiser en haut, barre d'onglets en bas (Commandes, Tableau de bord, Statistiques ; les autres sous « Plus »). Autres onglets : Tableau de bord (compteurs, alertes), Statistiques (visites lues dans Umami), Catalogue
+   (STL présents dans R2), Fabricants (en cours / en retard), Système (voyants dont R2 lu pour de vrai, expiration du
+   jeton GitHub avec alerte à J-30, dernier run de fabrication ; chaque voyant a un « ? » qui explique à quoi il sert ;
+   « Lancer la tâche maintenant »), Liens. Tableau de bord :
+   alerte par génération en échec d'un article pas encore envoyé. Icônes de /admin intégrées au Worker
+   (`worker/src/icones.js`, à régénérer par `node tools/icones-admin.mjs` si `assets/icons/` change).
+4. Le fabricant clique « Accepter » puis « Expédier » (transporteur + suivi) dans son e-mail (liens signés, 14 jours) ;
+   **s'il ne livre pas le client** (`Livre le client` = non), « Expédier » signifie « pièce envoyée à l'atelier » : l'article
+   passe à `a_reexpedier`, le client n'est pas prévenu, et il l'est quand le propriétaire déclare la réexpédition dans /admin ;
+   ou « Je ne peux pas la fabriquer » (motif facultatif, possible tant que rien n'est expédié) : articles de nouveau à
+   valider dans /admin (« fabricant à changer »), note datée dans `Notes`, e-mail au propriétaire, anciens liens sans effet.
+   Hors e-mail : fabricant `manuel` ou `atelier` (colonne `Envoi` de `Fabricants`) validé
+   directement « acceptée », fiche à transmettre sur le pli, champ « Référence externe » (colonne facultative de
+   `Commandes CF`) ; `atelier` : comme `manuel` (fichier tranché en plus), mais proposé et accepté seulement pour un
+   article en PLA ou PETG (matières tranchées pour la P2S), fichier tranché sur la fiche ; pour tout fabricant, « Marquer acceptée » / « Déclarer l'expédition » depuis /admin (e-mail client).
+5. Tâche planifiée (toutes les 10 min) : e-mail d'expédition au client (un par colis), relance au propriétaire si pas
+   d'acceptation sous 48 h, renvoi des e-mails en échec, Journal. Statut client (`Commandes EV`) = formule du Sheet.
+
+**Montants, entretien et pilotage** (9 nov. 2026, tout est facultatif côté Sheet : colonnes absentes → ignorées)
+- `Commandes EV` : `Environnement`, `Total TTC (€)`, `dont livraison (€)`, `Remise (€)` écrits à la commande, `Frais Stripe (€)`
+  lus chez Stripe (`finances.js`, repris par l'entretien s'ils manquent) ; `Commandes CF` : `Coût fabricant (€)` et
+  `Frais d'envoi (€)` saisis dans /admin (pli « Coûts » d'un n° CF, un montant par CF) ; sommes et `Marge TTC (€)` = formules
+  du Sheet ; la fiche /admin a un pli « Montants » (marge, ou ce qui manque pour la calculer).
+- Tâche planifiée → `entretien()` (`systeme.js`) : un appel de maintien par jour de la clé Brevo (elle expire après 90 jours
+  sans appel), **sauvegarde hebdomadaire du Sheet** dans R2 (`sauvegardes/evarysth-AAAA-MM-JJ.zip` : un CSV par onglet, formules
+  d'en-têtes, manifeste ; 12 semaines gardées ; téléchargeable et « Sauvegarder maintenant » dans /admin → Système), frais Stripe manquants. États dans
+  R2 (`systeme/*.json`) ; sans R2, tout est inactif.
+- **Pause des ventes** : /admin → Système → « Mettre les ventes en pause » (R2 `systeme/pause.json`) ; `POST /checkout`
+  répond 503 avec le message (affiché tel quel dans le panier), le webhook n'est pas concerné.
+- **Tableau de bord** (aucun e-mail en plus) : à valider, à réexpédier, chez le fabricant, hors délai (délai du fabricant,
+  y compris atelier / envoi manuel), expédiées ce mois, bloquées ; alertes : échéance légale de livraison (CGV, 30 jours :
+  alerte dès le 21e jour), hors délai, à réexpédier, relances 48 h, fichiers en échec, sans fabricant depuis 24 h, coûts
+  fabricant à saisir, ventes en pause, clé Brevo refusée, sauvegarde en échec ou en retard.
+- **Passage en production** : partir d'une copie du Sheet vidée de ses lignes de test (garder en-têtes et formules de la
+  ligne 1), nouveau `SHEET_ID` dans Cloudflare ; la colonne `Environnement` distingue test et live pendant la transition.
+
+**Fichiers** (`worker/src/`) : `index.js` (routes), `commande.js` (panier → Stripe), `sheet.js` / `google.js` (Sheet,
+lecture/écriture par nom de colonne, jamais par position ; en-têtes affichés → noms du code : `NOMS_AFFICHES`), `planifie.js` (tâche), `admin.js` + `acces.js` (page
+d'administration, jeton Access revérifié), `fournisseur.js` + `jeton.js` (liens fabricant), `fichier.js` (STL R2),
+`email.js` (contenus Brevo), `systeme.js` (entretien, sauvegarde, pause), `finances.js` (frais Stripe, marge), `fabrication.js` (déclenchement de la génération, rappel HMAC, liens des fichiers générés,
+relance depuis /admin, état GitHub), `zip.js` (archive des STL d'un article, faite à la demande). Tests : `cd worker && node --test`.
+
+**Deux Workers** (`worker/wrangler.toml`) : `evarysth-checkout` (tout le code et les secrets ; sert `/admin` seulement
+pour l'adresse `ADMIN_HOST`) et `evarysth-admin` (`[env.admin]`, simple relais sans secret, protégé par Access :
+équipe `ACCESS_TEAM_DOMAIN`, application `ACCESS_AUD`, autorisé `ADMIN_EMAILS`). Déployés par
+`.github/workflows/worker.yml` à chaque push sur `main` touchant `worker/` ou `data.js`.
+
+**Secrets** (Cloudflare, Worker `evarysth-checkout`, jamais dans le dépôt public) : `STRIPE_SECRET_KEY`,
+`STRIPE_WEBHOOK_SECRET`, `BREVO_API_KEY`, `ORDER_EMAIL`, `GOOGLE_SA_EMAIL`, `GOOGLE_SA_KEY`, `SHEET_ID`, `HMAC_SECRET` ;
+facultatifs : `GH_ACTIONS_TOKEN`, `FABRICATION_HMAC` (chaîne de fabrication), `UMAMI_SHARE_URL` ou `UMAMI_API_KEY` (onglet Statistiques). Secrets d'Actions (GitHub) :
+`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `FABRICATION_HMAC`, variable `R2_ACCOUNT_ID`.
+En mode test, une clé Stripe live est refusée.
+
+**Points d'attention**
+- Ne jamais supprimer une ligne de commande dans le Sheet : statut `annulee` / `remboursee`. Ne pas écrire dans les colonnes
+  grises (formules, « Dernier statut notifié »).
+- R2 (STL standards) : binding `STL` actif dans `wrangler.toml` (bucket `evarysth-stl`) ; clés `<produit>/<taille>.stl|.zip`,
+  remplies par `.github/workflows/stl-standards.yml` à chaque push sur `main` touchant le catalogue ou les modèles.
+- Brevo : domaine `evarysth.fr` authentifié (DNS OVH), expéditeur `commandes@evarysth.fr`, réponses vers le client ou
+  `contact@evarysth.fr`. La clé API expire après 90 jours sans appel.
+- Paiement différé (SEPA) : cocher aussi `checkout.session.async_payment_succeeded` sur le webhook Stripe.
+- Sécurité : signature Stripe vérifiée, jetons HMAC en temps constant, textes échappés, Sheet écrit en `RAW`, actions
+  GitHub épinglées par SHA. Reste hors code : limite d'appels WAF sur `/checkout` et `/promo`.
+- Reporté : livre des recettes et remboursements Stripe synchronisés (`charge.refunded`).
+
+**Passage en production** : pages légales sans `[À COMPLÉTER]` ; compte Stripe activé, URL CGV et confidentialité dans
+Stripe (Informations publiques), reçus clients cochés ; clé `sk_live_` + webhook live → secrets ; codes promo recréés en
+live ; `CHECKOUT_MODE = "live"` dans `wrangler.toml` et retrait de `?checkout=test` dans `cart.js` ;
+commande réelle à petit prix puis remboursement.
+
+## Générer un STL (fabrication)
 
 `cd tools && npm ci` une fois, puis depuis la racine :
 `node tools/generer-stl.mjs <produit> [a=… b=… c=…] [--taille=<libellé ou 1-3>] [--impression]`. Le calcul est **celui de
@@ -57,7 +172,14 @@ solides obtenus et attendus, contrôles) :
   de la Bambu Lab (256 × 256 × 256 mm, 5 mm entre pièces, bande avant de 10 mm laissée libre pour la ligne de chargement
   de la P2S), un STL par pièce dans les coordonnées du plateau (`<produit>-<cotes>-plateau<n>-<pièce>.stl`), positions
   dans le manifeste ; `--quantite=n` (exemplaires répartis sur plusieurs plateaux, fichiers `-ex<k>`), `--coloris=<id>`,
-  `--cf=<n°>`, `--3mf` (3MF non tranché par plateau).
+  `--cf=<n°>`, `--3mf` (3MF non tranché par plateau, pour un fabricant externe).
+
+**Chaîne de fabrication** (`docs/fabrication.md`) : `node tools/fabriquer.mjs --cf=… --produit=… --cotes='{"a":60}'
+[--coloris=…] [--quantite=n] [--docker=<image>]` enchaîne `generer-stl` → `tools/trancher.mjs` (Bambu Studio dans l'image
+`fabrication/Dockerfile`, profils P2S PLA/PETG, couleur du coloris) → `tools/fiche-impression.mjs` (fiche.html pour le
+fabricant, sans donnée client) et range le tout dans `sortie-fabrication/` (manifeste.json, STL, plateau-<n>.3mf,
+plateau-<n>.gcode.3mf). C'est ce que lance `.github/workflows/fabrication.yml` (essai à la main : onglet Actions →
+« Fabrication » → Run workflow, case « Essai »). Image publiée sur GHCR par `image-fabrication.yml`.
 
 **Erreur** si une cote sort des bornes de `data.js` ou si un contrôle échoue (ci-dessous) ; `--forcer` écrit quand même,
 pour diagnostic.
@@ -86,7 +208,7 @@ cote + jeu. La cote saisie par le client et le prix ne changent pas.
 
 GitHub Pages ne permet pas d'en-têtes HTTP : la Content-Security-Policy est posée en
 `<meta http-equiv="Content-Security-Policy">` dans `index.html` (reprise par toutes les pages
-générées) et `produit.html`. Elle n'autorise que :
+générées), `produit.html` et `commande/merci/index.html`. Elle n'autorise que :
 
 | Directive | Sources | Pourquoi |
 |---|---|---|
@@ -94,14 +216,14 @@ générées) et `produit.html`. Elle n'autorise que :
 | `style-src` | `'self'` `'unsafe-inline'` `fonts.googleapis.com` | feuille du site, attributs `style`, Google Fonts |
 | `font-src` | `'self'` `fonts.gstatic.com` | fichiers de polices |
 | `img-src` | `'self'` `data:` `blob:` | photos, textures 3D |
-| `connect-src` | `'self'` `cloud.umami.is` `gateway.umami.is` | STL locaux, envoi des stats (`gateway.umami.is/api/send`) |
+| `connect-src` | `'self'` `evarysth-checkout.virnichka.workers.dev` `cloud.umami.is` `gateway.umami.is` | STL locaux, Worker de paiement, envoi des stats (`gateway.umami.is/api/send`) |
 | `worker-src` | `'self'` `blob:` | — |
 | `object-src` / `base-uri` / `form-action` | `'none'` / `'self'` / `'self'` | durcissement (`base-uri 'self'` laisse passer le `<base href>`) |
 
 `frame-ancestors` n'est pas pris en compte en meta. **Ajout d'un service externe** (CDN,
-police, stats, API…) : ajouter son hôte à la bonne directive dans les 2 fichiers ci-dessus,
+police, stats, API…) : ajouter son hôte à la bonne directive dans les 3 fichiers ci-dessus,
 puis `node tools/generer-pages.mjs`, et vérifier dans la console qu'aucune violation CSP
-n'apparaît. Les données venant du `localStorage` sont toujours échappées
+n'apparaît. Les données venant du `localStorage` ou du Worker sont toujours échappées
 (`esc()`) avant un `innerHTML`.
 
 ## 3. Où sont rangées les données ?
@@ -110,8 +232,8 @@ Il n'y a **pas de base de données** : tout le contenu est écrit directement da
 | Quoi | Où |
 |---|---|
 | Produits (nom, description, tailles, curseurs sur-mesure, coefficient `valeur` facultatif), univers et leurs textes | `assets/js/data.js` |
-| Tarifs de tous les prix, tailles standard comprises (filament, machine, main-d’œuvre, emballage, frais fixes, lancement, prélèvements, prix minimum ; règle : `docs/prix.md`) | `assets/js/prix.js` (`EVARYSTH.tarif`) et `assets/js/data.js` (matières : €/kg, densité, taux d’échec, filière) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/bareme.md`) |
-| Livraison, emballage cadeau, code promo de démonstration | `assets/js/prix.js` (`EVARYSTH.frais`, lu par le panier) |
+| Tarifs de tous les prix, tailles standard comprises (filament, machine, main-d’œuvre, emballage, frais fixes, lancement, prélèvements, prix minimum ; règle : `docs/prix.md`) | `assets/js/prix.js` (`EVARYSTH.tarif`) et `assets/js/data.js` (matières : €/kg, densité, taux d’échec, filière) ; masse et temps : `assets/js/bareme.js` (généré, voir `docs/fabrication.md`) |
+| Livraison, emballage cadeau, code promo de démonstration | `assets/js/prix.js` (`EVARYSTH.frais`, lu par le panier et le Worker) |
 | Textes fixes de la page : accueil, étapes, FAQ, pied de page | `index.html` |
 | Textes de la fiche produit (boutons, libellés, livraison…) | `assets/js/app.js` |
 | Photos | `assets/photos/<produit>/` |
@@ -130,15 +252,16 @@ Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publi
 3. **Fiche produit** — sur `produits/<id>/`, `app.js` lit le produit dans `data.js`, crée les boutons de taille et un curseur par cote sur-mesure, puis, si le produit a un champ `model`, demande à `viewer3d.js` d'afficher la pièce 3D dans `#viewer3d` (le moteur va alors chercher le plan de cette seule pièce).
    **Paramètre compte** : `{ ...param("a", "Chargeurs", 1, 2, 1), type: "compte", unite: ["chargeur", "chargeurs"] }`
    (min, max, def entiers, pas 1 ; `unite` = [singulier, pluriel]) s'affiche en boutons segmentés (radiogroup, flèches
-   au clavier) au lieu du curseur, sans « mm » ; partout ailleurs (panier) la valeur
-   s'écrit « 2 chargeurs » (`EVARYSTH.texteCote` de `data.js`).
+   au clavier) au lieu du curseur, sans « mm » ; partout ailleurs (panier, page Stripe, Sheet, /admin, e-mails) la valeur
+   s'écrit « 2 chargeurs » (`EVARYSTH.texteCote` de `data.js`). Le Worker n'accepte qu'un entier dans [min, max].
    **Paramètre choix** : `choix("a", "Chargeur de montre", [["apple", "Apple Watch"], ["galaxy", "Galaxy Watch"]], "apple")`
    (fabrique de `data.js` ; défaut : 1re option) donne `{ key, label, type: "choix", options: [{ id, label }], def }`.
    - Valeur = id de l'option (chaîne : minuscules, chiffres, tirets, commence par une lettre) ; clé d'une lettre (`a`, `b`,
      `c`) comme les cotes. Les tailles standard donnent aussi une option à chaque choix (`{ a: "galaxy", b: 60 }`).
    - Fiche : boutons segmentés (radiogroup, flèches au clavier) jusqu'à 4 options aux libellés courts (≤ 12 caractères,
-     28 en tout : une ligne de téléphone), sinon liste déroulante. Partout ailleurs (panier) : le libellé de
-     l'option (`EVARYSTH.texteCote`) ; génération des STL : l'id.
+     28 en tout : une ligne de téléphone), sinon liste déroulante. Partout ailleurs (panier, page Stripe, Sheet, /admin,
+     e-mails, fiche d'impression) : le libellé de l'option (`EVARYSTH.texteCote`) ; métadonnées et fabrication : l'id.
+     Le Worker n'accepte qu'un id d'option connu.
    - Modèle 3D : reçoit l'id avec les autres valeurs (`({ a, b, jeu })`) et dessine l'option ; la caméra est cadrée à
      l'option par défaut. Contrôles (`verifier-geometrie`, tests) : aux cotes min/défaut/max avec les options par défaut,
      puis, aux cotes min et max, chaque option seule et la « diagonale » (k-ième option de chaque choix) ; pas le produit
@@ -152,7 +275,7 @@ Pour changer un texte ou un prix : modifier le bon fichier ci-dessus, puis publi
      « À composer ».
    - **Droit de rétractation** (`EVARYSTH.horsRetractation`, CGV article 8) : un article composé uniquement de comptes et
      de choix garde les 14 jours, comme une taille standard ; seul un article sur-mesure avec au moins une cote en mm en
-     est exclu (case à cocher dans le panier).
+     est exclu (case à cocher dans le panier, revérifiée par le Worker, avertissement sur la page Stripe).
 4. **Bouger un curseur** →
    la nouvelle valeur est enregistrée → `update()` recalcule le prix (`EVARYSTH.priceFor`), les cotes affichées et le résumé → le viewer 3D reçoit les nouvelles cotes et **redessine la pièce** à partir de son plan (`assets/js/modeles/<pièce>.js`).
 5. **Ajouter au panier** — le bouton `#add` transmet le produit et ses cotes à `cart.js`, qui met à jour le panier et le garde en mémoire (`localStorage`).
