@@ -145,7 +145,6 @@
       if (paiement) { payer(); return; }
       const count = items.reduce((s, i) => s + i.qty, 0);
       $("#cart-list").innerHTML = `<li class="empty done">
-        <span class="done__icon">✓</span>
         <h3>Les commandes ouvrent bientôt</h3>
         <p>Votre panier (${count} article${count > 1 ? "s" : ""}) est conservé sur cet appareil : vous pourrez le finaliser dès l'ouverture de la boutique.</p>
         <button class="btn" id="cart-back">Retour au panier</button></li>`;
