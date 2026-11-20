@@ -10,6 +10,7 @@ import { ranger, PLATEAU, MARGE_AVANT, UTILE } from "../lib/impression.mjs";
 import { ficheHtml } from "../fiche-impression.mjs";
 import { FORMATS, lireCotes } from "../fabriquer.mjs";
 import { produit } from "../lib/moteur.mjs";
+import { empreinteAuSol } from "../lib/empreinte-sol.mjs";
 
 const OUTILS = path.resolve(import.meta.dirname, "..");
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "fab-test-"));
@@ -130,4 +131,16 @@ test("fabriquer : matière hors atelier (ASA) → STL + 3MF non tranché + fiche
   assert.equal(h.status, 1);
   assert.match(JSON.parse(fs.readFileSync(path.join(d, "bilan.json"), "utf8")).motif, /^génération : Cote a = 500 hors bornes/);
   fs.rmSync(d, { recursive: true, force: true });
+});
+
+test("tranchage : empreinte au sol = 1re couche relevée par Bambu Studio, même décentrée (bec du pince-sac, a = 220)", () => {
+  const d = tmp();
+  const r = node("generer-stl.mjs", ["pince-sac-verseur", "a=220", "--impression", `--sortie=${d}`]);
+  assert.equal(r.status, 0, r.stderr);
+  const m = JSON.parse(fs.readFileSync(path.join(d, "pince-sac-verseur-a220-impression.json"), "utf8"));
+  const bec = m.impression.plateaux.flat().find(p => /bec/.test(p.stl));
+  const sol = empreinteAuSol(path.join(d, bec.stl), 0.1);
+  /* Relevé de Bambu Studio sur la commande CF-2026-0002-2 (plate_1.json, bbox_objects) */
+  assert.deepEqual(sol.map(v => Math.round(v * 100) / 100), [48.6, 13, 99.6, 43]);
+  assert.ok(Math.abs((sol[0] + sol[2]) / 2 - (bec.boite.min[0] + bec.boite.max[0]) / 2) > 1, "décentrée par rapport à la boîte de la pièce");
 });
