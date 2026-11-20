@@ -21,6 +21,7 @@ import zlib from "node:zlib";
 import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { empreinteAuSol } from "./lib/empreinte-sol.mjs";
 
 const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -96,7 +97,7 @@ function bambu(stls, dossier, nom3mf, filament) {
 }
 
 /* --- Contrôle du .gcode.3mf produit --- */
-function controler(f3mf, pieces, couleur) {
+function controler(f3mf, pieces, couleur, dirM, hCouche) {
   const z = lireZip(fs.readFileSync(f3mf)), err = [];
   for (const e of ["[Content_Types].xml", "_rels/.rels", "3D/3dmodel.model", "Metadata/plate_1.gcode", "Metadata/plate_1.gcode.md5",
     "Metadata/plate_1.json", "Metadata/slice_info.config", "Metadata/project_settings.config"])
@@ -117,13 +118,15 @@ function controler(f3mf, pieces, couleur) {
   for (const p of pieces) {
     const o = plaque.bbox_objects.find(b => b.name === path.basename(p.stl));
     if (!o) { err.push(`${p.stl} absent du plateau`); continue; }
-    /* Boîte de la 1re couche : centrée comme la pièce (aucun déplacement) et contenue dans sa boîte (une base
-       chanfreinée ou arrondie donne une 1re couche plus petite, sans déplacement) */
+    /* Boîte de la 1re couche : centrée comme l'empreinte au sol de la pièce, coupée à mi-hauteur de la 1re couche
+       (aucun déplacement ; une compensation de pied d'éléphant la réduit sans la décentrer), et contenue dans la boîte
+       de la pièce */
     const attendu = [p.boite.min[0], p.boite.min[1], p.boite.max[0], p.boite.max[1]];
-    const ecart = Math.max(Math.abs(o.bbox[0] + o.bbox[2] - attendu[0] - attendu[2]) / 2, Math.abs(o.bbox[1] + o.bbox[3] - attendu[1] - attendu[3]) / 2);
+    const sol = empreinteAuSol(path.join(dirM, p.stl), hCouche) || attendu;
+    const ecart = Math.max(Math.abs(o.bbox[0] + o.bbox[2] - sol[0] - sol[2]) / 2, Math.abs(o.bbox[1] + o.bbox[3] - sol[1] - sol[3]) / 2);
     const deborde = Math.max(attendu[0] - o.bbox[0], attendu[1] - o.bbox[1], o.bbox[2] - attendu[2], o.bbox[3] - attendu[3]);
     if (ecart > TOLERANCE_MM || deborde > TOLERANCE_MM)
-      err.push(`${p.stl} déplacé de ${Math.max(ecart, deborde).toFixed(3)} mm (${o.bbox.map(v => v.toFixed(2))} au lieu de ${attendu})`);
+      err.push(`${p.stl} déplacé de ${Math.max(ecart, deborde).toFixed(3)} mm (1re couche ${o.bbox.map(v => v.toFixed(2))}, empreinte au sol ${sol.map(v => v.toFixed(2))}, boîte ${attendu})`);
   }
   const filament_m = Math.round([...info.matchAll(/<filament [^>]*used_m="([^"]*)"/g)].reduce((s, x) => s + Number(x[1]), 0) * 100) / 100;
   return { ok: err.length === 0, erreurs: err, printer_model: modele, printer_model_id: id, plateau: plaque.bed_type, couleurs, filament_m,
@@ -156,6 +159,8 @@ try {
   fs.mkdirSync(sortie, { recursive: true });
   const bilan = { produit: m.produit, cotes: m.cotes, matiere_produit: m.matiere, couleur, profils: { dossier: path.relative(RACINE, PROFILS), ...P },
     bambu_studio: null, plateaux: [] };
+  /* Mi-hauteur de la 1re couche (profil process) : hauteur de la coupe qui donne l'empreinte au sol attendue */
+  const hCouche = Number(JSON.parse(fs.readFileSync(path.join(PROFILS, P.process), "utf8")).initial_layer_print_height) / 2 || 0.1;
   m.impression.plateaux.forEach((pieces, k) => {
     const stls = pieces.map(p => path.join(dirM, p.stl)), f3mf = `${nom}-plateau${k + 1}.gcode.3mf`;
     const passes = [];
@@ -163,7 +168,7 @@ try {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "trancher-"));
       const { res, duree } = bambu(stls, tmp, f3mf, filament);
       const pl = res.sliced_plates[0];
-      const c = controler(path.join(tmp, f3mf), pieces, couleur);
+      const c = controler(path.join(tmp, f3mf), pieces, couleur, dirM, hCouche);
       const log = fs.readFileSync(path.join(tmp, "bambu-studio.log"), "utf8");
       bilan.bambu_studio ??= (log.match(/Current BambuStudio Version (\S+)/) || [])[1] || null;
       passes.push({ tmp, duree_s: Math.round(duree * 10) / 10,
