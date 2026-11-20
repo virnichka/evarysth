@@ -31,6 +31,7 @@ function ligneAuHasard() {
   const base = { id: p.id, color: p.colors[entier(0, p.colors.length - 1)].id, qty: entier(1, 5) };
   if (hasard() < 0.5) return { ...base, mode: "standard", variant: entier(0, p.variants.options.length - 1) };
   const values = Object.fromEntries(p.custom.params.map(q => {
+    if (q.type === "choix") return [q.key, q.options[entier(0, q.options.length - 1)].id];   /* une option de la liste */
     const n = Math.round((q.max - q.min) / q.step);
     return [q.key, Number((q.min + entier(0, n) * q.step).toFixed(3))];
   }));

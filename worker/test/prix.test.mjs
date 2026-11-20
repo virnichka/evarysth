@@ -28,6 +28,7 @@ test("prix du curseur = prix payé : 100 configurations sur-mesure tirées au ha
   for (let i = 0; i < 100; i++) {
     const p = produits[Math.floor(hasard() * produits.length)];
     const values = Object.fromEntries(p.custom.params.map(q => {
+      if (q.type === "choix") return [q.key, q.options[Math.floor(hasard() * q.options.length)].id];   /* une option de la liste */
       const n = Math.round((q.max - q.min) / q.step);
       return [q.key, Number((q.min + Math.floor(hasard() * (n + 1)) * q.step).toFixed(3))];
     }));
